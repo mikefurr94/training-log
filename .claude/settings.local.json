@@ -15,7 +15,13 @@
       "Bash(echo:*)",
       "Bash(grep:*)",
       "Bash(xargs:*)",
-      "Bash(npx vite build:*)"
+      "Bash(npx vite build:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git push:*)",
+      "Bash(npx vercel logs:*)",
+      "Bash(npx vercel link:*)",
+      "Bash(cat:*)"
     ]
   }
 }

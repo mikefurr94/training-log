@@ -264,6 +264,8 @@ export interface AppActions {
 
   // Habits
   toggleHabitCompletion: (date: string, habitId: string) => void
+  setHabitCompletions: (completions: Record<string, string[]>) => void
+  loadPlanFromDb: (data: Record<string, unknown>) => void
   addHabit: (habit: HabitDefinition) => void
   removeHabit: (id: string) => void
   reorderHabits: (habits: HabitDefinition[]) => void

@@ -310,6 +310,16 @@ export const useAppStore = create<AppStore>()(
           return { habitCompletions: { ...s.habitCompletions, [date]: updated } }
         }),
 
+      setHabitCompletions: (completions: Record<string, string[]>) =>
+        set({ habitCompletions: completions }),
+
+      loadPlanFromDb: (data: Record<string, unknown>) =>
+        set({
+          weekTemplate: (data.weekTemplate as WeekTemplate) ?? {},
+          weekOverrides: (data.weekOverrides as WeekOverride[]) ?? [],
+          keyDates: (data.keyDates as KeyDate[]) ?? [],
+        }),
+
       addHabit: (habit: HabitDefinition) =>
         set((s) => ({ habits: [...s.habits, habit] })),
 

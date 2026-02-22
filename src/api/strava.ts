@@ -1,4 +1,5 @@
 import { getValidToken } from './auth'
+import { useAppStore } from '../store/useAppStore'
 import type { StravaActivity, StravaActivityDetail, HRStream } from '../store/types'
 
 const BASE = '/api/strava'
@@ -22,41 +23,33 @@ async function stravaFetch(path: string, params?: Record<string, string | number
   return res
 }
 
-// Fetch a paginated batch of activities within a Unix timestamp range
-export async function fetchActivities(
-  afterUnix: number,
-  beforeUnix: number,
-  page = 1,
-  perPage = 200
-): Promise<StravaActivity[]> {
-  const res = await stravaFetch('/athlete/activities', {
-    after: afterUnix,
-    before: beforeUnix,
-    per_page: perPage,
-    page,
-  })
-  return res.json()
-}
-
-// Fetch all activities in a range (handles pagination automatically)
+// Fetch all activities in a range — uses Supabase cache via /api/activities
 export async function fetchAllActivitiesInRange(
   after: Date,
   before: Date
 ): Promise<StravaActivity[]> {
+  const token = await getValidToken()
+  const athlete = useAppStore.getState().athlete
+  if (!athlete) throw new Error('Not authenticated')
+
   const afterUnix = Math.floor(after.getTime() / 1000)
   const beforeUnix = Math.floor(before.getTime() / 1000)
 
-  const all: StravaActivity[] = []
-  let page = 1
+  const url = new URL('/api/activities', window.location.origin)
+  url.searchParams.set('athlete_id', String(athlete.id))
+  url.searchParams.set('after', String(afterUnix))
+  url.searchParams.set('before', String(beforeUnix))
 
-  while (true) {
-    const batch = await fetchActivities(afterUnix, beforeUnix, page, 200)
-    all.push(...batch)
-    if (batch.length < 200) break
-    page++
+  const res = await fetch(url.toString(), {
+    headers: { Authorization: `Bearer ${token}` },
+  })
+
+  if (!res.ok) {
+    const text = await res.text().catch(() => '')
+    throw new Error(`Activities fetch error ${res.status}: ${text}`)
   }
 
-  return all
+  return res.json()
 }
 
 // Fetch detailed info for a single activity (includes splits)
@@ -74,7 +67,6 @@ export async function fetchActivityStreams(id: number): Promise<HRStream | null>
     })
     const data = await res.json()
 
-    // Strava returns streams keyed by type when key_by_type=true
     if (!data.heartrate) return null
 
     return {
@@ -83,7 +75,6 @@ export async function fetchActivityStreams(id: number): Promise<HRStream | null>
       distance: data.distance?.data ?? [],
     }
   } catch {
-    // Heart rate data may not be available for all activities/devices
     return null
   }
 }
