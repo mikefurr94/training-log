@@ -3,7 +3,10 @@ import { supabase } from './lib/supabase'
 
 const STRAVA_BASE = 'https://www.strava.com/api/v3'
 
-async function fetchFromStrava(path: string, params: Record<string, string>, auth: string) {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type Activity = Record<string, any>
+
+async function fetchFromStrava(path: string, params: Record<string, string>, auth: string): Promise<Activity[]> {
   const url = new URL(`${STRAVA_BASE}${path}`)
   Object.entries(params).forEach(([k, v]) => url.searchParams.set(k, v))
   const res = await fetch(url.toString(), { headers: { Authorization: auth } })
@@ -33,11 +36,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       .gte('data->>start_date_local', new Date(afterTs * 1000).toISOString().slice(0, 10))
       .lte('data->>start_date_local', new Date(beforeTs * 1000).toISOString().slice(0, 10))
 
-    const cachedIds = new Set((cached ?? []).map((r: { id: number }) => r.id))
-    const cachedActivities = (cached ?? []).map((r: { data: unknown }) => r.data)
+    const cachedIds = new Set((cached ?? []).map((r) => r.id as number))
+    const cachedActivities: Activity[] = (cached ?? []).map((r) => r.data as Activity)
 
     // 2. Fetch all pages from Strava
-    const fresh: Record<string, unknown>[] = []
+    const fresh: Activity[] = []
     let page = 1
     while (true) {
       const batch = await fetchFromStrava('/athlete/activities', {
@@ -52,10 +55,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     // 3. Upsert any new/updated activities into Supabase
-    const toUpsert = fresh.filter((a: Record<string, unknown>) => !cachedIds.has(a.id as number))
+    const toUpsert = fresh.filter((a) => !cachedIds.has(a.id as number))
     if (toUpsert.length > 0) {
       await supabase.from('activities').upsert(
-        toUpsert.map((a: Record<string, unknown>) => ({
+        toUpsert.map((a) => ({
           id: a.id,
           athlete_id: athleteId,
           data: a,
@@ -65,8 +68,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     // 4. Merge cached + fresh (fresh wins on conflict)
-    const freshIds = new Set(fresh.map((a: Record<string, unknown>) => a.id as number))
-    const mergedOld = cachedActivities.filter((a: Record<string, unknown>) => !freshIds.has(a.id as number))
+    const freshIds = new Set(fresh.map((a) => a.id as number))
+    const mergedOld = cachedActivities.filter((a) => !freshIds.has(a.id as number))
     const all = [...fresh, ...mergedOld]
 
     return res.status(200).json(all)
