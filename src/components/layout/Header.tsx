@@ -5,18 +5,18 @@ import ViewToggle from '../ui/ViewToggle'
 import ActivityFilters from '../ui/ActivityFilters'
 import type { AppMode, HabitView } from '../../store/types'
 
-const TRAINING_TABS: { mode: AppMode; label: string; icon: string }[] = [
-  { mode: 'calendar',  label: 'Calendar',  icon: '📅' },
-  { mode: 'grid',      label: 'Grid',      icon: '▦' },
-  { mode: 'dashboard', label: 'Dashboard', icon: '📊' },
-  { mode: 'planner',   label: 'Planner',   icon: '📋' },
-  { mode: 'review',    label: 'Review',    icon: '📈' },
+const TRAINING_TABS: { mode: AppMode; label: string }[] = [
+  { mode: 'calendar',  label: 'Calendar'  },
+  { mode: 'grid',      label: 'Grid'      },
+  { mode: 'dashboard', label: 'Dashboard' },
+  { mode: 'planner',   label: 'Planner'   },
+  { mode: 'review',    label: 'Review'    },
 ]
 
-const HABIT_TABS: { mode: HabitView; label: string; icon: string }[] = [
-  { mode: 'week',      label: 'Weekly',    icon: '📋' },
-  { mode: 'grid',      label: 'Grid',      icon: '▦' },
-  { mode: 'dashboard', label: 'Dashboard', icon: '📊' },
+const HABIT_TABS: { mode: HabitView; label: string }[] = [
+  { mode: 'week',      label: 'Weekly'    },
+  { mode: 'grid',      label: 'Grid'      },
+  { mode: 'dashboard', label: 'Dashboard' },
 ]
 
 export default function Header() {
@@ -74,33 +74,25 @@ export default function Header() {
         flexShrink: 0,
       }}>
         {isTraining ? (
-          TRAINING_TABS.map(({ mode, label: mLabel, icon }) => {
-            const active = appMode === mode
-            return (
-              <button
-                key={mode}
-                onClick={() => setAppMode(mode)}
-                style={tabStyle(active)}
-              >
-                <span style={{ fontSize: 12 }}>{icon}</span>
-                {mLabel}
-              </button>
-            )
-          })
+          TRAINING_TABS.map(({ mode, label: mLabel }) => (
+            <button
+              key={mode}
+              onClick={() => setAppMode(mode)}
+              style={tabStyle(appMode === mode)}
+            >
+              {mLabel}
+            </button>
+          ))
         ) : (
-          HABIT_TABS.map(({ mode, label: mLabel, icon }) => {
-            const active = habitView === mode
-            return (
-              <button
-                key={mode}
-                onClick={() => setHabitView(mode)}
-                style={tabStyle(active)}
-              >
-                <span style={{ fontSize: 12 }}>{icon}</span>
-                {mLabel}
-              </button>
-            )
-          })
+          HABIT_TABS.map(({ mode, label: mLabel }) => (
+            <button
+              key={mode}
+              onClick={() => setHabitView(mode)}
+              style={tabStyle(habitView === mode)}
+            >
+              {mLabel}
+            </button>
+          ))
         )}
       </div>
 
@@ -130,12 +122,13 @@ export default function Header() {
             fontSize: 'var(--font-size-sm)',
             fontWeight: 'var(--font-weight-semibold)',
             color: 'var(--color-text-primary)',
-            minWidth: 120,
+            minWidth: 90,
             textAlign: 'center',
             letterSpacing: '-0.2px',
             display: 'flex',
             alignItems: 'center',
             gap: 5,
+            whiteSpace: 'nowrap',
           }}>
             {isLoading && (
               <span style={{
@@ -379,7 +372,7 @@ function tabStyle(active: boolean): React.CSSProperties {
     display: 'flex',
     alignItems: 'center',
     gap: 5,
-    padding: '5px 11px',
+    padding: '5px 9px',
     borderRadius: 7,
     fontSize: 'var(--font-size-sm)',
     fontWeight: active ? 'var(--font-weight-semibold)' : 'var(--font-weight-medium)',
