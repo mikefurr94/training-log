@@ -57,7 +57,7 @@ export default function LoginPage() {
         </div>
 
         <a
-          href="/auth/strava"
+          href="/api/auth/strava"
           style={{
             display: 'flex',
             alignItems: 'center',

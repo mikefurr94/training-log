@@ -16,7 +16,7 @@ interface RefreshResponse {
 
 // Exchange the OAuth code for tokens (called from CallbackPage)
 export async function exchangeCode(code: string): Promise<TokenResponse> {
-  const res = await fetch(`/auth/callback?code=${encodeURIComponent(code)}`)
+  const res = await fetch(`/api/auth/callback?code=${encodeURIComponent(code)}`)
   if (!res.ok) {
     const err = await res.json().catch(() => ({}))
     throw new Error(err.error ?? 'Token exchange failed')
@@ -36,7 +36,7 @@ export async function getValidToken(): Promise<string> {
   // Refresh if token expires within 5 minutes
   const now = Math.floor(Date.now() / 1000)
   if (tokenExpiresAt && tokenExpiresAt - now < 300) {
-    const res = await fetch('/auth/refresh', {
+    const res = await fetch('/api/auth/refresh', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ refresh_token: refreshToken }),
