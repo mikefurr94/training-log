@@ -1,0 +1,21 @@
+{
+  "permissions": {
+    "allow": [
+      "mcp__mcp-registry__search_mcp_registry",
+      "Bash(node --version:*)",
+      "Bash(npm:*)",
+      "Bash(npx tsc:*)",
+      "Bash(node -e:*)",
+      "Bash(pkill:*)",
+      "Bash(curl:*)",
+      "Bash(xargs kill -9 lsof -ti:3001)",
+      "Bash(xargs kill -9 sleep 1 echo \"All cleared\")",
+      "Bash(lsof:*)",
+      "Bash(xargs kill:*)",
+      "Bash(echo:*)",
+      "Bash(grep:*)",
+      "Bash(xargs:*)",
+      "Bash(npx vite build:*)"
+    ]
+  }
+}
