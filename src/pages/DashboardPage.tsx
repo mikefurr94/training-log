@@ -8,6 +8,7 @@ import {
   LineChart, Line, Legend, ReferenceLine
 } from 'recharts'
 import { useAppStore } from '../store/useAppStore'
+import { useDashboardData } from '../hooks/useDashboardData'
 import { useIsMobile } from '../hooks/useIsMobile'
 import { mapStravaType, getActivityColor, ACTIVITY_COLORS } from '../utils/activityColors'
 import { metersToMiles, formatDuration } from '../utils/formatters'
@@ -70,7 +71,8 @@ function buildWeekStats(
 }
 
 export default function DashboardPage() {
-  const activitiesByDate = useAppStore((s) => s.activitiesByDate)
+  // Fetch the full date range the dashboard needs (YTD + 16 weeks)
+  const activitiesByDate = useDashboardData()
   const distanceUnit = useAppStore((s) => s.distanceUnit)
   const isMobile = useIsMobile()
 
