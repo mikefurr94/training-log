@@ -1,24 +1,31 @@
 import { useEffect, useRef } from 'react'
-import { startOfYear, startOfWeek, subWeeks, min } from 'date-fns'
+import { startOfYear, endOfYear, startOfWeek, subWeeks, min, parseISO } from 'date-fns'
 import { useAppStore } from '../store/useAppStore'
 import { fetchAllActivitiesInRange } from '../api/strava'
 
 /**
  * Proactively ensures activitiesByDate is populated for the full range the
- * calendar grid needs on page load:
- *   - Start of the current year (covers the year heatmap + all monthly views)
- *   - Up to 16 weeks back from today (so the week view always has context)
+ * calendar/grid page needs:
+ *
+ *   On mount (current year):
+ *     - Start of current year through today (covers all month/quarter/year views)
+ *     - At least 16 weeks back (so week view always has context)
+ *
+ *   On anchor change (any year):
+ *     - Full Jan 1 → Dec 31 of the anchor year, so navigating the grid to a
+ *       previous year always fetches that year's complete data.
  *
  * Uses the same markRangeFetched / isRangeFetched caching as useActivities so
  * it never makes duplicate requests, and plays nicely with useDashboardData.
  */
 export function useCalendarData() {
   const store = useAppStore()
+  const anchorDate = useAppStore((s) => s.anchorDate)
   const fetchingRef = useRef(false)
 
+  // On mount: fetch current-year + 16-weeks-back range
   useEffect(() => {
     if (!store.accessToken) return
-    if (fetchingRef.current) return
 
     const today = new Date()
     const yearStart = startOfYear(today)
@@ -27,6 +34,7 @@ export function useCalendarData() {
     const rangeEnd = today
 
     if (store.isRangeFetched(rangeStart, rangeEnd)) return
+    if (fetchingRef.current) return
 
     fetchingRef.current = true
     store.setLoading(true)
@@ -45,4 +53,39 @@ export function useCalendarData() {
         fetchingRef.current = false
       })
   }, [store.accessToken])
+
+  // On anchor change: fetch the full year of the anchor so grid/year views
+  // always have complete data when navigating to a different year.
+  useEffect(() => {
+    if (!store.accessToken) return
+
+    const anchor = parseISO(anchorDate)
+    const today = new Date()
+
+    // Don't re-fetch the current year here — the mount effect covers it
+    if (anchor.getFullYear() === today.getFullYear()) return
+
+    const rangeStart = startOfYear(anchor)
+    const rangeEnd = endOfYear(anchor)
+
+    if (store.isRangeFetched(rangeStart, rangeEnd)) return
+    if (fetchingRef.current) return
+
+    fetchingRef.current = true
+    store.setLoading(true)
+    store.setError(null)
+
+    fetchAllActivitiesInRange(rangeStart, rangeEnd)
+      .then((activities) => {
+        store.addActivities(activities)
+        store.markRangeFetched(rangeStart, rangeEnd)
+      })
+      .catch((err: Error) => {
+        store.setError(err.message)
+      })
+      .finally(() => {
+        store.setLoading(false)
+        fetchingRef.current = false
+      })
+  }, [anchorDate, store.accessToken])
 }
