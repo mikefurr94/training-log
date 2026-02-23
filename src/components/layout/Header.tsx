@@ -10,8 +10,8 @@ const TRAINING_TABS: { mode: AppMode; label: string; icon: string }[] = [
   { mode: 'calendar',  label: 'Calendar',  icon: '📅' },
   { mode: 'grid',      label: 'Grid',      icon: '▦' },
   { mode: 'dashboard', label: 'Dashboard', icon: '📊' },
-  { mode: 'planner',   label: 'Template',  icon: '📋' },
   { mode: 'review',    label: 'Review',    icon: '📈' },
+  { mode: 'planner',   label: 'Template',  icon: '📋' },
 ]
 
 const HABIT_TABS: { mode: HabitView; label: string; icon: string }[] = [
