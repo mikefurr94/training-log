@@ -29,12 +29,12 @@ export default function PlannedBadge({ activity, compact = false, onClick }: Pro
       style={{
         display: 'flex',
         alignItems: 'center',
-        gap: compact ? 3 : 4,
+        gap: compact ? 3 : 5,
         width: '100%',
         background: 'transparent',
         border: `1.5px dashed ${colors.hex}80`,
         borderRadius: 5,
-        padding: compact ? '2px 5px' : '3px 7px',
+        padding: compact ? '2px 5px' : '4px 8px',
         cursor: onClick ? 'pointer' : 'default',
         textAlign: 'left',
         transition: 'all var(--transition-fast)',
@@ -52,9 +52,9 @@ export default function PlannedBadge({ activity, compact = false, onClick }: Pro
         e.currentTarget.style.borderColor = `${colors.hex}80`
       }}
     >
-      <span style={{ fontSize: compact ? 10 : 11, flexShrink: 0, opacity: 0.7 }}>{colors.emoji}</span>
+      <span style={{ fontSize: compact ? 10 : 12, flexShrink: 0, opacity: 0.7 }}>{colors.emoji}</span>
       <span style={{
-        fontSize: compact ? 10 : 'var(--font-size-xs)',
+        fontSize: compact ? 10 : 'var(--font-size-sm)',
         fontWeight: 'var(--font-weight-medium)',
         color: colors.hex,
         opacity: 0.8,
