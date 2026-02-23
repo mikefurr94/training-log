@@ -1,6 +1,7 @@
 import { useAppStore } from '../../store/useAppStore'
 import { mapStravaType, getActivityColor } from '../../utils/activityColors'
 import { formatDistanceShort } from '../../utils/formatters'
+import { secondsToPaceString, speedToSecondsPerMile } from '../../utils/planningUtils'
 import type { StravaActivity } from '../../store/types'
 
 interface Props {
@@ -30,12 +31,12 @@ export default function ActivityBadge({ activity, compact = false, onClick }: Pr
       style={{
         display: 'flex',
         alignItems: 'center',
-        gap: compact ? 3 : 5,
+        gap: compact ? 3 : 4,
         width: '100%',
         background: colors.light,
         border: `1px solid ${colors.border}`,
         borderRadius: 5,
-        padding: compact ? '2px 5px' : '4px 8px',
+        padding: compact ? '2px 5px' : '3px 7px',
         cursor: 'pointer',
         textAlign: 'left',
         transition: 'all var(--transition-fast)',
@@ -55,9 +56,9 @@ export default function ActivityBadge({ activity, compact = false, onClick }: Pr
         spans.forEach((s: HTMLElement) => { s.style.color = '' })
       }}
     >
-      <span style={{ fontSize: compact ? 10 : 12, flexShrink: 0 }}>{colors.emoji}</span>
+      <span style={{ fontSize: compact ? 10 : 11, flexShrink: 0 }}>{colors.emoji}</span>
       <span style={{
-        fontSize: compact ? 10 : 'var(--font-size-sm)',
+        fontSize: compact ? 10 : 'var(--font-size-xs)',
         fontWeight: 'var(--font-weight-medium)',
         color: colors.bg,
         whiteSpace: 'nowrap',
@@ -68,7 +69,7 @@ export default function ActivityBadge({ activity, compact = false, onClick }: Pr
         letterSpacing: '-0.1px',
       }}>
         {isRun && activity.distance > 0
-          ? formatDistanceShort(activity.distance, distanceUnit)
+          ? `${formatDistanceShort(activity.distance, distanceUnit)}${!compact && activity.average_speed > 0 ? ` @ ${secondsToPaceString(speedToSecondsPerMile(activity.average_speed))}/mi` : ''}`
           : colors.label}
       </span>
     </button>

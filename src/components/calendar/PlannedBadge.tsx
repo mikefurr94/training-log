@@ -13,10 +13,8 @@ export default function PlannedBadge({ activity, compact = false, onClick }: Pro
   const type = activity.type as ActivityType
   const colors = getActivityColor(type)
 
-  let label = colors.label
-  if (activity.type === 'Run') {
-    label = `${activity.targetDistance}mi`
-  } else if (activity.type === 'WeightTraining') {
+  let label = getPlannedActivityLabel(activity)
+  if (activity.type === 'WeightTraining') {
     label = activity.workoutType
   }
 
@@ -29,12 +27,12 @@ export default function PlannedBadge({ activity, compact = false, onClick }: Pro
       style={{
         display: 'flex',
         alignItems: 'center',
-        gap: compact ? 3 : 5,
+        gap: compact ? 3 : 4,
         width: '100%',
         background: 'transparent',
         border: `1.5px dashed ${colors.hex}80`,
         borderRadius: 5,
-        padding: compact ? '2px 5px' : '4px 8px',
+        padding: compact ? '2px 5px' : '3px 7px',
         cursor: onClick ? 'pointer' : 'default',
         textAlign: 'left',
         transition: 'all var(--transition-fast)',
@@ -52,9 +50,9 @@ export default function PlannedBadge({ activity, compact = false, onClick }: Pro
         e.currentTarget.style.borderColor = `${colors.hex}80`
       }}
     >
-      <span style={{ fontSize: compact ? 10 : 12, flexShrink: 0, opacity: 0.7 }}>{colors.emoji}</span>
+      <span style={{ fontSize: compact ? 10 : 11, flexShrink: 0, opacity: 0.7 }}>{colors.emoji}</span>
       <span style={{
-        fontSize: compact ? 10 : 'var(--font-size-sm)',
+        fontSize: compact ? 10 : 'var(--font-size-xs)',
         fontWeight: 'var(--font-weight-medium)',
         color: colors.hex,
         opacity: 0.8,
