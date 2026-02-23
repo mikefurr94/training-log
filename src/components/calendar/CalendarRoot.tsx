@@ -2,6 +2,7 @@ import { AnimatePresence, motion } from 'framer-motion'
 import { useAppStore } from '../../store/useAppStore'
 import { useActivities } from '../../hooks/useActivities'
 import { useCalendarRange } from '../../hooks/useCalendarRange'
+import { useCalendarData } from '../../hooks/useCalendarData'
 import { usePlannedActivitiesByDate } from '../../hooks/usePlannedActivitiesByDate'
 import { useIsMobile } from '../../hooks/useIsMobile'
 import WeekView from './WeekView'
@@ -14,6 +15,7 @@ export default function CalendarRoot() {
   const currentView = useAppStore((s) => s.currentView)
   const anchorDate = useAppStore((s) => s.anchorDate)
   const showPlan = useAppStore((s) => s.showPlan)
+  useCalendarData() // proactively fetch YTD + 16 weeks on mount
   const activitiesByDate = useActivities()
   const { anchor, start, end } = useCalendarRange()
   const isMobile = useIsMobile()
