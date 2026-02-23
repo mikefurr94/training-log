@@ -21,7 +21,14 @@
       "Bash(git push:*)",
       "Bash(npx vercel logs:*)",
       "Bash(npx vercel link:*)",
-      "Bash(cat:*)"
+      "Bash(cat:*)",
+      "Bash(npx vercel env rm:*)",
+      "Bash(npx vercel:*)",
+      "Bash(find:*)",
+      "Bash(git checkout:*)",
+      "Bash(npx netlify deploy:*)",
+      "Bash(timeout 5 npx vite:*)",
+      "Bash(vercel:*)"
     ]
   }
 }
