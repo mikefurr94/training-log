@@ -1,8 +1,8 @@
 import { AnimatePresence, motion } from 'framer-motion'
-import { parseISO } from 'date-fns'
 import { useAppStore } from '../../store/useAppStore'
 import { useActivities } from '../../hooks/useActivities'
 import { useCalendarRange } from '../../hooks/useCalendarRange'
+import { usePlannedActivitiesByDate } from '../../hooks/usePlannedActivitiesByDate'
 import { useIsMobile } from '../../hooks/useIsMobile'
 import WeekView from './WeekView'
 import MonthView from './MonthView'
@@ -13,18 +13,23 @@ import YearView from './YearView'
 export default function CalendarRoot() {
   const currentView = useAppStore((s) => s.currentView)
   const anchorDate = useAppStore((s) => s.anchorDate)
+  const showPlan = useAppStore((s) => s.showPlan)
   const activitiesByDate = useActivities()
-  const { anchor } = useCalendarRange()
+  const { anchor, start, end } = useCalendarRange()
   const isMobile = useIsMobile()
 
-  const sharedProps = { anchor, activitiesByDate }
+  // Always call the hook (React rules) but pass empty object when plan is off
+  const rawPlannedByDate = usePlannedActivitiesByDate(start, end)
+  const plannedByDate = showPlan ? rawPlannedByDate : {}
+
+  const sharedProps = { anchor, activitiesByDate, plannedByDate }
 
   const viewMap: Record<string, React.ReactNode> = {
     week: <WeekView {...sharedProps} />,
     month: <MonthView {...sharedProps} showHeader />,
     quarter: <QuarterView {...sharedProps} />,
     '6month': <SixMonthView {...sharedProps} />,
-    year: <YearView {...sharedProps} />,
+    year: <YearView anchor={anchor} activitiesByDate={activitiesByDate} />,
   }
 
   const padding = currentView === 'year' ? 0 : isMobile ? 8 : 16

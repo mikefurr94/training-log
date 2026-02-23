@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
-import { format, parseISO, startOfWeek, addWeeks, subWeeks, addMonths, subMonths } from 'date-fns'
+import { format, parseISO, startOfWeek } from 'date-fns'
 import { navigateAnchor } from '../utils/dateUtils'
 import type {
   AppStore,
@@ -10,7 +10,6 @@ import type {
   HRStream,
   StravaAthlete,
   AppMode,
-  PlannerView,
   WeekTemplate,
   WeekOverride,
   WeekDayIndex,
@@ -209,27 +208,9 @@ export const useAppStore = create<AppStore>()(
       distanceUnit: 'mi',
       setDistanceUnit: (unit) => set({ distanceUnit: unit }),
 
-      // ── Planner navigation ────────────────────────────────────────────
-      plannerAnchor: format(new Date(), 'yyyy-MM-dd'),
-      plannerView: 'month' as PlannerView,
-
-      setPlannerView: (view: PlannerView) => set({ plannerView: view }),
-
-      navigatePlanner: (direction) => {
-        const { plannerAnchor, plannerView } = get()
-        const anchor = parseISO(plannerAnchor)
-        let newAnchor: Date
-        if (plannerView === 'month') {
-          newAnchor = direction === 'next' ? addMonths(anchor, 1) : subMonths(anchor, 1)
-        } else {
-          newAnchor = direction === 'next' ? addWeeks(anchor, 1) : subWeeks(anchor, 1)
-        }
-        set({ plannerAnchor: format(newAnchor, 'yyyy-MM-dd') })
-      },
-
-      goToPlannerToday: () => {
-        set({ plannerAnchor: format(new Date(), 'yyyy-MM-dd') })
-      },
+      // ── Plan overlay ──────────────────────────────────────────────────
+      showPlan: false,
+      toggleShowPlan: () => set((s) => ({ showPlan: !s.showPlan })),
 
       // ── Weekly planning ───────────────────────────────────────────────
       weekTemplate: makeEmptyTemplate(),
@@ -376,7 +357,7 @@ export const useAppStore = create<AppStore>()(
         appMode: state.appMode,
         distanceUnit: state.distanceUnit,
         enabledTypes: state.enabledTypes,
-        plannerView: state.plannerView,
+        showPlan: state.showPlan,
         weekTemplate: state.weekTemplate,
         weekOverrides: state.weekOverrides,
         keyDates: state.keyDates,

@@ -1,13 +1,14 @@
 import { format } from 'date-fns'
 import DayCell from './DayCell'
 import { buildMonthGrid } from '../../utils/dateUtils'
-import type { StravaActivity } from '../../store/types'
+import type { StravaActivity, PlannedActivity } from '../../store/types'
 
 const DAY_HEADERS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
 
 interface Props {
   anchor: Date
   activitiesByDate: Record<string, StravaActivity[]>
+  plannedByDate?: Record<string, PlannedActivity[]>
   compact?: boolean
   showHeader?: boolean
   showMonthLabel?: boolean
@@ -16,6 +17,7 @@ interface Props {
 export default function MonthView({
   anchor,
   activitiesByDate,
+  plannedByDate,
   compact = false,
   showHeader = true,
   showMonthLabel = false,
@@ -76,11 +78,13 @@ export default function MonthView({
             {week.map((date) => {
               const key = format(date, 'yyyy-MM-dd')
               const activities = activitiesByDate[key] ?? []
+              const planned = plannedByDate?.[key]
               return (
                 <DayCell
                   key={key}
                   date={date}
                   activities={activities}
+                  plannedActivities={planned}
                   monthRef={anchor}
                   compact={compact}
                 />

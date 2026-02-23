@@ -160,8 +160,6 @@ export type ThemeMode = 'light' | 'dark'
 
 export type AppMode = 'calendar' | 'grid' | 'dashboard' | 'planner' | 'review'
 
-export type PlannerView = 'week' | 'month' | 'template'
-
 export type ActiveApp = 'training' | 'habits'
 
 // ── Store ────────────────────────────────────────────────────────────────────
@@ -201,9 +199,8 @@ export interface AppState {
   // Unit preference
   distanceUnit: 'mi' | 'km'
 
-  // Planner navigation
-  plannerAnchor: string // ISO date string
-  plannerView: PlannerView
+  // Plan overlay
+  showPlan: boolean
 
   // Weekly planning
   weekTemplate: WeekTemplate
@@ -259,10 +256,8 @@ export interface AppActions {
   // Settings
   setDistanceUnit: (unit: 'mi' | 'km') => void
 
-  // Planner navigation
-  setPlannerView: (view: PlannerView) => void
-  navigatePlanner: (direction: 'prev' | 'next') => void
-  goToPlannerToday: () => void
+  // Plan overlay
+  toggleShowPlan: () => void
 
   // Weekly planning
   setDayTemplate: (day: WeekDayIndex, activities: PlannedActivity[]) => void
