@@ -73,7 +73,7 @@ function DesktopHeader() {
   const isCalendarMode = isTraining && appMode === 'calendar'
   const isPlannerMode = isTraining && appMode === 'planner'
   const showCalendarNav = isTraining && (appMode === 'calendar' || appMode === 'grid')
-  const showPlannerNav = isPlannerMode && plannerView !== 'template'
+  const showPlannerNav = isPlannerMode && plannerView === 'week'
   const showFilters = isTraining && (appMode === 'calendar' || appMode === 'grid' || appMode === 'dashboard' || appMode === 'review')
 
   return (
@@ -263,7 +263,7 @@ function MobileHeader() {
   const showCalendarNav = isTraining && (appMode === 'calendar' || appMode === 'grid')
   const isCalendarMode = isTraining && appMode === 'calendar'
   const isPlannerMode = isTraining && appMode === 'planner'
-  const showPlannerNav = isPlannerMode && plannerView !== 'template'
+  const showPlannerNav = isPlannerMode && plannerView === 'week'
   const showFilters = isTraining && (appMode === 'calendar' || appMode === 'grid' || appMode === 'dashboard' || appMode === 'review')
   const [showMore, setShowMore] = useState(false)
 

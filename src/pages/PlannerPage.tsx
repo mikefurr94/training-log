@@ -1,9 +1,8 @@
 import { useState, useMemo } from 'react'
-import { startOfWeek, startOfMonth, endOfMonth, addDays, format, parseISO, isToday, isSameMonth } from 'date-fns'
+import { startOfWeek, addWeeks, addDays, format, parseISO, isToday, isBefore, startOfDay } from 'date-fns'
 import { useAppStore } from '../store/useAppStore'
 import { useWeekPlan } from '../hooks/useWeekPlan'
 import { useIsMobile } from '../hooks/useIsMobile'
-import { buildMonthGrid } from '../utils/dateUtils'
 import { getPlannedActivityEmoji, getPlannedActivityLabel } from '../utils/planningUtils'
 import DayPlanColumn from '../components/planning/DayPlanColumn'
 import PlannedActivityItem from '../components/planning/PlannedActivityItem'
@@ -37,7 +36,7 @@ export default function PlannerPage() {
         />
       )}
       {plannerView === 'month' && (
-        <PlannerMonthView anchor={anchor} isMobile={isMobile} />
+        <PlannerForwardView isMobile={isMobile} />
       )}
       {plannerView === 'template' && (
         <TemplateSection isMobile={isMobile} />
@@ -46,14 +45,23 @@ export default function PlannerPage() {
   )
 }
 
-// ── Month view (matches calendar MonthView layout) ──────────────────────────
+// ── Forward-looking view: current week + next 3 weeks ───────────────────────
 
-function PlannerMonthView({ anchor, isMobile }: { anchor: Date; isMobile: boolean }) {
-  const weeks = buildMonthGrid(anchor)
+function PlannerForwardView({ isMobile }: { isMobile: boolean }) {
+  const today = startOfDay(new Date())
+  const currentWeekStart = startOfWeek(today, { weekStartsOn: 1 })
   const weekTemplate = useAppStore((s) => s.weekTemplate)
   const weekOverrides = useAppStore((s) => s.weekOverrides)
 
-  // Build a map of date → planned activities for the whole month grid
+  // Build 4 weeks: current week + next 3
+  const weeks = useMemo(() => {
+    return Array.from({ length: 4 }, (_, i) => {
+      const weekStart = addWeeks(currentWeekStart, i)
+      return Array.from({ length: 7 }, (_, d) => addDays(weekStart, d))
+    })
+  }, [currentWeekStart.getTime()])
+
+  // Build a map of date → planned activities for all 4 weeks
   const planByDate = useMemo(() => {
     const map: Record<string, PlannedActivity[]> = {}
     for (const week of weeks) {
@@ -102,11 +110,11 @@ function PlannerMonthView({ anchor, isMobile }: { anchor: Date; isMobile: boolea
         ))}
       </div>
 
-      {/* Calendar weeks grid */}
+      {/* 4-week grid */}
       <div style={{
         flex: 1,
         display: 'grid',
-        gridTemplateRows: `repeat(${weeks.length}, 1fr)`,
+        gridTemplateRows: 'repeat(4, 1fr)',
         gap: 4,
       }}>
         {weeks.map((week, wi) => (
@@ -117,13 +125,14 @@ function PlannerMonthView({ anchor, isMobile }: { anchor: Date; isMobile: boolea
           }}>
             {week.map((date) => {
               const key = format(date, 'yyyy-MM-dd')
-              const activities = planByDate[key] ?? []
+              const isPast = isBefore(startOfDay(date), today)
+              const activities = isPast ? [] : (planByDate[key] ?? [])
               return (
                 <PlannerDayCell
                   key={key}
                   date={date}
                   activities={activities}
-                  monthRef={anchor}
+                  isPast={isPast}
                 />
               )
             })}
@@ -134,18 +143,17 @@ function PlannerMonthView({ anchor, isMobile }: { anchor: Date; isMobile: boolea
   )
 }
 
-// ── Day cell for planner month view (matches calendar DayCell) ──────────────
+// ── Day cell for planner forward view ────────────────────────────────────────
 
 function PlannerDayCell({
   date,
   activities,
-  monthRef,
+  isPast,
 }: {
   date: Date
   activities: PlannedActivity[]
-  monthRef: Date
+  isPast: boolean
 }) {
-  const setDayTemplate = useAppStore((s) => s.setDayTemplate)
   const setDayOverride = useAppStore((s) => s.setDayOverride)
   const weekTemplate = useAppStore((s) => s.weekTemplate)
   const weekOverrides = useAppStore((s) => s.weekOverrides)
@@ -154,7 +162,6 @@ function PlannerDayCell({
   const [editingActivity, setEditingActivity] = useState<PlannedActivity | null>(null)
 
   const today = isToday(date)
-  const outsideMonth = !isSameMonth(date, monthRef)
   const dayIndex = date.getDay() as WeekDayIndex
   const overrideWeekStart = startOfWeek(date, { weekStartsOn: 1 })
 
@@ -192,30 +199,28 @@ function PlannerDayCell({
   return (
     <>
       <div
-        onClick={() => { if (activities.length === 0) setShowModal(true) }}
         style={{
           padding: '6px 8px',
           background: today
             ? 'var(--color-today-bg)'
-            : outsideMonth
+            : isPast
             ? 'var(--color-outside-month)'
             : 'var(--color-surface)',
           borderRadius: 'var(--radius-sm)',
-          opacity: outsideMonth ? 0.45 : 1,
+          opacity: isPast ? 0.45 : 1,
           display: 'flex',
           flexDirection: 'column',
           gap: 3,
           minHeight: 90,
           transition: 'background var(--transition-fast)',
           overflow: 'hidden',
-          cursor: activities.length === 0 ? 'pointer' : 'default',
         }}
       >
-        {/* Date number */}
+        {/* Date number + month label for first day or month boundary */}
         <div style={{
           fontSize: 'var(--font-size-sm)',
           fontWeight: today ? 'var(--font-weight-bold)' : 'var(--font-weight-medium)',
-          color: today ? 'var(--color-accent)' : outsideMonth ? 'var(--color-text-tertiary)' : 'var(--color-text-secondary)',
+          color: today ? 'var(--color-accent)' : isPast ? 'var(--color-text-tertiary)' : 'var(--color-text-secondary)',
           lineHeight: 1,
           letterSpacing: '-0.1px',
           flexShrink: 0,
@@ -236,7 +241,8 @@ function PlannerDayCell({
               {format(date, 'd')}
             </span>
           ) : (
-            format(date, 'd')
+            // Show "Mar 1" for the 1st of a month, otherwise just the day number
+            format(date, date.getDate() === 1 ? 'MMM d' : 'd')
           )}
         </div>
 
@@ -261,6 +267,37 @@ function PlannerDayCell({
             </div>
           )}
         </div>
+
+        {/* Add button — only for today and future */}
+        {!isPast && (
+          <button
+            onClick={() => setShowModal(true)}
+            style={{
+              width: '100%',
+              padding: '3px 0',
+              borderRadius: 'var(--radius-sm)',
+              background: 'transparent',
+              border: '1px dashed var(--color-border)',
+              color: 'var(--color-text-tertiary)',
+              fontSize: 10,
+              cursor: 'pointer',
+              fontWeight: 500,
+              transition: 'all var(--transition-fast)',
+              flexShrink: 0,
+              marginTop: 'auto',
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.borderColor = 'var(--color-accent)'
+              e.currentTarget.style.color = 'var(--color-accent)'
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.borderColor = 'var(--color-border)'
+              e.currentTarget.style.color = 'var(--color-text-tertiary)'
+            }}
+          >
+            + Add
+          </button>
+        )}
       </div>
 
       {showModal && (
