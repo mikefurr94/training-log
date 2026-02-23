@@ -263,22 +263,36 @@ function MobileHeader() {
           <span style={{ fontSize: 9, color: 'var(--color-text-tertiary)', marginLeft: 1 }}>⇄</span>
         </button>
 
-        {/* Period nav — matches Habits app style: ‹ [date] › centered */}
+        {/* Period nav — single pill container matching Habits app style */}
         {showCalendarNav && (
-          <div style={{ display: 'flex', alignItems: 'center', flex: 1, justifyContent: 'center', minWidth: 0 }}>
-            <NavButton onClick={() => navigate('prev')} label="Previous">‹</NavButton>
+          <div style={{
+            display: 'flex', alignItems: 'center', flex: 1, minWidth: 0,
+            border: '1px solid var(--color-border)', borderRadius: 10,
+            overflow: 'hidden',
+          }}>
+            <button onClick={() => navigate('prev')} aria-label="Previous" style={{
+              width: 36, height: 36, flexShrink: 0, background: 'transparent', border: 'none',
+              borderRight: '1px solid var(--color-border)',
+              color: 'var(--color-text-secondary)', fontSize: 22, lineHeight: 1,
+              cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 300,
+            }}>‹</button>
             <span style={{
-              fontSize: 14, fontWeight: 700, color: 'var(--color-text-primary)',
-              whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
-              display: 'flex', alignItems: 'center', gap: 4,
-              flex: 1, justifyContent: 'center', textAlign: 'center',
-              letterSpacing: '-0.3px',
+              flex: 1, textAlign: 'center', fontSize: 14, fontWeight: 700,
+              color: 'var(--color-text-primary)', letterSpacing: '-0.3px',
+              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4,
+              overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis',
+              padding: '0 4px',
             }}>
               {isLoading && <Spinner size={8} />}
               {navLabel}
             </span>
             <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
-            <NavButton onClick={() => navigate('next')} label="Next">›</NavButton>
+            <button onClick={() => navigate('next')} aria-label="Next" style={{
+              width: 36, height: 36, flexShrink: 0, background: 'transparent', border: 'none',
+              borderLeft: '1px solid var(--color-border)',
+              color: 'var(--color-text-secondary)', fontSize: 22, lineHeight: 1,
+              cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 300,
+            }}>›</button>
           </div>
         )}
 
