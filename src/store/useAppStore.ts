@@ -98,9 +98,11 @@ export const useAppStore = create<AppStore>()(
       },
 
       navigate: (direction) => {
-        const { currentView, anchorDate } = get()
+        const { currentView, anchorDate, appMode } = get()
         const anchor = parseISO(anchorDate)
-        const newAnchor = navigateAnchor(currentView, anchor, direction)
+        // Grid view navigates by quarter so each step fetches a clean quarter of data
+        const navView = appMode === 'grid' ? 'quarter' : currentView
+        const newAnchor = navigateAnchor(navView, anchor, direction)
         set({ anchorDate: format(newAnchor, 'yyyy-MM-dd') })
       },
 

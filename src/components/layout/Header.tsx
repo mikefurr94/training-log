@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from 'react'
+import { parseISO, format } from 'date-fns'
 import { useAppStore } from '../../store/useAppStore'
 import { useCalendarRange } from '../../hooks/useCalendarRange'
 import { useIsMobile } from '../../hooks/useIsMobile'
@@ -50,8 +51,15 @@ function DesktopHeader() {
 
   const isTraining = activeApp === 'training'
   const isCalendarMode = isTraining && appMode === 'calendar'
+  const isGridMode = isTraining && appMode === 'grid'
   const showCalendarNav = isTraining && (appMode === 'calendar' || appMode === 'grid')
   const showFilters = isTraining && (appMode === 'calendar' || appMode === 'grid' || appMode === 'dashboard' || appMode === 'review')
+
+  // Grid view uses quarter navigation — compute a quarter label from the anchor
+  const anchorDate = useAppStore((s) => s.anchorDate)
+  const anchor = parseISO(anchorDate)
+  const gridLabel = `Q${Math.ceil((anchor.getMonth() + 1) / 3)} ${format(anchor, 'yyyy')}`
+  const navLabel = isGridMode ? gridLabel : label
 
   return (
     <header style={{
@@ -110,7 +118,7 @@ function DesktopHeader() {
             letterSpacing: '-0.2px', display: 'flex', alignItems: 'center', gap: 5, whiteSpace: 'nowrap',
           }}>
             {isLoading && <Spinner />}
-            {label}
+            {navLabel}
           </span>
           <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
           <NavButton onClick={() => navigate('next')} label="Next period">›</NavButton>
@@ -213,10 +221,16 @@ function MobileHeader() {
   const { label } = useCalendarRange()
 
   const isTraining = activeApp === 'training'
+  const isGridMode = isTraining && appMode === 'grid'
   const showCalendarNav = isTraining && (appMode === 'calendar' || appMode === 'grid')
   const isCalendarMode = isTraining && appMode === 'calendar'
   const showFilters = isTraining && (appMode === 'calendar' || appMode === 'grid' || appMode === 'dashboard' || appMode === 'review')
   const [showMore, setShowMore] = useState(false)
+
+  const mobileAnchorDate = useAppStore((s) => s.anchorDate)
+  const mobileAnchor = parseISO(mobileAnchorDate)
+  const gridLabel = `Q${Math.ceil((mobileAnchor.getMonth() + 1) / 3)} ${format(mobileAnchor, 'yyyy')}`
+  const navLabel = isGridMode ? gridLabel : label
 
   return (
     <>
@@ -264,7 +278,7 @@ function MobileHeader() {
               display: 'flex', alignItems: 'center', gap: 4,
             }}>
               {isLoading && <Spinner size={8} />}
-              {label}
+              {navLabel}
             </span>
             <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
             <NavButton onClick={() => navigate('next')} label="Next">›</NavButton>

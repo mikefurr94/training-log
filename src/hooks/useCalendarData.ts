@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react'
-import { startOfYear, endOfYear, startOfWeek, subWeeks, min, parseISO } from 'date-fns'
+import { startOfYear, startOfQuarter, endOfQuarter, startOfWeek, subWeeks, min, parseISO } from 'date-fns'
 import { useAppStore } from '../store/useAppStore'
 import { fetchAllActivitiesInRange } from '../api/strava'
 
@@ -11,9 +11,9 @@ import { fetchAllActivitiesInRange } from '../api/strava'
  *     - Start of current year through today (covers all month/quarter/year views)
  *     - At least 16 weeks back (so week view always has context)
  *
- *   On anchor change (any year):
- *     - Full Jan 1 → Dec 31 of the anchor year, so navigating the grid to a
- *       previous year always fetches that year's complete data.
+ *   On anchor change:
+ *     - Fetches the full quarter containing the anchor date, so navigating
+ *       the grid back by quarter always loads a complete, clean block of data.
  *
  * Uses the same markRangeFetched / isRangeFetched caching as useActivities so
  * it never makes duplicate requests, and plays nicely with useDashboardData.
@@ -54,19 +54,14 @@ export function useCalendarData() {
       })
   }, [store.accessToken])
 
-  // On anchor change: fetch the full year of the anchor so grid/year views
-  // always have complete data when navigating to a different year.
+  // On anchor change: fetch the full quarter containing the anchor so grid
+  // navigation always loads a complete block of data per step.
   useEffect(() => {
     if (!store.accessToken) return
 
     const anchor = parseISO(anchorDate)
-    const today = new Date()
-
-    // Don't re-fetch the current year here — the mount effect covers it
-    if (anchor.getFullYear() === today.getFullYear()) return
-
-    const rangeStart = startOfYear(anchor)
-    const rangeEnd = endOfYear(anchor)
+    const rangeStart = startOfQuarter(anchor)
+    const rangeEnd = endOfQuarter(anchor)
 
     if (store.isRangeFetched(rangeStart, rangeEnd)) return
     if (fetchingRef.current) return
