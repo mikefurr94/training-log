@@ -1,5 +1,6 @@
 import { format, startOfYear, endOfYear, eachWeekOfInterval, addDays, startOfWeek } from 'date-fns'
 import DayCell from './DayCell'
+import { useIsMobile } from '../../hooks/useIsMobile'
 import type { StravaActivity } from '../../store/types'
 
 const MONTH_LABELS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
@@ -11,6 +12,7 @@ interface Props {
 }
 
 export default function YearView({ anchor, activitiesByDate }: Props) {
+  const isMobile = useIsMobile()
   const yearStart = startOfYear(anchor)
   const yearEnd = endOfYear(anchor)
 
@@ -24,39 +26,41 @@ export default function YearView({ anchor, activitiesByDate }: Props) {
   const monthPositions: { month: number; col: number }[] = []
   weekStarts.forEach((ws, col) => {
     const monthOfMonday = ws.getMonth()
-    const nextSunday = addDays(ws, 6)
-    const monthOfSunday = nextSunday.getMonth()
-    // Label the month on the week it begins
     if (col === 0 || monthOfMonday !== weekStarts[col - 1]?.getMonth()) {
       monthPositions.push({ month: monthOfMonday, col })
     }
   })
+
+  const cellSize = isMobile ? 10 : 14
+  const cellGap = isMobile ? 1 : 2
+  const labelColWidth = isMobile ? 20 : 28
 
   return (
     <div style={{
       overflow: 'auto',
       height: '100%',
       display: 'flex',
-      alignItems: 'flex-start',
-      justifyContent: 'center',
-      padding: '16px 8px',
+      alignItems: isMobile ? 'flex-start' : 'flex-start',
+      justifyContent: isMobile ? 'flex-start' : 'center',
+      padding: isMobile ? '8px 4px' : '16px 8px',
+      WebkitOverflowScrolling: 'touch' as any,
     }}>
       <div>
         {/* Month labels */}
         <div style={{
           display: 'flex',
-          marginLeft: 28,
-          marginBottom: 4,
+          marginLeft: labelColWidth,
+          marginBottom: isMobile ? 2 : 4,
           position: 'relative',
-          height: 16,
+          height: isMobile ? 12 : 16,
         }}>
           {monthPositions.map(({ month, col }) => (
             <div
               key={month}
               style={{
                 position: 'absolute',
-                left: col * 16,
-                fontSize: 'var(--font-size-xs)',
+                left: col * (cellSize + cellGap),
+                fontSize: isMobile ? 8 : 'var(--font-size-xs)',
                 color: 'var(--color-text-secondary)',
                 fontWeight: 'var(--font-weight-medium)',
                 whiteSpace: 'nowrap',
@@ -72,19 +76,19 @@ export default function YearView({ anchor, activitiesByDate }: Props) {
           <div style={{
             display: 'flex',
             flexDirection: 'column',
-            gap: 2,
-            marginRight: 4,
+            gap: cellGap,
+            marginRight: isMobile ? 2 : 4,
             paddingTop: 0,
           }}>
             {DAY_LABELS.map((label, i) => (
               <div key={i} style={{
-                height: 14,
-                fontSize: 9,
+                height: cellSize,
+                fontSize: isMobile ? 7 : 9,
                 color: 'var(--color-text-tertiary)',
                 fontWeight: 500,
-                lineHeight: '14px',
+                lineHeight: `${cellSize}px`,
                 textAlign: 'right',
-                width: 24,
+                width: labelColWidth - (isMobile ? 2 : 4),
               }}>
                 {label}
               </div>
@@ -92,9 +96,9 @@ export default function YearView({ anchor, activitiesByDate }: Props) {
           </div>
 
           {/* Contribution grid */}
-          <div style={{ display: 'flex', gap: 2 }}>
+          <div style={{ display: 'flex', gap: cellGap }}>
             {weekStarts.map((weekStart, wi) => (
-              <div key={wi} style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+              <div key={wi} style={{ display: 'flex', flexDirection: 'column', gap: cellGap }}>
                 {Array.from({ length: 7 }, (_, di) => {
                   const date = addDays(weekStart, di)
                   const key = format(date, 'yyyy-MM-dd')
@@ -102,7 +106,7 @@ export default function YearView({ anchor, activitiesByDate }: Props) {
                   // Only render days within the year
                   const inYear = date >= yearStart && date <= yearEnd
                   if (!inYear) {
-                    return <div key={di} style={{ width: 14, height: 14 }} />
+                    return <div key={di} style={{ width: cellSize, height: cellSize }} />
                   }
                   return (
                     <DayCell
@@ -110,6 +114,7 @@ export default function YearView({ anchor, activitiesByDate }: Props) {
                       date={date}
                       activities={activities}
                       isYearView
+                      size={cellSize}
                     />
                   )
                 })}
@@ -122,16 +127,16 @@ export default function YearView({ anchor, activitiesByDate }: Props) {
         <div style={{
           display: 'flex',
           alignItems: 'center',
-          gap: 6,
-          marginTop: 12,
+          gap: isMobile ? 4 : 6,
+          marginTop: isMobile ? 6 : 12,
           justifyContent: 'flex-end',
           marginRight: 4,
         }}>
-          <span style={{ fontSize: 10, color: 'var(--color-text-tertiary)' }}>Less</span>
+          <span style={{ fontSize: isMobile ? 8 : 10, color: 'var(--color-text-tertiary)' }}>Less</span>
           {['var(--color-border-light)', 'var(--color-run-light)', '#c7d2fe', '#818cf8', 'var(--color-accent)'].map((bg, i) => (
-            <div key={i} style={{ width: 12, height: 12, background: bg, borderRadius: 3 }} />
+            <div key={i} style={{ width: isMobile ? 8 : 12, height: isMobile ? 8 : 12, background: bg, borderRadius: isMobile ? 2 : 3 }} />
           ))}
-          <span style={{ fontSize: 10, color: 'var(--color-text-tertiary)' }}>More</span>
+          <span style={{ fontSize: isMobile ? 8 : 10, color: 'var(--color-text-tertiary)' }}>More</span>
         </div>
       </div>
     </div>

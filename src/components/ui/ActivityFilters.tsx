@@ -14,7 +14,7 @@ export default function ActivityFilters() {
   const toggleActivityType = useAppStore((s) => s.toggleActivityType)
 
   return (
-    <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+    <div style={{ display: 'flex', gap: 4, alignItems: 'center', flexWrap: 'nowrap' }}>
       {TYPES.map(({ type, label, emoji }) => {
         const active = enabledTypes.includes(type)
         const colors = ACTIVITY_COLORS[type]
@@ -26,10 +26,10 @@ export default function ActivityFilters() {
             style={{
               display: 'flex',
               alignItems: 'center',
-              gap: 5,
-              padding: '5px 11px',
+              gap: 4,
+              padding: '4px 8px',
               borderRadius: 'var(--radius-full)',
-              fontSize: 'var(--font-size-sm)',
+              fontSize: 12,
               fontWeight: 'var(--font-weight-medium)',
               border: `1.5px solid ${active ? colors.hex : 'var(--color-border)'}`,
               background: active ? colors.light : 'var(--color-surface)',
@@ -37,9 +37,11 @@ export default function ActivityFilters() {
               cursor: 'pointer',
               transition: 'all var(--transition-fast)',
               userSelect: 'none',
+              whiteSpace: 'nowrap',
+              flexShrink: 0,
             }}
           >
-            <span style={{ fontSize: 13 }}>{emoji}</span>
+            <span style={{ fontSize: 12 }}>{emoji}</span>
             {label}
           </button>
         )

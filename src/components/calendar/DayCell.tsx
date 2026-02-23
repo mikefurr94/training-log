@@ -11,9 +11,10 @@ interface Props {
   monthRef?: Date // to detect out-of-month days
   compact?: boolean // for quarter/6month views
   isYearView?: boolean
+  size?: number // cell size in px for year view (default 14)
 }
 
-export default function DayCell({ date, activities, monthRef, compact = false, isYearView = false }: Props) {
+export default function DayCell({ date, activities, monthRef, compact = false, isYearView = false, size = 14 }: Props) {
   const enabledTypes = useAppStore((s) => s.enabledTypes)
   const selectActivity = useAppStore((s) => s.selectActivity)
 
@@ -45,9 +46,9 @@ export default function DayCell({ date, activities, monthRef, compact = false, i
         title={`${format(date, 'MMM d')}${count > 0 ? `: ${count} activity${count > 1 ? 'ies' : 'y'}` : ''}`}
         onClick={() => visible[0] && selectActivity(visible[0].id)}
         style={{
-          width: 14,
-          height: 14,
-          borderRadius: 3,
+          width: size,
+          height: size,
+          borderRadius: size <= 10 ? 2 : 3,
           background: bgMap[intensity],
           cursor: count > 0 ? 'pointer' : 'default',
           transition: 'transform var(--transition-fast)',

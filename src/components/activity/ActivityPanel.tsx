@@ -4,6 +4,7 @@ import { format, parseISO } from 'date-fns'
 import { useAppStore } from '../../store/useAppStore'
 import { useActivityDetail } from '../../hooks/useActivityDetail'
 import { useActivityStreams } from '../../hooks/useActivityStreams'
+import { useIsMobile } from '../../hooks/useIsMobile'
 import { mapStravaType, getActivityColor } from '../../utils/activityColors'
 import { stravaActivityUrl } from '../../api/strava'
 import { formatDistance, formatDuration } from '../../utils/formatters'
@@ -14,6 +15,7 @@ export default function ActivityPanel() {
   const selectedId = useAppStore((s) => s.selectedActivityId)
   const closePanel = useAppStore((s) => s.closePanel)
   const distanceUnit = useAppStore((s) => s.distanceUnit)
+  const isMobile = useIsMobile()
 
   // Find the activity summary from the store
   const activitiesByDate = useAppStore((s) => s.activitiesByDate)
@@ -52,7 +54,7 @@ export default function ActivityPanel() {
             transition={{ duration: 0.15 }}
             onClick={closePanel}
             style={{
-              position: 'absolute',
+              position: isMobile ? 'fixed' : 'absolute',
               inset: 0,
               background: 'rgba(17, 24, 39, 0.2)',
               backdropFilter: 'blur(1px)',
@@ -62,17 +64,18 @@ export default function ActivityPanel() {
 
           {/* Panel */}
           <motion.div
-            initial={{ x: '100%' }}
-            animate={{ x: 0 }}
-            exit={{ x: '100%' }}
+            initial={{ x: isMobile ? 0 : '100%', y: isMobile ? '100%' : 0 }}
+            animate={{ x: 0, y: 0 }}
+            exit={{ x: isMobile ? 0 : '100%', y: isMobile ? '100%' : 0 }}
             transition={{ type: 'spring', damping: 28, stiffness: 280 }}
             style={{
-              position: 'absolute',
-              top: 0,
-              right: 0,
+              position: isMobile ? 'fixed' : 'absolute',
+              top: isMobile ? 0 : 0,
+              right: isMobile ? 0 : 0,
               bottom: 0,
-              width: 420,
-              maxWidth: '92vw',
+              left: isMobile ? 0 : undefined,
+              width: isMobile ? '100%' : 420,
+              maxWidth: isMobile ? '100%' : '92vw',
               background: 'var(--color-surface)',
               boxShadow: 'var(--shadow-panel)',
               zIndex: 50,
@@ -83,7 +86,8 @@ export default function ActivityPanel() {
           >
             {/* Panel header */}
             <div style={{
-              padding: '16px 20px',
+              padding: isMobile ? '12px 16px' : '16px 20px',
+              paddingTop: isMobile ? 'calc(12px + env(safe-area-inset-top, 0px))' : '16px',
               borderBottom: '1px solid var(--color-border)',
               display: 'flex',
               alignItems: 'flex-start',
@@ -93,16 +97,12 @@ export default function ActivityPanel() {
               {/* Activity type badge */}
               {colors && (
                 <div style={{
-                  width: 40,
-                  height: 40,
+                  width: 40, height: 40,
                   borderRadius: 'var(--radius-md)',
                   background: colors.light,
                   border: `1px solid ${colors.border}`,
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  fontSize: 20,
-                  flexShrink: 0,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  fontSize: 20, flexShrink: 0,
                 }}>
                   {colors.emoji}
                 </div>
@@ -110,25 +110,16 @@ export default function ActivityPanel() {
 
               <div style={{ flex: 1, minWidth: 0 }}>
                 <h2 style={{
-                  fontSize: 'var(--font-size-md)',
-                  fontWeight: 'var(--font-weight-semibold)',
-                  color: 'var(--color-text-primary)',
-                  letterSpacing: '-0.3px',
-                  whiteSpace: 'nowrap',
-                  overflow: 'hidden',
-                  textOverflow: 'ellipsis',
-                  marginBottom: 3,
+                  fontSize: 'var(--font-size-md)', fontWeight: 'var(--font-weight-semibold)',
+                  color: 'var(--color-text-primary)', letterSpacing: '-0.3px',
+                  whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', marginBottom: 3,
                 }}>
                   {summary?.name ?? 'Activity'}
                 </h2>
                 {summary && (
                   <div style={{
-                    fontSize: 'var(--font-size-xs)',
-                    color: 'var(--color-text-tertiary)',
-                    display: 'flex',
-                    gap: 8,
-                    alignItems: 'center',
-                    flexWrap: 'wrap',
+                    fontSize: 'var(--font-size-xs)', color: 'var(--color-text-tertiary)',
+                    display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap',
                   }}>
                     <span>{format(parseISO(summary.start_date_local), 'EEEE, MMMM d, yyyy')}</span>
                     <span>·</span>
@@ -141,25 +132,11 @@ export default function ActivityPanel() {
               <button
                 onClick={closePanel}
                 style={{
-                  width: 28,
-                  height: 28,
+                  width: 32, height: 32,
                   borderRadius: 'var(--radius-sm)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  color: 'var(--color-text-tertiary)',
-                  fontSize: 20,
-                  flexShrink: 0,
-                  transition: 'all var(--transition-fast)',
-                  border: '1px solid transparent',
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.background = 'var(--color-bg)'
-                  e.currentTarget.style.borderColor = 'var(--color-border)'
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.background = 'transparent'
-                  e.currentTarget.style.borderColor = 'transparent'
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  color: 'var(--color-text-tertiary)', fontSize: 22, flexShrink: 0,
+                  border: '1px solid var(--color-border)', background: 'var(--color-bg)',
                 }}
               >
                 ×
@@ -168,12 +145,9 @@ export default function ActivityPanel() {
 
             {/* Panel body */}
             <div style={{
-              flex: 1,
-              overflow: 'auto',
-              padding: '20px',
-              display: 'flex',
-              flexDirection: 'column',
-              gap: 20,
+              flex: 1, overflow: 'auto',
+              padding: isMobile ? '16px' : '20px',
+              display: 'flex', flexDirection: 'column', gap: 20,
             }}>
               {detailLoading ? (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
@@ -199,22 +173,13 @@ export default function ActivityPanel() {
                     target="_blank"
                     rel="noopener noreferrer"
                     style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      gap: 8,
-                      padding: '10px 16px',
-                      background: 'var(--color-strava)',
-                      color: '#ffffff',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+                      padding: '12px 16px',
+                      background: 'var(--color-strava)', color: '#ffffff',
                       borderRadius: 'var(--radius-md)',
-                      fontSize: 'var(--font-size-sm)',
-                      fontWeight: 'var(--font-weight-semibold)',
-                      textDecoration: 'none',
-                      transition: 'background var(--transition-fast)',
-                      flexShrink: 0,
+                      fontSize: 'var(--font-size-sm)', fontWeight: 'var(--font-weight-semibold)',
+                      textDecoration: 'none', flexShrink: 0,
                     }}
-                    onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--color-strava-hover)')}
-                    onMouseLeave={(e) => (e.currentTarget.style.background = 'var(--color-strava)')}
                   >
                     <StravaIcon />
                     View on Strava ↗
@@ -239,34 +204,16 @@ function GenericDetails({ detail, distanceUnit }: { detail: any; distanceUnit: '
   ].filter(Boolean) as { label: string; value: string }[]
 
   return (
-    <div style={{
-      display: 'grid',
-      gridTemplateColumns: '1fr 1fr',
-      gap: 12,
-    }}>
+    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
       {items.map(({ label, value }) => (
         <div key={label} style={{
-          background: 'var(--color-bg)',
-          borderRadius: 'var(--radius-md)',
-          padding: '12px 14px',
-          border: '1px solid var(--color-border)',
+          background: 'var(--color-bg)', borderRadius: 'var(--radius-md)',
+          padding: '12px 14px', border: '1px solid var(--color-border)',
         }}>
-          <div style={{
-            fontSize: 10,
-            fontWeight: 600,
-            color: 'var(--color-text-tertiary)',
-            textTransform: 'uppercase',
-            letterSpacing: '0.08em',
-            marginBottom: 4,
-          }}>
+          <div style={{ fontSize: 10, fontWeight: 600, color: 'var(--color-text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 4 }}>
             {label}
           </div>
-          <div style={{
-            fontSize: 'var(--font-size-lg)',
-            fontWeight: 'var(--font-weight-bold)',
-            color: 'var(--color-text-primary)',
-            letterSpacing: '-0.5px',
-          }}>
+          <div style={{ fontSize: 'var(--font-size-lg)', fontWeight: 'var(--font-weight-bold)', color: 'var(--color-text-primary)', letterSpacing: '-0.5px' }}>
             {value}
           </div>
         </div>

@@ -1,4 +1,5 @@
 import { useAppStore } from '../../store/useAppStore'
+import { useIsMobile } from '../../hooks/useIsMobile'
 import type { CalendarView } from '../../utils/dateUtils'
 
 const VIEWS: { value: CalendarView; label: string }[] = [
@@ -9,9 +10,17 @@ const VIEWS: { value: CalendarView; label: string }[] = [
   { value: 'year', label: 'Year' },
 ]
 
+const MOBILE_VIEWS: { value: CalendarView; label: string }[] = [
+  { value: 'week', label: 'Week' },
+  { value: 'month', label: 'Month' },
+]
+
 export default function ViewToggle() {
   const currentView = useAppStore((s) => s.currentView)
   const setView = useAppStore((s) => s.setView)
+  const isMobile = useIsMobile()
+
+  const views = isMobile ? MOBILE_VIEWS : VIEWS
 
   return (
     <div style={{
@@ -22,7 +31,7 @@ export default function ViewToggle() {
       padding: 3,
       gap: 1,
     }}>
-      {VIEWS.map(({ value, label }) => {
+      {views.map(({ value, label }) => {
         const active = currentView === value
         return (
           <button

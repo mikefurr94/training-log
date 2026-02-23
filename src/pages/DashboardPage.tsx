@@ -8,6 +8,7 @@ import {
   LineChart, Line, Legend, ReferenceLine
 } from 'recharts'
 import { useAppStore } from '../store/useAppStore'
+import { useIsMobile } from '../hooks/useIsMobile'
 import { mapStravaType, getActivityColor, ACTIVITY_COLORS } from '../utils/activityColors'
 import { metersToMiles, formatDuration } from '../utils/formatters'
 import type { StravaActivity } from '../store/types'
@@ -71,6 +72,7 @@ function buildWeekStats(
 export default function DashboardPage() {
   const activitiesByDate = useAppStore((s) => s.activitiesByDate)
   const distanceUnit = useAppStore((s) => s.distanceUnit)
+  const isMobile = useIsMobile()
 
   const weekStats = useMemo(
     () => buildWeekStats(activitiesByDate, WEEKS_TO_SHOW),
@@ -84,7 +86,6 @@ export default function DashboardPage() {
   // Year-to-date totals
   const today = new Date()
   const yearStart = startOfYear(today)
-  const yearEnd = endOfYear(today)
   const ytdActivities = Object.values(activitiesByDate).flat().filter((a) => {
     const d = parseISO(a.start_date_local)
     return isWithinInterval(d, { start: yearStart, end: today })
@@ -102,12 +103,14 @@ export default function DashboardPage() {
     ? nonZeroWeeks.reduce((s, w) => s + w.miles, 0) / nonZeroWeeks.length
     : 0
 
+  const chartInterval = isMobile ? 3 : 1
+
   return (
     <div style={{
-      padding: '24px 28px',
+      padding: isMobile ? '16px 12px 24px' : '24px 28px',
       display: 'flex',
       flexDirection: 'column',
-      gap: 28,
+      gap: isMobile ? 20 : 28,
       maxWidth: 1100,
       margin: '0 auto',
       width: '100%',
@@ -115,56 +118,46 @@ export default function DashboardPage() {
 
       {/* ── Section: This week summary cards ── */}
       <section>
-        <SectionHeader title="This Week" subtitle={thisWeek ? `Week of ${thisWeek.label}` : ''} />
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12 }}>
+        <SectionHeader title="This Week" subtitle={thisWeek ? `Week of ${thisWeek.label}` : ''} isMobile={isMobile} />
+        <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2, 1fr)' : 'repeat(4, 1fr)', gap: isMobile ? 8 : 12 }}>
           <StatCard
-            emoji="🏃"
-            label="Miles Run"
+            emoji="🏃" label="Miles Run"
             value={distanceUnit === 'mi' ? thisWeek?.miles.toFixed(1) ?? '0' : (thisWeek?.miles * 1.60934).toFixed(1) ?? '0'}
             unit={distanceUnit}
             delta={thisWeek && lastWeek ? thisWeek.miles - lastWeek.miles : undefined}
-            deltaLabel="vs last week"
-            color={ACTIVITY_COLORS.Run.hex}
+            deltaLabel="vs last week" color={ACTIVITY_COLORS.Run.hex} isMobile={isMobile}
           />
           <StatCard
-            emoji="🏃"
-            label="Runs"
-            value={String(thisWeek?.runs ?? 0)}
-            unit="sessions"
+            emoji="🏃" label="Runs" value={String(thisWeek?.runs ?? 0)} unit="sessions"
             delta={thisWeek && lastWeek ? thisWeek.runs - lastWeek.runs : undefined}
-            deltaLabel="vs last week"
-            color={ACTIVITY_COLORS.Run.hex}
+            deltaLabel="vs last week" color={ACTIVITY_COLORS.Run.hex} isMobile={isMobile}
           />
           <StatCard
-            emoji="🏋️"
-            label="Weight Sessions"
-            value={String(thisWeek?.weights ?? 0)}
-            unit="sessions"
+            emoji="🏋️" label="Weights" value={String(thisWeek?.weights ?? 0)} unit="sessions"
             delta={thisWeek && lastWeek ? thisWeek.weights - lastWeek.weights : undefined}
-            deltaLabel="vs last week"
-            color={ACTIVITY_COLORS.WeightTraining.hex}
+            deltaLabel="vs last week" color={ACTIVITY_COLORS.WeightTraining.hex} isMobile={isMobile}
           />
           <StatCard
-            emoji="🎾"
-            label="Tennis"
-            value={String(thisWeek?.tennis ?? 0)}
-            unit="sessions"
+            emoji="🎾" label="Tennis" value={String(thisWeek?.tennis ?? 0)} unit="sessions"
             delta={thisWeek && lastWeek ? thisWeek.tennis - lastWeek.tennis : undefined}
-            deltaLabel="vs last week"
-            color={ACTIVITY_COLORS.Tennis.hex}
+            deltaLabel="vs last week" color={ACTIVITY_COLORS.Tennis.hex} isMobile={isMobile}
           />
         </div>
       </section>
 
       {/* ── Section: Year-to-date totals ── */}
       <section>
-        <SectionHeader title={`${format(today, 'yyyy')} Year to Date`} />
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 12 }}>
-          <YTDCard emoji="🏃" label="Total Miles" value={ytdMiles.toFixed(0)} unit={distanceUnit} color={ACTIVITY_COLORS.Run.hex} />
-          <YTDCard emoji="🏃" label="Total Runs" value={String(ytdRuns.length)} unit="runs" color={ACTIVITY_COLORS.Run.hex} />
-          <YTDCard emoji="🏋️" label="Lifts" value={String(ytdWeights)} unit="sessions" color={ACTIVITY_COLORS.WeightTraining.hex} />
-          <YTDCard emoji="🧘" label="Yoga" value={String(ytdYoga)} unit="sessions" color={ACTIVITY_COLORS.Yoga.hex} />
-          <YTDCard emoji="🎾" label="Tennis" value={String(ytdTennis)} unit="sessions" color={ACTIVITY_COLORS.Tennis.hex} />
+        <SectionHeader title={`${format(today, 'yyyy')} Year to Date`} isMobile={isMobile} />
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: isMobile ? 'repeat(3, 1fr)' : 'repeat(5, 1fr)',
+          gap: isMobile ? 8 : 12,
+        }}>
+          <YTDCard emoji="🏃" label="Total Miles" value={ytdMiles.toFixed(0)} unit={distanceUnit} color={ACTIVITY_COLORS.Run.hex} isMobile={isMobile} />
+          <YTDCard emoji="🏃" label="Total Runs" value={String(ytdRuns.length)} unit="runs" color={ACTIVITY_COLORS.Run.hex} isMobile={isMobile} />
+          <YTDCard emoji="🏋️" label="Lifts" value={String(ytdWeights)} unit="sessions" color={ACTIVITY_COLORS.WeightTraining.hex} isMobile={isMobile} />
+          <YTDCard emoji="🧘" label="Yoga" value={String(ytdYoga)} unit="sessions" color={ACTIVITY_COLORS.Yoga.hex} isMobile={isMobile} />
+          <YTDCard emoji="🎾" label="Tennis" value={String(ytdTennis)} unit="sessions" color={ACTIVITY_COLORS.Tennis.hex} isMobile={isMobile} />
         </div>
       </section>
 
@@ -172,14 +165,15 @@ export default function DashboardPage() {
       <section>
         <SectionHeader
           title="Miles per Week"
-          subtitle={`${WEEKS_TO_SHOW}-week rolling · avg ${avgMilesPerWeek.toFixed(1)} ${distanceUnit}/wk`}
+          subtitle={`${WEEKS_TO_SHOW}-wk avg ${avgMilesPerWeek.toFixed(1)} ${distanceUnit}/wk`}
+          isMobile={isMobile}
         />
-        <ChartCard>
-          <ResponsiveContainer width="100%" height={200}>
-            <BarChart data={weekStats} barSize={16} margin={{ top: 4, right: 4, left: -20, bottom: 0 }}>
+        <ChartCard isMobile={isMobile}>
+          <ResponsiveContainer width="100%" height={isMobile ? 180 : 200}>
+            <BarChart data={weekStats} barSize={isMobile ? 10 : 16} margin={{ top: 4, right: 4, left: isMobile ? -28 : -20, bottom: 0 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" vertical={false} />
-              <XAxis dataKey="label" tick={{ fontSize: 11, fill: '#9ca3af' }} tickLine={false} axisLine={false} interval={1} />
-              <YAxis tick={{ fontSize: 11, fill: '#9ca3af' }} tickLine={false} axisLine={false} />
+              <XAxis dataKey="label" tick={{ fontSize: isMobile ? 9 : 11, fill: '#9ca3af' }} tickLine={false} axisLine={false} interval={chartInterval} />
+              <YAxis tick={{ fontSize: isMobile ? 9 : 11, fill: '#9ca3af' }} tickLine={false} axisLine={false} />
               <ReferenceLine y={avgMilesPerWeek} stroke={ACTIVITY_COLORS.Run.hex} strokeDasharray="4 4" strokeOpacity={0.5} />
               <Tooltip content={<MilesTooltip unit={distanceUnit} />} cursor={{ fill: '#f3f4f6' }} />
               <Bar dataKey="miles" fill={ACTIVITY_COLORS.Run.hex} radius={[4, 4, 0, 0]} name={`Miles (${distanceUnit})`} />
@@ -190,19 +184,15 @@ export default function DashboardPage() {
 
       {/* ── Section: Activity counts per week ── */}
       <section>
-        <SectionHeader title="Weekly Activity Breakdown" subtitle={`${WEEKS_TO_SHOW}-week rolling`} />
-        <ChartCard>
-          <ResponsiveContainer width="100%" height={200}>
-            <LineChart data={weekStats} margin={{ top: 4, right: 4, left: -20, bottom: 0 }}>
+        <SectionHeader title="Weekly Breakdown" subtitle={`${WEEKS_TO_SHOW}-week rolling`} isMobile={isMobile} />
+        <ChartCard isMobile={isMobile}>
+          <ResponsiveContainer width="100%" height={isMobile ? 180 : 200}>
+            <LineChart data={weekStats} margin={{ top: 4, right: 4, left: isMobile ? -28 : -20, bottom: 0 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" vertical={false} />
-              <XAxis dataKey="label" tick={{ fontSize: 11, fill: '#9ca3af' }} tickLine={false} axisLine={false} interval={1} />
-              <YAxis tick={{ fontSize: 11, fill: '#9ca3af' }} tickLine={false} axisLine={false} allowDecimals={false} />
+              <XAxis dataKey="label" tick={{ fontSize: isMobile ? 9 : 11, fill: '#9ca3af' }} tickLine={false} axisLine={false} interval={chartInterval} />
+              <YAxis tick={{ fontSize: isMobile ? 9 : 11, fill: '#9ca3af' }} tickLine={false} axisLine={false} allowDecimals={false} />
               <Tooltip content={<ActivityCountTooltip />} />
-              <Legend
-                iconType="circle"
-                iconSize={8}
-                wrapperStyle={{ fontSize: 12, paddingTop: 8 }}
-              />
+              <Legend iconType="circle" iconSize={6} wrapperStyle={{ fontSize: isMobile ? 10 : 12, paddingTop: 8 }} />
               <Line type="monotone" dataKey="runs" stroke={ACTIVITY_COLORS.Run.hex} strokeWidth={2} dot={false} activeDot={{ r: 4 }} name="Runs" />
               <Line type="monotone" dataKey="weights" stroke={ACTIVITY_COLORS.WeightTraining.hex} strokeWidth={2} dot={false} activeDot={{ r: 4 }} name="Weights" />
               <Line type="monotone" dataKey="yoga" stroke={ACTIVITY_COLORS.Yoga.hex} strokeWidth={2} dot={false} activeDot={{ r: 4 }} name="Yoga" />
@@ -214,157 +204,157 @@ export default function DashboardPage() {
 
       {/* ── Section: Week-over-week table ── */}
       <section>
-        <SectionHeader title="Week-over-Week Log" />
+        <SectionHeader title="Week-over-Week Log" isMobile={isMobile} />
         <div style={{
-          background: 'var(--color-surface)',
-          borderRadius: 'var(--radius-lg)',
-          border: '1px solid var(--color-border)',
-          overflow: 'hidden',
+          background: 'var(--color-surface)', borderRadius: 'var(--radius-lg)',
+          border: '1px solid var(--color-border)', overflow: 'auto',
+          WebkitOverflowScrolling: 'touch',
         }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 'var(--font-size-sm)' }}>
-            <thead>
-              <tr style={{ background: 'var(--color-bg)', borderBottom: '1px solid var(--color-border)' }}>
-                {['Week of', 'Miles', 'Runs', 'Weights', 'Yoga', 'Tennis', 'Active Days', 'Total Time'].map((h) => (
-                  <th key={h} style={{
-                    padding: '9px 14px',
-                    textAlign: h === 'Week of' ? 'left' : 'right',
-                    fontSize: 11,
-                    fontWeight: 600,
-                    color: 'var(--color-text-tertiary)',
-                    textTransform: 'uppercase',
-                    letterSpacing: '0.05em',
-                    whiteSpace: 'nowrap',
-                  }}>
-                    {h}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {[...weekStats].reverse().map((w, i) => {
-                const isThisWeek = i === 0
-                return (
-                  <tr
-                    key={w.weekOf}
-                    style={{
+          {isMobile ? (
+            <MobileWeekLog weekStats={weekStats} distanceUnit={distanceUnit} />
+          ) : (
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 'var(--font-size-sm)' }}>
+              <thead>
+                <tr style={{ background: 'var(--color-bg)', borderBottom: '1px solid var(--color-border)' }}>
+                  {['Week of', 'Miles', 'Runs', 'Weights', 'Yoga', 'Tennis', 'Active Days', 'Total Time'].map((h) => (
+                    <th key={h} style={{
+                      padding: '9px 14px', textAlign: h === 'Week of' ? 'left' : 'right',
+                      fontSize: 11, fontWeight: 600, color: 'var(--color-text-tertiary)',
+                      textTransform: 'uppercase', letterSpacing: '0.05em', whiteSpace: 'nowrap',
+                    }}>{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {[...weekStats].reverse().map((w, i) => {
+                  const isThisWeek = i === 0
+                  return (
+                    <tr key={w.weekOf} style={{
                       borderBottom: '1px solid var(--color-border-light)',
                       background: isThisWeek ? 'var(--color-accent-light)' : i % 2 === 0 ? 'var(--color-surface)' : 'var(--color-bg)',
-                    }}
-                  >
-                    <td style={{ padding: '9px 14px', fontWeight: isThisWeek ? 600 : 400, color: isThisWeek ? 'var(--color-accent)' : 'var(--color-text-primary)' }}>
-                      {w.label}{isThisWeek && <span style={{ fontSize: 10, marginLeft: 6, background: 'var(--color-accent)', color: '#fff', padding: '1px 6px', borderRadius: 99, fontWeight: 600 }}>Now</span>}
-                    </td>
-                    <ColorCell value={w.miles.toFixed(1)} max={Math.max(...weekStats.map(x => x.miles))} color={ACTIVITY_COLORS.Run.hex} suffix={distanceUnit} />
-                    <ColorCell value={String(w.runs)} max={Math.max(...weekStats.map(x => x.runs))} color={ACTIVITY_COLORS.Run.hex} />
-                    <ColorCell value={String(w.weights)} max={Math.max(...weekStats.map(x => x.weights))} color={ACTIVITY_COLORS.WeightTraining.hex} />
-                    <ColorCell value={String(w.yoga)} max={Math.max(...weekStats.map(x => x.yoga))} color={ACTIVITY_COLORS.Yoga.hex} />
-                    <ColorCell value={String(w.tennis)} max={Math.max(...weekStats.map(x => x.tennis))} color={ACTIVITY_COLORS.Tennis.hex} />
-                    <td style={{ padding: '9px 14px', textAlign: 'right', color: 'var(--color-text-secondary)', fontVariantNumeric: 'tabular-nums' }}>
-                      {w.totalActivities}
-                    </td>
-                    <td style={{ padding: '9px 14px', textAlign: 'right', color: 'var(--color-text-secondary)', fontVariantNumeric: 'tabular-nums' }}>
-                      {w.totalTime > 0 ? formatDuration(w.totalTime) : '—'}
-                    </td>
-                  </tr>
-                )
-              })}
-            </tbody>
-          </table>
+                    }}>
+                      <td style={{ padding: '9px 14px', fontWeight: isThisWeek ? 600 : 400, color: isThisWeek ? 'var(--color-accent)' : 'var(--color-text-primary)' }}>
+                        {w.label}{isThisWeek && <span style={{ fontSize: 10, marginLeft: 6, background: 'var(--color-accent)', color: '#fff', padding: '1px 6px', borderRadius: 99, fontWeight: 600 }}>Now</span>}
+                      </td>
+                      <ColorCell value={w.miles.toFixed(1)} max={Math.max(...weekStats.map(x => x.miles))} color={ACTIVITY_COLORS.Run.hex} suffix={distanceUnit} />
+                      <ColorCell value={String(w.runs)} max={Math.max(...weekStats.map(x => x.runs))} color={ACTIVITY_COLORS.Run.hex} />
+                      <ColorCell value={String(w.weights)} max={Math.max(...weekStats.map(x => x.weights))} color={ACTIVITY_COLORS.WeightTraining.hex} />
+                      <ColorCell value={String(w.yoga)} max={Math.max(...weekStats.map(x => x.yoga))} color={ACTIVITY_COLORS.Yoga.hex} />
+                      <ColorCell value={String(w.tennis)} max={Math.max(...weekStats.map(x => x.tennis))} color={ACTIVITY_COLORS.Tennis.hex} />
+                      <td style={{ padding: '9px 14px', textAlign: 'right', color: 'var(--color-text-secondary)', fontVariantNumeric: 'tabular-nums' }}>{w.totalActivities}</td>
+                      <td style={{ padding: '9px 14px', textAlign: 'right', color: 'var(--color-text-secondary)', fontVariantNumeric: 'tabular-nums' }}>{w.totalTime > 0 ? formatDuration(w.totalTime) : '—'}</td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          )}
         </div>
       </section>
     </div>
   )
 }
 
+// ── Mobile week log (card-based instead of table) ────────────────────────────
+
+function MobileWeekLog({ weekStats, distanceUnit }: { weekStats: WeekStats[]; distanceUnit: string }) {
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column' }}>
+      {[...weekStats].reverse().map((w, i) => {
+        const isThisWeek = i === 0
+        return (
+          <div key={w.weekOf} style={{
+            padding: '10px 14px',
+            borderBottom: '1px solid var(--color-border-light)',
+            background: isThisWeek ? 'var(--color-accent-light)' : i % 2 === 0 ? 'var(--color-surface)' : 'var(--color-bg)',
+          }}>
+            <div style={{
+              display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6,
+            }}>
+              <span style={{
+                fontSize: 'var(--font-size-sm)', fontWeight: isThisWeek ? 700 : 500,
+                color: isThisWeek ? 'var(--color-accent)' : 'var(--color-text-primary)',
+              }}>
+                {w.label}
+                {isThisWeek && <span style={{ fontSize: 9, marginLeft: 6, background: 'var(--color-accent)', color: '#fff', padding: '1px 5px', borderRadius: 99, fontWeight: 600 }}>Now</span>}
+              </span>
+              <span style={{ fontSize: 11, color: 'var(--color-text-tertiary)' }}>
+                {w.totalTime > 0 ? formatDuration(w.totalTime) : '—'}
+              </span>
+            </div>
+            <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+              {w.miles > 0 && <MiniStat label="Miles" value={`${w.miles.toFixed(1)}`} color={ACTIVITY_COLORS.Run.hex} />}
+              {w.runs > 0 && <MiniStat label="Runs" value={String(w.runs)} color={ACTIVITY_COLORS.Run.hex} />}
+              {w.weights > 0 && <MiniStat label="Wt" value={String(w.weights)} color={ACTIVITY_COLORS.WeightTraining.hex} />}
+              {w.yoga > 0 && <MiniStat label="Yoga" value={String(w.yoga)} color={ACTIVITY_COLORS.Yoga.hex} />}
+              {w.tennis > 0 && <MiniStat label="Tennis" value={String(w.tennis)} color={ACTIVITY_COLORS.Tennis.hex} />}
+              {w.totalActivities === 0 && <span style={{ fontSize: 11, color: 'var(--color-text-tertiary)' }}>No activity</span>}
+            </div>
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
+function MiniStat({ label, value, color }: { label: string; value: string; color: string }) {
+  return (
+    <div style={{ display: 'flex', alignItems: 'baseline', gap: 3 }}>
+      <span style={{ fontSize: 14, fontWeight: 700, color, fontVariantNumeric: 'tabular-nums' }}>{value}</span>
+      <span style={{ fontSize: 10, color: 'var(--color-text-tertiary)', fontWeight: 500 }}>{label}</span>
+    </div>
+  )
+}
+
 // ── Sub-components ────────────────────────────────────────────────────────────
 
-function SectionHeader({ title, subtitle }: { title: string; subtitle?: string }) {
+function SectionHeader({ title, subtitle, isMobile = false }: { title: string; subtitle?: string; isMobile?: boolean }) {
   return (
-    <div style={{ marginBottom: 12 }}>
+    <div style={{ marginBottom: isMobile ? 8 : 12 }}>
       <h2 style={{
-        fontSize: 'var(--font-size-md)',
-        fontWeight: 'var(--font-weight-bold)',
-        color: 'var(--color-text-primary)',
-        letterSpacing: '-0.3px',
-        display: 'inline',
-      }}>
-        {title}
-      </h2>
+        fontSize: isMobile ? 'var(--font-size-base)' : 'var(--font-size-md)',
+        fontWeight: 'var(--font-weight-bold)', color: 'var(--color-text-primary)',
+        letterSpacing: '-0.3px', display: 'inline',
+      }}>{title}</h2>
       {subtitle && (
         <span style={{
-          fontSize: 'var(--font-size-sm)',
-          color: 'var(--color-text-tertiary)',
-          marginLeft: 10,
-          fontWeight: 400,
-        }}>
-          {subtitle}
-        </span>
+          fontSize: isMobile ? 'var(--font-size-xs)' : 'var(--font-size-sm)',
+          color: 'var(--color-text-tertiary)', marginLeft: 8, fontWeight: 400,
+        }}>{subtitle}</span>
       )}
     </div>
   )
 }
 
 function StatCard({
-  emoji, label, value, unit, delta, deltaLabel, color,
+  emoji, label, value, unit, delta, deltaLabel, color, isMobile = false,
 }: {
-  emoji: string
-  label: string
-  value: string
-  unit: string
-  delta?: number
-  deltaLabel?: string
-  color: string
+  emoji: string; label: string; value: string; unit: string
+  delta?: number; deltaLabel?: string; color: string; isMobile?: boolean
 }) {
   const up = delta !== undefined && delta > 0
   const down = delta !== undefined && delta < 0
-  const neutral = delta === undefined || delta === 0
 
   return (
     <div style={{
-      background: 'var(--color-surface)',
-      borderRadius: 'var(--radius-lg)',
+      background: 'var(--color-surface)', borderRadius: 'var(--radius-lg)',
       border: '1px solid var(--color-border)',
-      padding: '16px 18px',
-      display: 'flex',
-      flexDirection: 'column',
-      gap: 8,
+      padding: isMobile ? '12px 12px' : '16px 18px',
+      display: 'flex', flexDirection: 'column', gap: isMobile ? 4 : 8,
     }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
-        <span style={{ fontSize: 18 }}>{emoji}</span>
-        <span style={{
-          fontSize: 11,
-          fontWeight: 600,
-          color: 'var(--color-text-tertiary)',
-          textTransform: 'uppercase',
-          letterSpacing: '0.06em',
-        }}>
-          {label}
-        </span>
+      <div style={{ display: 'flex', alignItems: 'center', gap: isMobile ? 4 : 7 }}>
+        <span style={{ fontSize: isMobile ? 14 : 18 }}>{emoji}</span>
+        <span style={{ fontSize: isMobile ? 10 : 11, fontWeight: 600, color: 'var(--color-text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>{label}</span>
       </div>
-      <div style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
+      <div style={{ display: 'flex', alignItems: 'baseline', gap: 4 }}>
         <span style={{
-          fontSize: 28,
-          fontWeight: 800,
-          color,
-          letterSpacing: '-1.5px',
-          lineHeight: 1,
-          fontVariantNumeric: 'tabular-nums',
-        }}>
-          {value}
-        </span>
-        <span style={{ fontSize: 12, color: 'var(--color-text-tertiary)', fontWeight: 500 }}>
-          {unit}
-        </span>
+          fontSize: isMobile ? 22 : 28, fontWeight: 800, color,
+          letterSpacing: '-1.5px', lineHeight: 1, fontVariantNumeric: 'tabular-nums',
+        }}>{value}</span>
+        <span style={{ fontSize: isMobile ? 10 : 12, color: 'var(--color-text-tertiary)', fontWeight: 500 }}>{unit}</span>
       </div>
       {delta !== undefined && (
-        <div style={{
-          fontSize: 11,
-          color: up ? '#10b981' : down ? '#ef4444' : 'var(--color-text-tertiary)',
-          fontWeight: 500,
-          display: 'flex',
-          alignItems: 'center',
-          gap: 3,
-        }}>
+        <div style={{ fontSize: isMobile ? 10 : 11, color: up ? '#10b981' : down ? '#ef4444' : 'var(--color-text-tertiary)', fontWeight: 500, display: 'flex', alignItems: 'center', gap: 3 }}>
           {up ? '↑' : down ? '↓' : '→'}
           {Math.abs(delta).toFixed(delta % 1 !== 0 ? 1 : 0)} {deltaLabel}
         </div>
@@ -373,37 +363,28 @@ function StatCard({
   )
 }
 
-function YTDCard({ emoji, label, value, unit, color }: {
-  emoji: string; label: string; value: string; unit: string; color: string
+function YTDCard({ emoji, label, value, unit, color, isMobile = false }: {
+  emoji: string; label: string; value: string; unit: string; color: string; isMobile?: boolean
 }) {
   return (
     <div style={{
-      background: 'var(--color-surface)',
-      borderRadius: 'var(--radius-lg)',
-      border: '1px solid var(--color-border)',
-      padding: '14px 16px',
-      display: 'flex',
-      flexDirection: 'column',
-      gap: 6,
+      background: 'var(--color-surface)', borderRadius: 'var(--radius-lg)',
+      border: '1px solid var(--color-border)', padding: isMobile ? '10px 10px' : '14px 16px',
+      display: 'flex', flexDirection: 'column', gap: isMobile ? 3 : 6,
     }}>
-      <div style={{ fontSize: 20 }}>{emoji}</div>
-      <div style={{ fontSize: 24, fontWeight: 800, color, letterSpacing: '-1px', fontVariantNumeric: 'tabular-nums' }}>
-        {value}
-      </div>
-      <div style={{ fontSize: 11, color: 'var(--color-text-tertiary)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-        {label}
-      </div>
+      <div style={{ fontSize: isMobile ? 16 : 20 }}>{emoji}</div>
+      <div style={{ fontSize: isMobile ? 18 : 24, fontWeight: 800, color, letterSpacing: '-1px', fontVariantNumeric: 'tabular-nums' }}>{value}</div>
+      <div style={{ fontSize: isMobile ? 9 : 11, color: 'var(--color-text-tertiary)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>{label}</div>
     </div>
   )
 }
 
-function ChartCard({ children }: { children: React.ReactNode }) {
+function ChartCard({ children, isMobile = false }: { children: React.ReactNode; isMobile?: boolean }) {
   return (
     <div style={{
-      background: 'var(--color-surface)',
-      borderRadius: 'var(--radius-lg)',
+      background: 'var(--color-surface)', borderRadius: 'var(--radius-lg)',
       border: '1px solid var(--color-border)',
-      padding: '16px 16px 8px',
+      padding: isMobile ? '10px 8px 4px' : '16px 16px 8px',
     }}>
       {children}
     </div>
@@ -415,11 +396,8 @@ function ColorCell({ value, max, color, suffix = '' }: { value: string; max: num
   const intensity = max > 0 ? num / max : 0
   return (
     <td style={{
-      padding: '9px 14px',
-      textAlign: 'right',
-      fontVariantNumeric: 'tabular-nums',
-      fontWeight: num > 0 ? 600 : 400,
-      color: num > 0 ? color : 'var(--color-text-tertiary)',
+      padding: '9px 14px', textAlign: 'right', fontVariantNumeric: 'tabular-nums',
+      fontWeight: num > 0 ? 600 : 400, color: num > 0 ? color : 'var(--color-text-tertiary)',
       opacity: num > 0 ? 0.4 + intensity * 0.6 : 1,
     }}>
       {num > 0 ? `${value}${suffix ? ` ${suffix}` : ''}` : '—'}
@@ -430,18 +408,9 @@ function ColorCell({ value, max, color, suffix = '' }: { value: string; max: num
 function MilesTooltip({ active, payload, label, unit }: any) {
   if (!active || !payload?.length) return null
   return (
-    <div style={{
-      background: 'var(--color-surface)',
-      border: '1px solid var(--color-border)',
-      borderRadius: 'var(--radius-sm)',
-      padding: '8px 12px',
-      fontSize: 12,
-      boxShadow: 'var(--shadow-md)',
-    }}>
+    <div style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-sm)', padding: '8px 12px', fontSize: 12, boxShadow: 'var(--shadow-md)' }}>
       <div style={{ fontWeight: 600, marginBottom: 4 }}>Week of {label}</div>
-      <div style={{ color: ACTIVITY_COLORS.Run.hex, fontWeight: 700 }}>
-        {payload[0]?.value} {unit}
-      </div>
+      <div style={{ color: ACTIVITY_COLORS.Run.hex, fontWeight: 700 }}>{payload[0]?.value} {unit}</div>
     </div>
   )
 }
@@ -449,14 +418,7 @@ function MilesTooltip({ active, payload, label, unit }: any) {
 function ActivityCountTooltip({ active, payload, label }: any) {
   if (!active || !payload?.length) return null
   return (
-    <div style={{
-      background: 'var(--color-surface)',
-      border: '1px solid var(--color-border)',
-      borderRadius: 'var(--radius-sm)',
-      padding: '8px 12px',
-      fontSize: 12,
-      boxShadow: 'var(--shadow-md)',
-    }}>
+    <div style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-sm)', padding: '8px 12px', fontSize: 12, boxShadow: 'var(--shadow-md)' }}>
       <div style={{ fontWeight: 600, marginBottom: 6 }}>Week of {label}</div>
       {payload.map((p: any) => (
         <div key={p.name} style={{ display: 'flex', gap: 8, justifyContent: 'space-between', color: p.color }}>

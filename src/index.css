@@ -29,9 +29,9 @@
   --color-run-light: #eef2ff;
   --color-run-border: #c7d2fe;
 
-  --color-weight: #10b981;
-  --color-weight-light: #ecfdf5;
-  --color-weight-border: #a7f3d0;
+  --color-weight: #0891b2;
+  --color-weight-light: #ecfeff;
+  --color-weight-border: #a5f3fc;
 
   --color-yoga: #8b5cf6;
   --color-yoga-light: #f5f3ff;
@@ -40,6 +40,10 @@
   --color-tennis: #f59e0b;
   --color-tennis-light: #fffbeb;
   --color-tennis-border: #fde68a;
+
+  --color-rest: #ec4899;
+  --color-rest-light: #fdf2f8;
+  --color-rest-border: #fbcfe8;
 
   /* Strava brand (used only for Connect button) */
   --color-strava: #fc4c02;
@@ -138,9 +142,9 @@
   --color-run-light: #1e1b4b;
   --color-run-border: #3730a3;
 
-  --color-weight: #34d399;
-  --color-weight-light: #052e1c;
-  --color-weight-border: #065f46;
+  --color-weight: #22d3ee;
+  --color-weight-light: #082f3a;
+  --color-weight-border: #0e4f62;
 
   --color-yoga: #a78bfa;
   --color-yoga-light: #1e1637;
@@ -149,6 +153,10 @@
   --color-tennis: #fbbf24;
   --color-tennis-light: #2a2008;
   --color-tennis-border: #78350f;
+
+  --color-rest: #f472b6;
+  --color-rest-light: #2d0f1e;
+  --color-rest-border: #7c1d44;
 
   --color-strava: #fc4c02;
   --color-strava-hover: #e03d00;
@@ -241,4 +249,40 @@ button {
   background: var(--color-border-light);
   border-radius: var(--radius-sm);
   animation: skeleton-pulse 1.5s ease-in-out infinite;
+}
+
+/* ── Mobile optimizations ─────────────────────────────────────────────────── */
+
+/* Safe area insets for notched iPhones */
+html {
+  padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+}
+
+/* Prevent tap highlight on iOS Safari */
+* {
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Prevent text size adjustment on orientation change */
+html {
+  -webkit-text-size-adjust: 100%;
+}
+
+/* Make touch targets at least 44px (Apple HIG minimum) */
+@media (max-width: 768px) {
+  button, a, [role="button"] {
+    min-height: 36px;
+    min-width: 36px;
+  }
+}
+
+/* Hide scrollbars on mobile for cleaner look, keep scrolling */
+@media (max-width: 768px) {
+  ::-webkit-scrollbar {
+    display: none;
+  }
+  * {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
 }

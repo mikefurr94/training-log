@@ -25,6 +25,7 @@ export default function PlannedActivityItem({ activity, onEdit, onDelete }: Prop
         {getPlannedActivityEmoji(activity)}
       </span>
       <span
+        title={getPlannedActivityLabel(activity)}
         style={{
           flex: 1,
           color: 'var(--color-text-primary)',

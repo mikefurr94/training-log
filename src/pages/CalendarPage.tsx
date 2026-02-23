@@ -1,5 +1,5 @@
 import { AnimatePresence, motion } from 'framer-motion'
-import Header from '../components/layout/Header'
+import Header, { MobileTabBar } from '../components/layout/Header'
 import CalendarRoot from '../components/calendar/CalendarRoot'
 import GridView from '../components/calendar/GridView'
 import ActivityPanel from '../components/activity/ActivityPanel'
@@ -12,6 +12,7 @@ import HabitDashboard from '../components/habits/HabitDashboard'
 import { useAppStore } from '../store/useAppStore'
 import { useActivities } from '../hooks/useActivities'
 import { useCalendarRange } from '../hooks/useCalendarRange'
+import { useIsMobile } from '../hooks/useIsMobile'
 
 // Separate component so hooks run inside the calendar data context
 function GridContainer() {
@@ -26,9 +27,12 @@ export default function CalendarPage() {
   const activeApp = useAppStore((s) => s.activeApp)
   const appMode = useAppStore((s) => s.appMode)
   const habitView = useAppStore((s) => s.habitView)
+  const isMobile = useIsMobile()
 
   const isTraining = activeApp === 'training'
   const viewKey = isTraining ? appMode : habitView
+
+  const mobilePadding = isMobile ? '12px 12px 20px' : '24px 24px 40px'
 
   return (
     <div style={{
@@ -46,7 +50,7 @@ export default function CalendarPage() {
           borderBottom: '1px solid var(--color-status-missed-border)',
           color: 'var(--color-status-missed-text)',
           fontSize: 'var(--font-size-sm)',
-          padding: '8px 24px',
+          padding: isMobile ? '6px 12px' : '8px 24px',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
@@ -83,7 +87,7 @@ export default function CalendarPage() {
             )}
 
             {isTraining && appMode === 'planner' && (
-              <div style={{ flex: 1, overflow: 'auto' }}>
+              <div style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
                 <PlannerPage />
               </div>
             )}
@@ -96,19 +100,19 @@ export default function CalendarPage() {
 
             {/* Habit views */}
             {!isTraining && habitView === 'week' && (
-              <div style={{ flex: 1, overflow: 'auto', padding: '24px 24px 40px' }}>
+              <div style={{ flex: 1, overflow: 'auto', padding: mobilePadding }}>
                 <HabitWeekView />
               </div>
             )}
 
             {!isTraining && habitView === 'grid' && (
-              <div style={{ flex: 1, overflow: 'auto', padding: '24px 24px 40px' }}>
+              <div style={{ flex: 1, overflow: 'auto', padding: mobilePadding }}>
                 <HabitGridView />
               </div>
             )}
 
             {!isTraining && habitView === 'dashboard' && (
-              <div style={{ flex: 1, overflow: 'auto', padding: '24px 24px 40px' }}>
+              <div style={{ flex: 1, overflow: 'auto', padding: mobilePadding }}>
                 <HabitDashboard />
               </div>
             )}
@@ -117,6 +121,9 @@ export default function CalendarPage() {
 
         <ActivityPanel />
       </div>
+
+      {/* Bottom tab bar on mobile */}
+      {isMobile && <MobileTabBar />}
     </div>
   )
 }

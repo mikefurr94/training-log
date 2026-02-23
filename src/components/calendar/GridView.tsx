@@ -1,6 +1,7 @@
 import React from 'react'
 import { format, startOfYear, endOfYear, eachWeekOfInterval, addDays } from 'date-fns'
 import { useAppStore } from '../../store/useAppStore'
+import { useIsMobile } from '../../hooks/useIsMobile'
 import { mapStravaType, getActivityColor, ALL_ACTIVITY_TYPES } from '../../utils/activityColors'
 import type { ActivityType } from '../../utils/activityColors'
 import type { StravaActivity } from '../../store/types'
@@ -23,6 +24,7 @@ interface DayData {
 export default function GridView({ anchor, activitiesByDate }: Props) {
   const enabledTypes = useAppStore((s) => s.enabledTypes)
   const selectActivity = useAppStore((s) => s.selectActivity)
+  const isMobile = useIsMobile()
 
   const activeTypes = ALL_ACTIVITY_TYPES.filter((t) => enabledTypes.includes(t))
 
@@ -60,12 +62,13 @@ export default function GridView({ anchor, activitiesByDate }: Props) {
     <div style={{
       height: '100%',
       overflow: 'auto',
-      padding: '20px 24px 40px',
+      padding: isMobile ? '8px 8px 24px' : '20px 24px 40px',
       display: 'flex',
       flexDirection: 'column',
-      gap: 32,
+      gap: isMobile ? 20 : 32,
+      WebkitOverflowScrolling: 'touch' as any,
     }}>
-      {activeTypes.map((type, typeIdx) => (
+      {activeTypes.map((type) => (
         <ActivityGrid
           key={type}
           type={type}
@@ -74,6 +77,7 @@ export default function GridView({ anchor, activitiesByDate }: Props) {
           totalWeeks={totalWeeks}
           showMonthLabels={true}
           onSelect={selectActivity}
+          isMobile={isMobile}
         />
       ))}
 
@@ -96,6 +100,7 @@ function ActivityGrid({
   totalWeeks,
   showMonthLabels,
   onSelect,
+  isMobile,
 }: {
   type: ActivityType
   grid: DayData[][]
@@ -103,8 +108,10 @@ function ActivityGrid({
   totalWeeks: number
   showMonthLabels: boolean
   onSelect: (id: number) => void
+  isMobile: boolean
 }) {
   const colors = getActivityColor(type)
+  const dayLabelWidth = isMobile ? 14 : DAY_LABEL_WIDTH
 
   // Count total for the year
   let total = 0
@@ -123,26 +130,26 @@ function ActivityGrid({
   return (
     <div>
       {/* Lane header */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8, marginLeft: DAY_LABEL_WIDTH }}>
-        <span style={{ fontSize: 16 }}>{colors.emoji}</span>
-        <span style={{ fontSize: 'var(--font-size-sm)', fontWeight: 700, color: 'var(--color-text-primary)' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: isMobile ? 5 : 8, marginBottom: isMobile ? 4 : 8, marginLeft: dayLabelWidth }}>
+        <span style={{ fontSize: isMobile ? 13 : 16 }}>{colors.emoji}</span>
+        <span style={{ fontSize: isMobile ? 11 : 'var(--font-size-sm)', fontWeight: 700, color: 'var(--color-text-primary)' }}>
           {colors.label}
         </span>
-        <span style={{ fontSize: 11, color: 'var(--color-text-tertiary)', marginLeft: 2 }}>
+        <span style={{ fontSize: isMobile ? 9 : 11, color: 'var(--color-text-tertiary)', marginLeft: 2 }}>
           {total} this year
         </span>
       </div>
 
       {/* Month labels */}
       {showMonthLabels && (
-        <div style={{ marginLeft: DAY_LABEL_WIDTH, marginBottom: 4, position: 'relative', height: 14 }}>
+        <div style={{ marginLeft: dayLabelWidth, marginBottom: isMobile ? 2 : 4, position: 'relative', height: isMobile ? 10 : 14 }}>
           {monthPositions.map(({ month, col }) => (
             <span
               key={month}
               style={{
                 position: 'absolute',
                 left: `calc(${(col / totalWeeks) * 100}%)`,
-                fontSize: 10,
+                fontSize: isMobile ? 7 : 10,
                 color: QUARTER_START_MONTHS.has(month)
                   ? 'var(--color-text-secondary)'
                   : 'var(--color-text-tertiary)',
@@ -160,14 +167,14 @@ function ActivityGrid({
       {/* Day rows with quarter dividers */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
         {DAY_LABELS.map((dayLabel, di) => (
-          <div key={di} style={{ display: 'flex', alignItems: 'stretch', width: '100%', marginBottom: 3 }}>
+          <div key={di} style={{ display: 'flex', alignItems: 'stretch', width: '100%', marginBottom: isMobile ? 1 : 3 }}>
             <div style={{
-              width: DAY_LABEL_WIDTH,
-              fontSize: 9,
+              width: dayLabelWidth,
+              fontSize: isMobile ? 7 : 9,
               color: 'var(--color-text-tertiary)',
               fontWeight: 600,
               textAlign: 'right',
-              paddingRight: 6,
+              paddingRight: isMobile ? 3 : 6,
               flexShrink: 0,
               letterSpacing: '0.04em',
               display: 'flex',
@@ -175,7 +182,7 @@ function ActivityGrid({
             }}>
               {dayLabel}
             </div>
-            <div style={{ display: 'flex', flex: 1, gap: 3 }}>
+            <div style={{ display: 'flex', flex: 1, gap: isMobile ? 1 : 3 }}>
               {grid.map((week, wi) => {
                 const isQuarterStart = quarterCols.includes(wi)
                 const day = week[di]
@@ -186,8 +193,8 @@ function ActivityGrid({
 
                 return (
                   <React.Fragment key={wi}>
-                    {/* Inline quarter divider — perfectly centred in its own space */}
-                    {isQuarterStart && (
+                    {/* Inline quarter divider */}
+                    {isQuarterStart && !isMobile && (
                       <div
                         aria-hidden
                         style={{
@@ -202,7 +209,7 @@ function ActivityGrid({
                       />
                     )}
                     {!day.inYear ? (
-                      <div style={{ flex: 1, aspectRatio: '1', borderRadius: 3, background: 'transparent' }} />
+                      <div style={{ flex: 1, aspectRatio: '1', borderRadius: isMobile ? 1 : 3, background: 'transparent' }} />
                     ) : (
                       <div
                         title={`${format(day.date, 'EEE, MMM d')}${hasActivity ? ` · ${colors.label}` : ''}`}
@@ -210,7 +217,7 @@ function ActivityGrid({
                         style={{
                           flex: 1,
                           aspectRatio: '1',
-                          borderRadius: 3,
+                          borderRadius: isMobile ? 1 : 3,
                           background: hasActivity ? colors.hex : 'var(--color-border-light, #e5e7eb)',
                           cursor: hasActivity ? 'pointer' : 'default',
                           transition: 'opacity 80ms ease',

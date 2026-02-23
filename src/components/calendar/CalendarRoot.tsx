@@ -3,6 +3,7 @@ import { parseISO } from 'date-fns'
 import { useAppStore } from '../../store/useAppStore'
 import { useActivities } from '../../hooks/useActivities'
 import { useCalendarRange } from '../../hooks/useCalendarRange'
+import { useIsMobile } from '../../hooks/useIsMobile'
 import WeekView from './WeekView'
 import MonthView from './MonthView'
 import QuarterView from './QuarterView'
@@ -14,6 +15,7 @@ export default function CalendarRoot() {
   const anchorDate = useAppStore((s) => s.anchorDate)
   const activitiesByDate = useActivities()
   const { anchor } = useCalendarRange()
+  const isMobile = useIsMobile()
 
   const sharedProps = { anchor, activitiesByDate }
 
@@ -25,11 +27,13 @@ export default function CalendarRoot() {
     year: <YearView {...sharedProps} />,
   }
 
+  const padding = currentView === 'year' ? 0 : isMobile ? 8 : 16
+
   return (
     <div style={{
       height: '100%',
-      padding: currentView === 'year' ? 0 : 16,
-      overflow: 'hidden',
+      padding,
+      overflow: isMobile ? 'auto' : 'hidden',
       display: 'flex',
       flexDirection: 'column',
     }}>
@@ -40,7 +44,7 @@ export default function CalendarRoot() {
           animate={{ opacity: 1, y: 0 }}
           exit={{ opacity: 0, y: -6 }}
           transition={{ duration: 0.15, ease: 'easeOut' }}
-          style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}
+          style={{ flex: 1, overflow: isMobile ? 'visible' : 'hidden', display: 'flex', flexDirection: 'column' }}
         >
           {viewMap[currentView]}
         </motion.div>

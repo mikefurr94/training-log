@@ -95,6 +95,8 @@ export type WorkoutType =
 
 export type WeekDayIndex = 0 | 1 | 2 | 3 | 4 | 5 | 6 // 0 = Sunday
 
+// ── Planned Activities ──────────────────────────────────────────────────────
+
 export type PlannedActivity =
   | { id: string; type: 'Run'; targetDistance: number; targetPace: string; notes?: string }
   | { id: string; type: 'WeightTraining'; workoutType: WorkoutType; notes?: string }
@@ -158,6 +160,8 @@ export type ThemeMode = 'light' | 'dark'
 
 export type AppMode = 'calendar' | 'grid' | 'dashboard' | 'planner' | 'review'
 
+export type PlannerTab = 'week' | 'template'
+
 export type ActiveApp = 'training' | 'habits'
 
 // ── Store ────────────────────────────────────────────────────────────────────
@@ -196,6 +200,10 @@ export interface AppState {
 
   // Unit preference
   distanceUnit: 'mi' | 'km'
+
+  // Planner navigation
+  plannerAnchor: string // ISO date string
+  plannerTab: PlannerTab
 
   // Weekly planning
   weekTemplate: WeekTemplate
@@ -250,6 +258,11 @@ export interface AppActions {
 
   // Settings
   setDistanceUnit: (unit: 'mi' | 'km') => void
+
+  // Planner navigation
+  setPlannerTab: (tab: PlannerTab) => void
+  navigatePlanner: (direction: 'prev' | 'next') => void
+  goToPlannerToday: () => void
 
   // Weekly planning
   setDayTemplate: (day: WeekDayIndex, activities: PlannedActivity[]) => void
