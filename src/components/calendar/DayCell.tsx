@@ -3,6 +3,7 @@ import { format, isToday, isSameMonth, startOfWeek } from 'date-fns'
 import ActivityBadge from './ActivityBadge'
 import PlannedBadge from './PlannedBadge'
 import { mapStravaType } from '../../utils/activityColors'
+import { secondsToPaceString, speedToSecondsPerMile } from '../../utils/planningUtils'
 import { useAppStore } from '../../store/useAppStore'
 import ActivityPlanModal from '../planning/ActivityPlanModal'
 import type { StravaActivity, PlannedActivity, WeekDayIndex } from '../../store/types'
@@ -167,13 +168,22 @@ export default function DayCell({
         {/* Activity badges (actual + planned) */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 2, flex: 1 }}>
           {/* Actual activity badges */}
-          {visible.map((activity) => (
-            <ActivityBadge
-              key={activity.id}
-              activity={activity}
-              compact={compact}
-            />
-          ))}
+          {visible.map((activity) => {
+            const isRun = !compact && mapStravaType(activity.sport_type || activity.type) === 'Run'
+            const pace = isRun && activity.average_speed > 0
+              ? secondsToPaceString(speedToSecondsPerMile(activity.average_speed))
+              : null
+            return (
+              <div key={activity.id}>
+                <ActivityBadge activity={activity} compact={compact} />
+                {pace && (
+                  <div style={{ fontSize: 9, color: 'var(--color-text-tertiary)', marginTop: 1, paddingLeft: 3, fontVariantNumeric: 'tabular-nums' }}>
+                    {pace}/mi
+                  </div>
+                )}
+              </div>
+            )
+          })}
           {overflow > 0 && (
             <button
               onClick={() => filtered[MAX_BADGES] && selectActivity(filtered[MAX_BADGES].id)}
@@ -193,14 +203,25 @@ export default function DayCell({
           )}
 
           {/* Planned activity badges (dashed style) */}
-          {plannedVisible.map((planned) => (
-            <PlannedBadge
-              key={planned.id}
-              activity={planned}
-              compact={compact}
-              onClick={(e) => { e.stopPropagation(); setEditingPlanned(planned) }}
-            />
-          ))}
+          {plannedVisible.map((planned) => {
+            const targetPace = !compact && planned.type === 'Run' && planned.targetPace
+              ? planned.targetPace
+              : null
+            return (
+              <div key={planned.id}>
+                <PlannedBadge
+                  activity={planned}
+                  compact={compact}
+                  onClick={(e) => { e.stopPropagation(); setEditingPlanned(planned) }}
+                />
+                {targetPace && (
+                  <div style={{ fontSize: 9, color: 'var(--color-text-tertiary)', marginTop: 1, paddingLeft: 3, fontVariantNumeric: 'tabular-nums', opacity: 0.8 }}>
+                    {targetPace}/mi
+                  </div>
+                )}
+              </div>
+            )
+          })}
           {plannedOverflow > 0 && (
             <div style={{
               fontSize: 10,
