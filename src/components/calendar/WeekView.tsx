@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { format, isToday, startOfWeek } from 'date-fns'
+import { secondsToPaceString, speedToSecondsPerMile } from '../../utils/planningUtils'
 import ActivityBadge from './ActivityBadge'
 import PlannedBadge from './PlannedBadge'
 import { buildWeekGrid } from '../../utils/dateUtils'
@@ -113,11 +114,11 @@ function WeekDayColumn({
         style={{
           display: 'flex',
           flexDirection: 'column',
-          gap: 8,
+          gap: 10,
           background: today ? 'var(--color-today-bg)' : 'var(--color-surface)',
           borderRadius: 'var(--radius-md)',
           border: today ? '1.5px solid var(--color-today-border)' : '1px solid var(--color-border)',
-          padding: '10px 10px',
+          padding: '12px 12px',
           overflow: 'hidden',
         }}
       >
@@ -138,14 +139,25 @@ function WeekDayColumn({
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: 6, flex: 1, overflow: 'auto' }}>
           {/* Actual activities */}
-          {activities.map((activity) => (
-            <div key={activity.id}>
-              <ActivityBadge activity={activity} />
-              <div style={{ fontSize: 10, color: 'var(--color-text-tertiary)', marginTop: 2, paddingLeft: 4, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                {activity.name}
+          {activities.map((activity) => {
+            const isRun = (activity.sport_type || activity.type) === 'Run'
+            const pace = isRun && activity.average_speed > 0
+              ? secondsToPaceString(speedToSecondsPerMile(activity.average_speed))
+              : null
+            return (
+              <div key={activity.id}>
+                <ActivityBadge activity={activity} />
+                <div style={{ fontSize: 10, color: 'var(--color-text-tertiary)', marginTop: 2, paddingLeft: 4, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                  {activity.name}
+                </div>
+                {pace && (
+                  <div style={{ fontSize: 10, color: 'var(--color-text-tertiary)', marginTop: 1, paddingLeft: 4, fontVariantNumeric: 'tabular-nums' }}>
+                    {pace}/mi
+                  </div>
+                )}
               </div>
-            </div>
-          ))}
+            )
+          })}
 
           {/* Dashed divider if both actual and planned exist */}
           {activities.length > 0 && hasPlanned && (
@@ -271,16 +283,29 @@ function MobileWeekView({
                 </div>
               ) : (
                 <>
-                  {activities.map((activity) => (
-                    <div key={activity.id} style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <ActivityBadge activity={activity} />
+                  {activities.map((activity) => {
+                    const isRun = (activity.sport_type || activity.type) === 'Run'
+                    const pace = isRun && activity.average_speed > 0
+                      ? secondsToPaceString(speedToSecondsPerMile(activity.average_speed))
+                      : null
+                    return (
+                      <div key={activity.id} style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <ActivityBadge activity={activity} />
+                        </div>
+                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', flexShrink: 0 }}>
+                          <div style={{ fontSize: 11, color: 'var(--color-text-tertiary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 140 }}>
+                            {activity.name}
+                          </div>
+                          {pace && (
+                            <div style={{ fontSize: 10, color: 'var(--color-text-tertiary)', fontVariantNumeric: 'tabular-nums' }}>
+                              {pace}/mi
+                            </div>
+                          )}
+                        </div>
                       </div>
-                      <div style={{ fontSize: 11, color: 'var(--color-text-tertiary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 140, flexShrink: 1 }}>
-                        {activity.name}
-                      </div>
-                    </div>
-                  ))}
+                    )
+                  })}
                   {planned.map((p) => (
                     <div key={p.id} style={{ flex: 1, minWidth: 0 }}>
                       <PlannedBadge activity={p} />

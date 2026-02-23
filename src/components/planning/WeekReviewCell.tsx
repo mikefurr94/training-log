@@ -1,6 +1,6 @@
 import { format } from 'date-fns'
 import { useAppStore } from '../../store/useAppStore'
-import { matchActualToPlanned, STATUS_ICONS, STATUS_COLORS, getPlannedActivityEmoji, getPlannedActivityLabel } from '../../utils/planningUtils'
+import { matchActualToPlanned, STATUS_ICONS, STATUS_COLORS, getPlannedActivityEmoji, getPlannedActivityLabel, secondsToPaceString, speedToSecondsPerMile } from '../../utils/planningUtils'
 import { mapStravaType, getActivityColor } from '../../utils/activityColors'
 import type { PlannedActivity } from '../../store/types'
 import type { StravaActivity } from '../../store/types'
@@ -136,8 +136,12 @@ export default function WeekReviewCell({ date, planned, actuals, onSelectActivit
               {actuals.map((activity) => {
                 const atype = mapStravaType(activity.sport_type || activity.type)
                 const colors = getActivityColor(atype)
+                const isRun = atype === 'Run'
                 const distMi = activity.distance > 0
                   ? ` · ${(activity.distance / 1609.344).toFixed(1)}mi`
+                  : ''
+                const pace = isRun && activity.average_speed > 0
+                  ? ` · ${secondsToPaceString(speedToSecondsPerMile(activity.average_speed))}/mi`
                   : ''
                 return (
                   <button
@@ -168,6 +172,7 @@ export default function WeekReviewCell({ date, planned, actuals, onSelectActivit
                     }}>
                       {activity.name}
                       {distMi && <span style={{ opacity: 0.75 }}>{distMi}</span>}
+                      {pace && <span style={{ opacity: 0.75 }}>{pace}</span>}
                     </span>
                   </button>
                 )
@@ -242,8 +247,8 @@ export default function WeekReviewCell({ date, planned, actuals, onSelectActivit
       {/* Planned section — fixed height so Actual always starts at the same position */}
       <div
         style={{
-          padding: '10px 10px 8px',
-          height: 180,
+          padding: '12px 12px 8px',
+          height: 200,
           overflow: 'auto',
           flexShrink: 0,
         }}
@@ -320,7 +325,7 @@ export default function WeekReviewCell({ date, planned, actuals, onSelectActivit
       </div>
 
       {/* Actual section */}
-      <div style={{ padding: '10px 10px 10px', flex: 1, display: 'flex', flexDirection: 'column' }}>
+      <div style={{ padding: '10px 12px 14px', flex: 1, display: 'flex', flexDirection: 'column' }}>
         <div
           style={{
             fontSize: 9,
@@ -340,14 +345,18 @@ export default function WeekReviewCell({ date, planned, actuals, onSelectActivit
           {actuals.map((activity) => {
             const atype = mapStravaType(activity.sport_type || activity.type)
             const colors = getActivityColor(atype)
+            const isRun = atype === 'Run'
             const distMi = activity.distance > 0
               ? ` · ${(activity.distance / 1609.344).toFixed(1)}mi`
+              : ''
+            const pace = isRun && activity.average_speed > 0
+              ? ` · ${secondsToPaceString(speedToSecondsPerMile(activity.average_speed))}/mi`
               : ''
             return (
               <button
                 key={activity.id}
                 onClick={() => onSelectActivity(activity.id)}
-                title={`${activity.name}${distMi}`}
+                title={`${activity.name}${distMi}${pace}`}
                 style={{
                   display: 'flex',
                   alignItems: 'center',
@@ -376,6 +385,9 @@ export default function WeekReviewCell({ date, planned, actuals, onSelectActivit
                   {activity.name}
                   {distMi && (
                     <span style={{ opacity: 0.75 }}>{distMi}</span>
+                  )}
+                  {pace && (
+                    <span style={{ opacity: 0.75 }}>{pace}</span>
                   )}
                 </span>
               </button>

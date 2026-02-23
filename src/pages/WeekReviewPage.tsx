@@ -161,7 +161,7 @@ export default function WeekReviewPage() {
             flexDirection: isMobile ? 'column' : 'row',
             gap: isMobile ? 0 : 8,
             flex: isMobile ? undefined : 1,
-            minHeight: isMobile ? undefined : 300,
+            minHeight: isMobile ? undefined : 380,
             border: isMobile ? '1px solid var(--color-border)' : undefined,
             borderRadius: isMobile ? 'var(--radius-md)' : undefined,
             overflow: isMobile ? 'hidden' : undefined,
