@@ -45,15 +45,9 @@ export default function ActivityBadge({ activity, compact = false, onClick }: Pr
       }}
       onMouseEnter={(e) => {
         e.currentTarget.style.background = colors.bg
-        e.currentTarget.style.color = colors.text
-        const spans = e.currentTarget.querySelectorAll('span')
-        spans.forEach((s: HTMLElement) => { s.style.color = colors.text })
       }}
       onMouseLeave={(e) => {
         e.currentTarget.style.background = colors.light
-        e.currentTarget.style.color = ''
-        const spans = e.currentTarget.querySelectorAll('span')
-        spans.forEach((s: HTMLElement) => { s.style.color = '' })
       }}
     >
       <span style={{ fontSize: compact ? 10 : 11, flexShrink: 0 }}>{colors.emoji}</span>
