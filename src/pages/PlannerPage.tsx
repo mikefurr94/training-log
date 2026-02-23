@@ -1,15 +1,18 @@
 import { useState, useMemo } from 'react'
-import { startOfWeek, startOfMonth, endOfMonth, addDays, addWeeks, format, parseISO } from 'date-fns'
+import { startOfWeek, startOfMonth, endOfMonth, addDays, format, parseISO, isToday, isSameMonth } from 'date-fns'
 import { useAppStore } from '../store/useAppStore'
 import { useWeekPlan } from '../hooks/useWeekPlan'
 import { useIsMobile } from '../hooks/useIsMobile'
+import { buildMonthGrid } from '../utils/dateUtils'
+import { getPlannedActivityEmoji, getPlannedActivityLabel } from '../utils/planningUtils'
 import DayPlanColumn from '../components/planning/DayPlanColumn'
-import KeyDateBadge from '../components/planning/KeyDateBadge'
-import KeyDateModal from '../components/planning/KeyDateModal'
-import type { WeekDayIndex, PlannedActivity, KeyDate } from '../store/types'
+import PlannedActivityItem from '../components/planning/PlannedActivityItem'
+import ActivityPlanModal from '../components/planning/ActivityPlanModal'
+import type { WeekDayIndex, PlannedActivity } from '../store/types'
 
 // Mon-Sun day order to match Monday-start weeks (JS dayIndex: Mon=1...Sat=6, Sun=0)
 const MON_TO_SUN_ORDER: WeekDayIndex[] = [1, 2, 3, 4, 5, 6, 0]
+const DAY_HEADERS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
 
 export default function PlannerPage() {
   const plannerAnchor = useAppStore((s) => s.plannerAnchor)
@@ -23,7 +26,7 @@ export default function PlannerPage() {
     <div style={{
       height: '100%',
       padding,
-      overflow: 'auto',
+      overflow: isMobile ? 'auto' : 'hidden',
       display: 'flex',
       flexDirection: 'column',
     }}>
@@ -34,7 +37,7 @@ export default function PlannerPage() {
         />
       )}
       {plannerView === 'month' && (
-        <MonthSection anchor={anchor} isMobile={isMobile} />
+        <PlannerMonthView anchor={anchor} isMobile={isMobile} />
       )}
       {plannerView === 'template' && (
         <TemplateSection isMobile={isMobile} />
@@ -43,38 +46,303 @@ export default function PlannerPage() {
   )
 }
 
-// ── Month section ───────────────────────────────────────────────────────────
+// ── Month view (matches calendar MonthView layout) ──────────────────────────
 
-function MonthSection({ anchor, isMobile }: { anchor: Date; isMobile: boolean }) {
-  const monthStart = startOfMonth(anchor)
-  const monthEnd = endOfMonth(anchor)
+function PlannerMonthView({ anchor, isMobile }: { anchor: Date; isMobile: boolean }) {
+  const weeks = buildMonthGrid(anchor)
+  const weekTemplate = useAppStore((s) => s.weekTemplate)
+  const weekOverrides = useAppStore((s) => s.weekOverrides)
 
-  // Get all weeks that overlap with this month (Mon-start)
-  const weekStarts = useMemo(() => {
-    const weeks: Date[] = []
-    let ws = startOfWeek(monthStart, { weekStartsOn: 1 })
-    const lastDay = endOfMonth(anchor)
-    while (ws <= lastDay) {
-      weeks.push(ws)
-      ws = addWeeks(ws, 1)
+  // Build a map of date → planned activities for the whole month grid
+  const planByDate = useMemo(() => {
+    const map: Record<string, PlannedActivity[]> = {}
+    for (const week of weeks) {
+      const weekStart = startOfWeek(week[0], { weekStartsOn: 1 })
+      const weekStartStr = format(weekStart, 'yyyy-MM-dd')
+      const override = weekOverrides.find((o) => o.weekStart === weekStartStr)
+      const merged = { ...weekTemplate.days } as Record<WeekDayIndex, PlannedActivity[]>
+      if (override) {
+        for (const dayStr of Object.keys(override.days)) {
+          const dayIdx = Number(dayStr) as WeekDayIndex
+          const overrideDay = override.days[dayIdx]
+          if (overrideDay !== undefined) {
+            merged[dayIdx] = overrideDay
+          }
+        }
+      }
+      for (const date of week) {
+        const dayIndex = date.getDay() as WeekDayIndex
+        map[format(date, 'yyyy-MM-dd')] = merged[dayIndex] ?? []
+      }
     }
-    return weeks
-  }, [monthStart.getTime()])
+    return map
+  }, [weeks, weekTemplate, weekOverrides])
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: isMobile ? 16 : 20 }}>
-      {weekStarts.map((ws) => {
-        const weekLabel = `${format(ws, 'MMM d')} – ${format(addDays(ws, 6), 'MMM d')}`
-        return (
-          <WeekSection
-            key={format(ws, 'yyyy-MM-dd')}
-            weekStart={ws}
-            isMobile={isMobile}
-            label={weekLabel}
-          />
-        )
-      })}
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+      {/* Day-of-week headers */}
+      <div style={{
+        display: 'grid',
+        gridTemplateColumns: 'repeat(7, 1fr)',
+        gap: 4,
+        marginBottom: 4,
+      }}>
+        {DAY_HEADERS.map((d) => (
+          <div key={d} style={{
+            fontSize: 'var(--font-size-xs)',
+            fontWeight: 'var(--font-weight-semibold)',
+            color: 'var(--color-text-tertiary)',
+            textAlign: 'center',
+            letterSpacing: '0.05em',
+            textTransform: 'uppercase',
+            padding: '4px 0',
+          }}>
+            {d}
+          </div>
+        ))}
+      </div>
+
+      {/* Calendar weeks grid */}
+      <div style={{
+        flex: 1,
+        display: 'grid',
+        gridTemplateRows: `repeat(${weeks.length}, 1fr)`,
+        gap: 4,
+      }}>
+        {weeks.map((week, wi) => (
+          <div key={wi} style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(7, 1fr)',
+            gap: 4,
+          }}>
+            {week.map((date) => {
+              const key = format(date, 'yyyy-MM-dd')
+              const activities = planByDate[key] ?? []
+              return (
+                <PlannerDayCell
+                  key={key}
+                  date={date}
+                  activities={activities}
+                  monthRef={anchor}
+                />
+              )
+            })}
+          </div>
+        ))}
+      </div>
     </div>
+  )
+}
+
+// ── Day cell for planner month view (matches calendar DayCell) ──────────────
+
+function PlannerDayCell({
+  date,
+  activities,
+  monthRef,
+}: {
+  date: Date
+  activities: PlannedActivity[]
+  monthRef: Date
+}) {
+  const setDayTemplate = useAppStore((s) => s.setDayTemplate)
+  const setDayOverride = useAppStore((s) => s.setDayOverride)
+  const weekTemplate = useAppStore((s) => s.weekTemplate)
+  const weekOverrides = useAppStore((s) => s.weekOverrides)
+
+  const [showModal, setShowModal] = useState(false)
+  const [editingActivity, setEditingActivity] = useState<PlannedActivity | null>(null)
+
+  const today = isToday(date)
+  const outsideMonth = !isSameMonth(date, monthRef)
+  const dayIndex = date.getDay() as WeekDayIndex
+  const overrideWeekStart = startOfWeek(date, { weekStartsOn: 1 })
+
+  function getCurrentActivities(): PlannedActivity[] {
+    const weekStartStr = format(overrideWeekStart, 'yyyy-MM-dd')
+    const override = weekOverrides.find((o) => o.weekStart === weekStartStr)
+    if (override && override.days[dayIndex] !== undefined) {
+      return override.days[dayIndex]!
+    }
+    return weekTemplate.days[dayIndex] ?? []
+  }
+
+  function save(updated: PlannedActivity[]) {
+    setDayOverride(overrideWeekStart, dayIndex, updated)
+  }
+
+  function handleAdd(activity: PlannedActivity) {
+    save([...getCurrentActivities(), activity])
+    setShowModal(false)
+  }
+
+  function handleEdit(activity: PlannedActivity) {
+    save(getCurrentActivities().map((a) => (a.id === activity.id ? activity : a)))
+    setEditingActivity(null)
+  }
+
+  function handleDelete(id: string) {
+    save(getCurrentActivities().filter((a) => a.id !== id))
+  }
+
+  const MAX_BADGES = 3
+  const visible = activities.slice(0, MAX_BADGES)
+  const overflow = activities.length - MAX_BADGES
+
+  return (
+    <>
+      <div
+        onClick={() => { if (activities.length === 0) setShowModal(true) }}
+        style={{
+          padding: '6px 8px',
+          background: today
+            ? 'var(--color-today-bg)'
+            : outsideMonth
+            ? 'var(--color-outside-month)'
+            : 'var(--color-surface)',
+          borderRadius: 'var(--radius-sm)',
+          opacity: outsideMonth ? 0.45 : 1,
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 3,
+          minHeight: 90,
+          transition: 'background var(--transition-fast)',
+          overflow: 'hidden',
+          cursor: activities.length === 0 ? 'pointer' : 'default',
+        }}
+      >
+        {/* Date number */}
+        <div style={{
+          fontSize: 'var(--font-size-sm)',
+          fontWeight: today ? 'var(--font-weight-bold)' : 'var(--font-weight-medium)',
+          color: today ? 'var(--color-accent)' : outsideMonth ? 'var(--color-text-tertiary)' : 'var(--color-text-secondary)',
+          lineHeight: 1,
+          letterSpacing: '-0.1px',
+          flexShrink: 0,
+        }}>
+          {today ? (
+            <span style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              width: 22,
+              height: 22,
+              borderRadius: '50%',
+              background: 'var(--color-accent)',
+              color: '#fff',
+              fontSize: 'var(--font-size-xs)',
+              fontWeight: 'var(--font-weight-bold)',
+            }}>
+              {format(date, 'd')}
+            </span>
+          ) : (
+            format(date, 'd')
+          )}
+        </div>
+
+        {/* Planned activity badges */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 2, flex: 1 }}>
+          {visible.map((activity) => (
+            <PlannerBadge
+              key={activity.id}
+              activity={activity}
+              onEdit={() => setEditingActivity(activity)}
+              onDelete={() => handleDelete(activity.id)}
+            />
+          ))}
+          {overflow > 0 && (
+            <div style={{
+              fontSize: 10,
+              color: 'var(--color-text-tertiary)',
+              padding: '1px 4px',
+              fontWeight: 500,
+            }}>
+              +{overflow} more
+            </div>
+          )}
+        </div>
+      </div>
+
+      {showModal && (
+        <ActivityPlanModal
+          onSave={handleAdd}
+          onClose={() => setShowModal(false)}
+        />
+      )}
+      {editingActivity && (
+        <ActivityPlanModal
+          initial={editingActivity}
+          onSave={handleEdit}
+          onClose={() => setEditingActivity(null)}
+        />
+      )}
+    </>
+  )
+}
+
+// ── Compact badge for planner month view (matches calendar ActivityBadge) ───
+
+const PLAN_TYPE_COLORS: Record<string, { light: string; bg: string; border: string; emoji: string; label: string }> = {
+  Run:            { light: 'var(--color-run-light)',    bg: 'var(--color-run)',    border: 'var(--color-run-border)',    emoji: '🏃', label: 'Run' },
+  WeightTraining: { light: 'var(--color-weight-light)', bg: 'var(--color-weight)', border: 'var(--color-weight-border)', emoji: '🏋️', label: 'Weights' },
+  Yoga:           { light: 'var(--color-yoga-light)',   bg: 'var(--color-yoga)',   border: 'var(--color-yoga-border)',   emoji: '🧘', label: 'Yoga' },
+  Tennis:         { light: 'var(--color-tennis-light)', bg: 'var(--color-tennis)', border: 'var(--color-tennis-border)', emoji: '🎾', label: 'Tennis' },
+  Rest:           { light: 'var(--color-border-light)', bg: 'var(--color-text-tertiary)', border: 'var(--color-border)', emoji: '😴', label: 'Rest' },
+}
+
+function PlannerBadge({
+  activity,
+  onEdit,
+  onDelete,
+}: {
+  activity: PlannedActivity
+  onEdit: () => void
+  onDelete: () => void
+}) {
+  const colors = PLAN_TYPE_COLORS[activity.type] ?? PLAN_TYPE_COLORS.Rest
+
+  let label = colors.label
+  if (activity.type === 'Run') {
+    label = `${activity.targetDistance}mi`
+  } else if (activity.type === 'WeightTraining') {
+    label = activity.workoutType
+  }
+
+  return (
+    <button
+      onClick={(e) => { e.stopPropagation(); onEdit() }}
+      title={getPlannedActivityLabel(activity)}
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: 4,
+        width: '100%',
+        background: colors.light,
+        border: `1px solid ${colors.border}`,
+        borderRadius: 5,
+        padding: '3px 7px',
+        cursor: 'pointer',
+        textAlign: 'left',
+        transition: 'all var(--transition-fast)',
+        overflow: 'hidden',
+        minWidth: 0,
+      }}
+    >
+      <span style={{ fontSize: 11, flexShrink: 0 }}>{colors.emoji}</span>
+      <span style={{
+        fontSize: 'var(--font-size-xs)',
+        fontWeight: 'var(--font-weight-medium)',
+        color: colors.bg,
+        whiteSpace: 'nowrap',
+        overflow: 'hidden',
+        textOverflow: 'ellipsis',
+        minWidth: 0,
+        lineHeight: 1.2,
+        letterSpacing: '-0.1px',
+      }}>
+        {label}
+      </span>
+    </button>
   )
 }
 
@@ -106,82 +374,40 @@ function TemplateSection({ isMobile }: { isMobile: boolean }) {
   )
 }
 
-// ── Per-week section ─────────────────────────────────────────────────────────
+// ── Per-week section (week view only) ────────────────────────────────────────
 
-function WeekSection({ weekStart, isMobile, label }: { weekStart: Date; isMobile: boolean; label?: string }) {
+function WeekSection({ weekStart, isMobile }: { weekStart: Date; isMobile: boolean }) {
   const weekOverrides = useAppStore((s) => s.weekOverrides)
   const clearWeekOverride = useAppStore((s) => s.clearWeekOverride)
-  const keyDates = useAppStore((s) => s.keyDates)
-  const addKeyDate = useAppStore((s) => s.addKeyDate)
-  const updateKeyDate = useAppStore((s) => s.updateKeyDate)
-  const deleteKeyDate = useAppStore((s) => s.deleteKeyDate)
   const weekPlan = useWeekPlan(weekStart)
-  const [showKeyDateModal, setShowKeyDateModal] = useState(false)
-  const [editingKeyDate, setEditingKeyDate] = useState<KeyDate | null>(null)
 
   const weekStartStr = format(weekStart, 'yyyy-MM-dd')
-  const weekEndStr = format(addDays(weekStart, 6), 'yyyy-MM-dd')
   const hasOverride = weekOverrides.some((o) => o.weekStart === weekStartStr)
 
-  const weekKeyDates = keyDates.filter(
-    (kd) => kd.date >= weekStartStr && kd.date <= weekEndStr
-  )
-
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: isMobile ? 8 : 10 }}>
-      {/* Toolbar row */}
-      <div style={{
-        display: 'flex', alignItems: 'center', gap: 8,
-        flexWrap: 'wrap', padding: isMobile ? '4px 4px 0' : '4px 0 0',
-      }}>
-        {/* Week label (shown in month view) */}
-        {label && (
-          <span style={{
-            fontSize: 'var(--font-size-sm)',
-            fontWeight: 'var(--font-weight-semibold)',
-            color: 'var(--color-text-primary)',
-            letterSpacing: '-0.2px',
-          }}>{label}</span>
-        )}
-
-        {/* Key date badges */}
-        {weekKeyDates.length > 0 && (
-          <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-            {weekKeyDates.map((kd) => (
-              <KeyDateBadge key={kd.id} keyDate={kd} onClick={() => setEditingKeyDate(kd)} />
-            ))}
-          </div>
-        )}
-
-        {hasOverride && (
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <span style={{
-              fontSize: 11, color: 'var(--color-accent)', fontWeight: 600,
-              background: 'var(--color-accent-light)', padding: '2px 8px',
-              borderRadius: 'var(--radius-full)',
-            }}>
-              Custom override
-            </span>
-            <button onClick={() => clearWeekOverride(weekStart)} style={{
-              fontSize: 11, color: 'var(--color-text-secondary)', background: 'transparent',
-              border: '1px solid var(--color-border)', borderRadius: 'var(--radius-full)',
-              padding: '2px 8px', cursor: 'pointer',
-            }}>
-              Reset to template
-            </button>
-          </div>
-        )}
-
-        <div style={{ flex: 1 }} />
-
-        <button onClick={() => setShowKeyDateModal(true)} style={{
-          fontSize: 11, color: 'var(--color-text-tertiary)', background: 'transparent',
-          border: '1px dashed var(--color-border)', borderRadius: 'var(--radius-full)',
-          padding: '2px 10px', cursor: 'pointer',
+    <div style={{ display: 'flex', flexDirection: 'column', gap: isMobile ? 8 : 10, flex: 1 }}>
+      {/* Toolbar row — only show override badge if applicable */}
+      {hasOverride && (
+        <div style={{
+          display: 'flex', alignItems: 'center', gap: 8,
+          padding: isMobile ? '4px 4px 0' : '4px 0 0',
         }}>
-          + Event
-        </button>
-      </div>
+          <span style={{
+            fontSize: 11, color: 'var(--color-accent)', fontWeight: 600,
+            background: 'var(--color-accent-light)', padding: '2px 8px',
+            borderRadius: 'var(--radius-full)',
+          }}>
+            Custom override
+          </span>
+          <button onClick={() => clearWeekOverride(weekStart)} style={{
+            fontSize: 11, color: 'var(--color-text-secondary)', background: 'transparent',
+            border: '1px solid var(--color-border)', borderRadius: 'var(--radius-full)',
+            padding: '2px 8px', cursor: 'pointer',
+          }}>
+            Reset to template
+          </button>
+        </div>
+      )}
 
       {/* Week grid */}
       <WeekGrid
@@ -194,28 +420,11 @@ function WeekSection({ weekStart, isMobile, label }: { weekStart: Date; isMobile
         showDate
         isMobile={isMobile}
       />
-
-      {/* Key date modals */}
-      {showKeyDateModal && (
-        <KeyDateModal
-          defaultDate={weekStartStr}
-          onSave={(kd) => { addKeyDate(kd); setShowKeyDateModal(false) }}
-          onClose={() => setShowKeyDateModal(false)}
-        />
-      )}
-      {editingKeyDate && (
-        <KeyDateModal
-          initial={editingKeyDate}
-          onSave={(kd) => { updateKeyDate(kd.id, kd); setEditingKeyDate(null) }}
-          onDelete={() => { deleteKeyDate(editingKeyDate.id); setEditingKeyDate(null) }}
-          onClose={() => setEditingKeyDate(null)}
-        />
-      )}
     </div>
   )
 }
 
-// ── Shared week grid ─────────────────────────────────────────────────────────
+// ── Shared week grid (for week + template views) ─────────────────────────────
 
 interface DayEntry {
   dayIndex: WeekDayIndex
@@ -243,6 +452,8 @@ function WeekGrid({
       borderRadius: 'var(--radius-md)',
       overflow: 'hidden',
       background: 'var(--color-surface)',
+      flex: isMobile ? undefined : 1,
+      minHeight: isMobile ? undefined : 0,
     }}>
       {days.map((day, i) => (
         <div
