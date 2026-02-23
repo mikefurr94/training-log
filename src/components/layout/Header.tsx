@@ -236,67 +236,33 @@ function MobileHeader() {
     <>
       <header style={{
         display: 'flex',
-        alignItems: 'center',
-        gap: 8,
-        padding: '8px 12px',
-        paddingTop: 'calc(8px + env(safe-area-inset-top, 0px))',
+        flexDirection: 'column',
         background: 'var(--color-surface)',
         borderBottom: '1px solid var(--color-border)',
         flexShrink: 0,
         position: 'relative',
         zIndex: 10,
-        minHeight: 48,
+        paddingTop: 'env(safe-area-inset-top, 0px)',
       }}>
-        {/* App switcher (tap to toggle) */}
-        <button
-          onClick={() => setActiveApp(isTraining ? 'habits' : 'training')}
-          style={{
-            display: 'flex', alignItems: 'center', gap: 5, padding: '4px 8px',
-            borderRadius: 'var(--radius-sm)', border: 'none', background: 'var(--color-bg)',
-            cursor: 'pointer', flexShrink: 0,
-          }}
-        >
-          <span style={{ fontSize: 16 }}>{isTraining ? '🏃' : '✅'}</span>
-          <span style={{ fontWeight: 700, fontSize: 'var(--font-size-sm)', color: 'var(--color-text-primary)', letterSpacing: '-0.3px' }}>
-            {isTraining ? 'Training' : 'Habits'}
-          </span>
-          <span style={{ fontSize: 9, color: 'var(--color-text-tertiary)', marginLeft: 1 }}>⇄</span>
-        </button>
-
-        {/* Period nav — single pill container matching Habits app style */}
-        {showCalendarNav && (
-          <div style={{
-            display: 'flex', alignItems: 'center', flex: 1, minWidth: 0,
-            border: '1px solid var(--color-border)', borderRadius: 10,
-            overflow: 'hidden',
-          }}>
-            <button onClick={() => navigate('prev')} aria-label="Previous" style={{
-              width: 36, height: 36, flexShrink: 0, background: 'transparent', border: 'none',
-              borderRight: '1px solid var(--color-border)',
-              color: 'var(--color-text-secondary)', fontSize: 22, lineHeight: 1,
-              cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 300,
-            }}>‹</button>
-            <span style={{
-              flex: 1, textAlign: 'center', fontSize: 14, fontWeight: 700,
-              color: 'var(--color-text-primary)', letterSpacing: '-0.3px',
-              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4,
-              overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis',
-              padding: '0 4px',
-            }}>
-              {isLoading && <Spinner size={8} />}
-              {navLabel}
+        {/* Row 1: app switcher + settings */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 12px' }}>
+          {/* App switcher (tap to toggle) */}
+          <button
+            onClick={() => setActiveApp(isTraining ? 'habits' : 'training')}
+            style={{
+              display: 'flex', alignItems: 'center', gap: 5, padding: '4px 8px',
+              borderRadius: 'var(--radius-sm)', border: 'none', background: 'var(--color-bg)',
+              cursor: 'pointer', flexShrink: 0,
+            }}
+          >
+            <span style={{ fontSize: 16 }}>{isTraining ? '🏃' : '✅'}</span>
+            <span style={{ fontWeight: 700, fontSize: 'var(--font-size-sm)', color: 'var(--color-text-primary)', letterSpacing: '-0.3px' }}>
+              {isTraining ? 'Training' : 'Habits'}
             </span>
-            <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
-            <button onClick={() => navigate('next')} aria-label="Next" style={{
-              width: 36, height: 36, flexShrink: 0, background: 'transparent', border: 'none',
-              borderLeft: '1px solid var(--color-border)',
-              color: 'var(--color-text-secondary)', fontSize: 22, lineHeight: 1,
-              cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 300,
-            }}>›</button>
-          </div>
-        )}
+            <span style={{ fontSize: 9, color: 'var(--color-text-tertiary)', marginLeft: 1 }}>⇄</span>
+          </button>
 
-        {!showCalendarNav && <div style={{ flex: 1 }} />}
+          <div style={{ flex: 1 }} />
 
         {/* Settings */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 4, flexShrink: 0 }}>
@@ -321,7 +287,40 @@ function MobileHeader() {
               )}
             </button>
           )}
-        </div>
+        </div>{/* end settings */}
+        </div>{/* end row 1 */}
+
+        {/* Row 2: period nav — full-width pill matching Habits app */}
+        {showCalendarNav && (
+          <div style={{ padding: '0 12px 10px' }}>
+            <div style={{
+              display: 'flex', alignItems: 'center',
+              border: '1px solid var(--color-border)', borderRadius: 10, overflow: 'hidden',
+            }}>
+              <button onClick={() => navigate('prev')} aria-label="Previous" style={{
+                width: 44, height: 40, flexShrink: 0, background: 'transparent', border: 'none',
+                borderRight: '1px solid var(--color-border)',
+                color: 'var(--color-text-secondary)', fontSize: 22, lineHeight: 1,
+                cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 300,
+              }}>‹</button>
+              <span style={{
+                flex: 1, textAlign: 'center', fontSize: 15, fontWeight: 700,
+                color: 'var(--color-text-primary)', letterSpacing: '-0.3px',
+                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4,
+              }}>
+                {isLoading && <Spinner size={8} />}
+                {navLabel}
+              </span>
+              <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+              <button onClick={() => navigate('next')} aria-label="Next" style={{
+                width: 44, height: 40, flexShrink: 0, background: 'transparent', border: 'none',
+                borderLeft: '1px solid var(--color-border)',
+                color: 'var(--color-text-secondary)', fontSize: 22, lineHeight: 1,
+                cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 300,
+              }}>›</button>
+            </div>
+          </div>
+        )}
       </header>
 
       {/* Expandable menu */}
