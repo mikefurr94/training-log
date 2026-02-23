@@ -263,19 +263,16 @@ function MobileHeader() {
           <span style={{ fontSize: 9, color: 'var(--color-text-tertiary)', marginLeft: 1 }}>⇄</span>
         </button>
 
-        {/* Period nav (compact) */}
+        {/* Period nav — matches Habits app style: ‹ [date] › centered */}
         {showCalendarNav && (
-          <div style={{ display: 'flex', alignItems: 'center', gap: 4, flex: 1, justifyContent: 'center', minWidth: 0 }}>
+          <div style={{ display: 'flex', alignItems: 'center', flex: 1, justifyContent: 'center', minWidth: 0 }}>
             <NavButton onClick={() => navigate('prev')} label="Previous">‹</NavButton>
-            <button onClick={goToToday} style={{
-              padding: '3px 8px', borderRadius: 'var(--radius-sm)', fontSize: 11,
-              fontWeight: 600, color: 'var(--color-text-secondary)', background: 'transparent',
-              border: '1px solid var(--color-border)', cursor: 'pointer', whiteSpace: 'nowrap',
-            }}>Today</button>
             <span style={{
-              fontSize: 12, fontWeight: 600, color: 'var(--color-text-primary)',
+              fontSize: 14, fontWeight: 700, color: 'var(--color-text-primary)',
               whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
               display: 'flex', alignItems: 'center', gap: 4,
+              flex: 1, justifyContent: 'center', textAlign: 'center',
+              letterSpacing: '-0.3px',
             }}>
               {isLoading && <Spinner size={8} />}
               {navLabel}
@@ -326,6 +323,14 @@ function MobileHeader() {
             </div>
           )}
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+            {/* Today button */}
+            {showCalendarNav && (
+              <button onClick={goToToday} style={{
+                padding: '5px 12px', borderRadius: 7, fontSize: 'var(--font-size-sm)',
+                fontWeight: 600, color: 'var(--color-text-secondary)', background: 'transparent',
+                border: '1px solid var(--color-border)', cursor: 'pointer', whiteSpace: 'nowrap',
+              }}>Today</button>
+            )}
             {isCalendarMode && <ViewToggle />}
             {/* Plan overlay toggle */}
             {isTraining && (appMode === 'calendar' || appMode === 'grid') && (
