@@ -2,10 +2,10 @@ import { useState, useRef, useEffect } from 'react'
 import { useAppStore } from '../../store/useAppStore'
 import { useCalendarRange } from '../../hooks/useCalendarRange'
 import { useIsMobile } from '../../hooks/useIsMobile'
-import { parseISO, startOfWeek, addWeeks, format as fmtDate } from 'date-fns'
+import { parseISO, startOfWeek, startOfMonth, endOfMonth, addWeeks, format as fmtDate } from 'date-fns'
 import ViewToggle from '../ui/ViewToggle'
 import ActivityFilters from '../ui/ActivityFilters'
-import type { AppMode, HabitView, PlannerTab } from '../../store/types'
+import type { AppMode, HabitView, PlannerView } from '../../store/types'
 
 const TRAINING_TABS: { mode: AppMode; label: string; icon: string }[] = [
   { mode: 'calendar',  label: 'Calendar',  icon: '📅' },
@@ -29,15 +29,19 @@ export default function Header() {
 
 // ── Desktop Header ──────────────────────────────────────────────────────────
 
-function getPlannerLabel(anchorStr: string): string {
+function getPlannerLabel(anchorStr: string, view: PlannerView): string {
   const anchor = parseISO(anchorStr)
+  if (view === 'month') {
+    return fmtDate(anchor, 'MMMM yyyy')
+  }
   const ws = startOfWeek(anchor, { weekStartsOn: 1 })
   return `${fmtDate(ws, 'MMM d')} – ${fmtDate(addWeeks(ws, 1), 'MMM d, yyyy')}`
 }
 
-const PLANNER_TABS: { tab: PlannerTab; label: string }[] = [
-  { tab: 'week', label: 'Week' },
-  { tab: 'template', label: 'Template' },
+const PLANNER_VIEW_OPTIONS: { view: PlannerView; label: string }[] = [
+  { view: 'week', label: 'Week' },
+  { view: 'month', label: 'Month' },
+  { view: 'template', label: 'Template' },
 ]
 
 function DesktopHeader() {
@@ -60,8 +64,8 @@ function DesktopHeader() {
 
   // Planner state
   const plannerAnchor = useAppStore((s) => s.plannerAnchor)
-  const plannerTab = useAppStore((s) => s.plannerTab)
-  const setPlannerTab = useAppStore((s) => s.setPlannerTab)
+  const plannerView = useAppStore((s) => s.plannerView)
+  const setPlannerView = useAppStore((s) => s.setPlannerView)
   const navigatePlanner = useAppStore((s) => s.navigatePlanner)
   const goToPlannerToday = useAppStore((s) => s.goToPlannerToday)
 
@@ -69,7 +73,7 @@ function DesktopHeader() {
   const isCalendarMode = isTraining && appMode === 'calendar'
   const isPlannerMode = isTraining && appMode === 'planner'
   const showCalendarNav = isTraining && (appMode === 'calendar' || appMode === 'grid')
-  const showPlannerNav = isPlannerMode && plannerTab === 'week'
+  const showPlannerNav = isPlannerMode && plannerView !== 'template'
   const showFilters = isTraining && (appMode === 'calendar' || appMode === 'grid' || appMode === 'dashboard' || appMode === 'review')
 
   return (
@@ -136,25 +140,21 @@ function DesktopHeader() {
         </div>
       )}
 
-      {isPlannerMode && (
+      {showPlannerNav && (
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginLeft: 4 }}>
-          {showPlannerNav && (
-            <>
-              <NavButton onClick={() => navigatePlanner('prev')} label="Previous week">‹</NavButton>
-              <button onClick={goToPlannerToday} style={{
-                padding: '4px 10px', borderRadius: 'var(--radius-sm)',
-                fontSize: 'var(--font-size-sm)', fontWeight: 'var(--font-weight-medium)',
-                color: 'var(--color-text-secondary)', background: 'transparent',
-                border: '1px solid var(--color-border)', cursor: 'pointer', whiteSpace: 'nowrap',
-              }}>Today</button>
-              <span style={{
-                fontSize: 'var(--font-size-sm)', fontWeight: 'var(--font-weight-semibold)',
-                color: 'var(--color-text-primary)', minWidth: 90, textAlign: 'center',
-                letterSpacing: '-0.2px', whiteSpace: 'nowrap',
-              }}>{getPlannerLabel(plannerAnchor)}</span>
-              <NavButton onClick={() => navigatePlanner('next')} label="Next week">›</NavButton>
-            </>
-          )}
+          <NavButton onClick={() => navigatePlanner('prev')} label="Previous period">‹</NavButton>
+          <button onClick={goToPlannerToday} style={{
+            padding: '4px 10px', borderRadius: 'var(--radius-sm)',
+            fontSize: 'var(--font-size-sm)', fontWeight: 'var(--font-weight-medium)',
+            color: 'var(--color-text-secondary)', background: 'transparent',
+            border: '1px solid var(--color-border)', cursor: 'pointer', whiteSpace: 'nowrap',
+          }}>Today</button>
+          <span style={{
+            fontSize: 'var(--font-size-sm)', fontWeight: 'var(--font-weight-semibold)',
+            color: 'var(--color-text-primary)', minWidth: 90, textAlign: 'center',
+            letterSpacing: '-0.2px', whiteSpace: 'nowrap',
+          }}>{getPlannerLabel(plannerAnchor, plannerView)}</span>
+          <NavButton onClick={() => navigatePlanner('next')} label="Next period">›</NavButton>
         </div>
       )}
 
@@ -179,16 +179,19 @@ function DesktopHeader() {
         <>
           <div style={{
             display: 'flex', background: 'var(--color-bg)', border: '1px solid var(--color-border)',
-            borderRadius: 'var(--radius-sm)', padding: 2, gap: 1,
+            borderRadius: 'var(--radius-md)', padding: 3, gap: 1,
           }}>
-            {PLANNER_TABS.map(({ tab, label: tLabel }) => (
-              <button key={tab} onClick={() => setPlannerTab(tab)} style={{
-                padding: '4px 12px', borderRadius: 'var(--radius-sm)',
-                fontSize: 'var(--font-size-sm)', fontWeight: plannerTab === tab ? 600 : 500,
-                color: plannerTab === tab ? 'var(--color-text-inverse)' : 'var(--color-text-secondary)',
-                background: plannerTab === tab ? 'var(--color-accent)' : 'transparent',
-                border: 'none', cursor: 'pointer', whiteSpace: 'nowrap',
-              }}>{tLabel}</button>
+            {PLANNER_VIEW_OPTIONS.map(({ view, label: vLabel }) => (
+              <button key={view} onClick={() => setPlannerView(view)} style={{
+                padding: '5px 12px', borderRadius: 7,
+                fontSize: 'var(--font-size-sm)',
+                fontWeight: plannerView === view ? 'var(--font-weight-semibold)' : 'var(--font-weight-medium)',
+                color: plannerView === view ? 'var(--color-text-inverse)' : 'var(--color-text-secondary)',
+                background: plannerView === view ? 'var(--color-accent)' : 'transparent',
+                transition: 'all var(--transition-fast)', whiteSpace: 'nowrap',
+                boxShadow: plannerView === view ? '0 1px 3px rgba(99,102,241,0.3)' : 'none',
+                border: 'none', cursor: 'pointer',
+              }}>{vLabel}</button>
             ))}
           </div>
           <div style={{ width: 1, height: 28, background: 'var(--color-border)' }} />
@@ -251,8 +254,8 @@ function MobileHeader() {
 
   // Planner state
   const plannerAnchor = useAppStore((s) => s.plannerAnchor)
-  const plannerTab = useAppStore((s) => s.plannerTab)
-  const setPlannerTab = useAppStore((s) => s.setPlannerTab)
+  const plannerView = useAppStore((s) => s.plannerView)
+  const setPlannerView = useAppStore((s) => s.setPlannerView)
   const navigatePlanner = useAppStore((s) => s.navigatePlanner)
   const goToPlannerToday = useAppStore((s) => s.goToPlannerToday)
 
@@ -260,7 +263,7 @@ function MobileHeader() {
   const showCalendarNav = isTraining && (appMode === 'calendar' || appMode === 'grid')
   const isCalendarMode = isTraining && appMode === 'calendar'
   const isPlannerMode = isTraining && appMode === 'planner'
-  const showPlannerNav = isPlannerMode && plannerTab === 'week'
+  const showPlannerNav = isPlannerMode && plannerView !== 'template'
   const showFilters = isTraining && (appMode === 'calendar' || appMode === 'grid' || appMode === 'dashboard' || appMode === 'review')
   const [showMore, setShowMore] = useState(false)
 
@@ -320,7 +323,7 @@ function MobileHeader() {
         {/* Planner nav (compact) */}
         {showPlannerNav && (
           <div style={{ display: 'flex', alignItems: 'center', gap: 4, flex: 1, justifyContent: 'center', minWidth: 0 }}>
-            <NavButton onClick={() => navigatePlanner('prev')} label="Previous week">‹</NavButton>
+            <NavButton onClick={() => navigatePlanner('prev')} label="Previous period">‹</NavButton>
             <button onClick={goToPlannerToday} style={{
               padding: '3px 8px', borderRadius: 'var(--radius-sm)', fontSize: 11,
               fontWeight: 600, color: 'var(--color-text-secondary)', background: 'transparent',
@@ -329,8 +332,8 @@ function MobileHeader() {
             <span style={{
               fontSize: 12, fontWeight: 600, color: 'var(--color-text-primary)',
               whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
-            }}>{getPlannerLabel(plannerAnchor)}</span>
-            <NavButton onClick={() => navigatePlanner('next')} label="Next week">›</NavButton>
+            }}>{getPlannerLabel(plannerAnchor, plannerView)}</span>
+            <NavButton onClick={() => navigatePlanner('next')} label="Next period">›</NavButton>
           </div>
         )}
 
@@ -381,16 +384,19 @@ function MobileHeader() {
             {isPlannerMode && (
               <div style={{
                 display: 'flex', background: 'var(--color-bg)', border: '1px solid var(--color-border)',
-                borderRadius: 'var(--radius-sm)', padding: 2, gap: 1,
+                borderRadius: 'var(--radius-md)', padding: 3, gap: 1,
               }}>
-                {PLANNER_TABS.map(({ tab, label: tLabel }) => (
-                  <button key={tab} onClick={() => setPlannerTab(tab)} style={{
-                    padding: '4px 10px', borderRadius: 'var(--radius-sm)',
-                    fontSize: 'var(--font-size-sm)', fontWeight: plannerTab === tab ? 600 : 500,
-                    color: plannerTab === tab ? 'var(--color-text-inverse)' : 'var(--color-text-secondary)',
-                    background: plannerTab === tab ? 'var(--color-accent)' : 'transparent',
+                {PLANNER_VIEW_OPTIONS.map(({ view, label: vLabel }) => (
+                  <button key={view} onClick={() => setPlannerView(view)} style={{
+                    padding: '5px 12px', borderRadius: 7,
+                    fontSize: 'var(--font-size-sm)',
+                    fontWeight: plannerView === view ? 'var(--font-weight-semibold)' : 'var(--font-weight-medium)',
+                    color: plannerView === view ? 'var(--color-text-inverse)' : 'var(--color-text-secondary)',
+                    background: plannerView === view ? 'var(--color-accent)' : 'transparent',
+                    transition: 'all var(--transition-fast)', whiteSpace: 'nowrap',
+                    boxShadow: plannerView === view ? '0 1px 3px rgba(99,102,241,0.3)' : 'none',
                     border: 'none', cursor: 'pointer',
-                  }}>{tLabel}</button>
+                  }}>{vLabel}</button>
                 ))}
               </div>
             )}

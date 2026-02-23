@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
-import { format, parseISO, startOfWeek, addWeeks, subWeeks } from 'date-fns'
+import { format, parseISO, startOfWeek, addWeeks, subWeeks, addMonths, subMonths } from 'date-fns'
 import { navigateAnchor } from '../utils/dateUtils'
 import type {
   AppStore,
@@ -10,7 +10,7 @@ import type {
   HRStream,
   StravaAthlete,
   AppMode,
-  PlannerTab,
+  PlannerView,
   WeekTemplate,
   WeekOverride,
   WeekDayIndex,
@@ -211,14 +211,19 @@ export const useAppStore = create<AppStore>()(
 
       // ── Planner navigation ────────────────────────────────────────────
       plannerAnchor: format(new Date(), 'yyyy-MM-dd'),
-      plannerTab: 'week' as PlannerTab,
+      plannerView: 'month' as PlannerView,
 
-      setPlannerTab: (tab: PlannerTab) => set({ plannerTab: tab }),
+      setPlannerView: (view: PlannerView) => set({ plannerView: view }),
 
       navigatePlanner: (direction) => {
-        const { plannerAnchor } = get()
+        const { plannerAnchor, plannerView } = get()
         const anchor = parseISO(plannerAnchor)
-        const newAnchor = direction === 'next' ? addWeeks(anchor, 1) : subWeeks(anchor, 1)
+        let newAnchor: Date
+        if (plannerView === 'month') {
+          newAnchor = direction === 'next' ? addMonths(anchor, 1) : subMonths(anchor, 1)
+        } else {
+          newAnchor = direction === 'next' ? addWeeks(anchor, 1) : subWeeks(anchor, 1)
+        }
         set({ plannerAnchor: format(newAnchor, 'yyyy-MM-dd') })
       },
 
@@ -371,7 +376,7 @@ export const useAppStore = create<AppStore>()(
         appMode: state.appMode,
         distanceUnit: state.distanceUnit,
         enabledTypes: state.enabledTypes,
-        plannerTab: state.plannerTab,
+        plannerView: state.plannerView,
         weekTemplate: state.weekTemplate,
         weekOverrides: state.weekOverrides,
         keyDates: state.keyDates,

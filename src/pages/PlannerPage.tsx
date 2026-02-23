@@ -1,5 +1,5 @@
-import { useState } from 'react'
-import { startOfWeek, addDays, format, parseISO } from 'date-fns'
+import { useState, useMemo } from 'react'
+import { startOfWeek, startOfMonth, endOfMonth, addDays, addWeeks, format, parseISO } from 'date-fns'
 import { useAppStore } from '../store/useAppStore'
 import { useWeekPlan } from '../hooks/useWeekPlan'
 import { useIsMobile } from '../hooks/useIsMobile'
@@ -13,11 +13,10 @@ const MON_TO_SUN_ORDER: WeekDayIndex[] = [1, 2, 3, 4, 5, 6, 0]
 
 export default function PlannerPage() {
   const plannerAnchor = useAppStore((s) => s.plannerAnchor)
-  const plannerTab = useAppStore((s) => s.plannerTab)
+  const plannerView = useAppStore((s) => s.plannerView)
   const isMobile = useIsMobile()
 
-  const weekStart = startOfWeek(parseISO(plannerAnchor), { weekStartsOn: 1 })
-
+  const anchor = parseISO(plannerAnchor)
   const padding = isMobile ? 8 : 16
 
   return (
@@ -28,11 +27,53 @@ export default function PlannerPage() {
       display: 'flex',
       flexDirection: 'column',
     }}>
-      {plannerTab === 'week' ? (
-        <WeekSection weekStart={weekStart} isMobile={isMobile} />
-      ) : (
+      {plannerView === 'week' && (
+        <WeekSection
+          weekStart={startOfWeek(anchor, { weekStartsOn: 1 })}
+          isMobile={isMobile}
+        />
+      )}
+      {plannerView === 'month' && (
+        <MonthSection anchor={anchor} isMobile={isMobile} />
+      )}
+      {plannerView === 'template' && (
         <TemplateSection isMobile={isMobile} />
       )}
+    </div>
+  )
+}
+
+// ── Month section ───────────────────────────────────────────────────────────
+
+function MonthSection({ anchor, isMobile }: { anchor: Date; isMobile: boolean }) {
+  const monthStart = startOfMonth(anchor)
+  const monthEnd = endOfMonth(anchor)
+
+  // Get all weeks that overlap with this month (Mon-start)
+  const weekStarts = useMemo(() => {
+    const weeks: Date[] = []
+    let ws = startOfWeek(monthStart, { weekStartsOn: 1 })
+    const lastDay = endOfMonth(anchor)
+    while (ws <= lastDay) {
+      weeks.push(ws)
+      ws = addWeeks(ws, 1)
+    }
+    return weeks
+  }, [monthStart.getTime()])
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: isMobile ? 16 : 20 }}>
+      {weekStarts.map((ws) => {
+        const weekLabel = `${format(ws, 'MMM d')} – ${format(addDays(ws, 6), 'MMM d')}`
+        return (
+          <WeekSection
+            key={format(ws, 'yyyy-MM-dd')}
+            weekStart={ws}
+            isMobile={isMobile}
+            label={weekLabel}
+          />
+        )
+      })}
     </div>
   )
 }
@@ -67,7 +108,7 @@ function TemplateSection({ isMobile }: { isMobile: boolean }) {
 
 // ── Per-week section ─────────────────────────────────────────────────────────
 
-function WeekSection({ weekStart, isMobile }: { weekStart: Date; isMobile: boolean }) {
+function WeekSection({ weekStart, isMobile, label }: { weekStart: Date; isMobile: boolean; label?: string }) {
   const weekOverrides = useAppStore((s) => s.weekOverrides)
   const clearWeekOverride = useAppStore((s) => s.clearWeekOverride)
   const keyDates = useAppStore((s) => s.keyDates)
@@ -87,12 +128,22 @@ function WeekSection({ weekStart, isMobile }: { weekStart: Date; isMobile: boole
   )
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: isMobile ? 8 : 12, flex: 1 }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: isMobile ? 8 : 10 }}>
       {/* Toolbar row */}
       <div style={{
         display: 'flex', alignItems: 'center', gap: 8,
-        flexWrap: 'wrap', padding: isMobile ? '4px 4px' : '4px 0',
+        flexWrap: 'wrap', padding: isMobile ? '4px 4px 0' : '4px 0 0',
       }}>
+        {/* Week label (shown in month view) */}
+        {label && (
+          <span style={{
+            fontSize: 'var(--font-size-sm)',
+            fontWeight: 'var(--font-weight-semibold)',
+            color: 'var(--color-text-primary)',
+            letterSpacing: '-0.2px',
+          }}>{label}</span>
+        )}
+
         {/* Key date badges */}
         {weekKeyDates.length > 0 && (
           <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
@@ -192,8 +243,6 @@ function WeekGrid({
       borderRadius: 'var(--radius-md)',
       overflow: 'hidden',
       background: 'var(--color-surface)',
-      flex: isMobile ? undefined : 1,
-      minHeight: isMobile ? undefined : 0,
     }}>
       {days.map((day, i) => (
         <div

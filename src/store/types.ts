@@ -160,7 +160,7 @@ export type ThemeMode = 'light' | 'dark'
 
 export type AppMode = 'calendar' | 'grid' | 'dashboard' | 'planner' | 'review'
 
-export type PlannerTab = 'week' | 'template'
+export type PlannerView = 'week' | 'month' | 'template'
 
 export type ActiveApp = 'training' | 'habits'
 
@@ -203,7 +203,7 @@ export interface AppState {
 
   // Planner navigation
   plannerAnchor: string // ISO date string
-  plannerTab: PlannerTab
+  plannerView: PlannerView
 
   // Weekly planning
   weekTemplate: WeekTemplate
@@ -260,7 +260,7 @@ export interface AppActions {
   setDistanceUnit: (unit: 'mi' | 'km') => void
 
   // Planner navigation
-  setPlannerTab: (tab: PlannerTab) => void
+  setPlannerView: (view: PlannerView) => void
   navigatePlanner: (direction: 'prev' | 'next') => void
   goToPlannerToday: () => void
 
