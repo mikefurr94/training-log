@@ -251,29 +251,11 @@ function MobileDayRow({
           </div>
         ) : (
           <>
-            {activities.map((activity) => {
-              const isRun = (activity.sport_type || activity.type) === 'Run'
-              const pace = isRun && activity.average_speed > 0
-                ? secondsToPaceString(speedToSecondsPerMile(activity.average_speed))
-                : null
-              return (
-                <div key={activity.id} style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <ActivityBadge activity={activity} />
-                  </div>
-                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', flexShrink: 0 }}>
-                    <div style={{ fontSize: 11, color: 'var(--color-text-tertiary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 140 }}>
-                      {activity.name}
-                    </div>
-                    {pace && (
-                      <div style={{ fontSize: 10, color: 'var(--color-text-tertiary)', fontVariantNumeric: 'tabular-nums' }}>
-                        {pace}/mi
-                      </div>
-                    )}
-                  </div>
-                </div>
-              )
-            })}
+            {activities.map((activity) => (
+              <div key={activity.id} style={{ minWidth: 0 }}>
+                <ActivityBadge activity={activity} />
+              </div>
+            ))}
             {planned.map((p) => (
               <div key={p.id} style={{ flex: 1, minWidth: 0 }}>
                 <PlannedBadge
