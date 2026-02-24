@@ -108,17 +108,54 @@ export default function WeekReviewPage() {
           </div>
         )}
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginLeft: isMobile ? 0 : 8 }}>
-          <NavBtn onClick={() => navigateScope('prev')} label={`Previous ${scope}`}>‹</NavBtn>
-          <button onClick={() => setAnchor(new Date())} style={ghostBtnStyle}>Today</button>
-          <span style={{
-            fontSize: isMobile ? 11 : 'var(--font-size-sm)', fontWeight: 600,
-            color: 'var(--color-text-primary)',
-            minWidth: isMobile ? 0 : 160, textAlign: 'center',
-            whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
-          }}>{getScopeLabel()}</span>
-          <NavBtn onClick={() => navigateScope('next')} label={`Next ${scope}`}>›</NavBtn>
-        </div>
+        {isMobile ? (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8, flex: 1 }}>
+            <div style={{
+              display: 'flex', alignItems: 'center',
+              border: '1px solid var(--color-border)', borderRadius: 10, overflow: 'hidden',
+            }}>
+              <button onClick={() => navigateScope('prev')} aria-label={`Previous ${scope}`} style={{
+                width: 44, height: 40, flexShrink: 0, background: 'transparent', border: 'none',
+                borderRight: '1px solid var(--color-border)',
+                color: 'var(--color-text-secondary)', fontSize: 22, lineHeight: 1,
+                cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 300,
+              }}>‹</button>
+              <span style={{
+                flex: 1, textAlign: 'center', fontSize: 15, fontWeight: 700,
+                color: 'var(--color-text-primary)', letterSpacing: '-0.3px',
+              }}>
+                {getScopeLabel()}
+              </span>
+              <button onClick={() => navigateScope('next')} aria-label={`Next ${scope}`} style={{
+                width: 44, height: 40, flexShrink: 0, background: 'transparent', border: 'none',
+                borderLeft: '1px solid var(--color-border)',
+                color: 'var(--color-text-secondary)', fontSize: 22, lineHeight: 1,
+                cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 300,
+              }}>›</button>
+            </div>
+            {!isCurrentWeek && (
+              <button onClick={() => setAnchor(new Date())} style={{
+                padding: '5px 12px', borderRadius: 7, fontSize: 'var(--font-size-sm)',
+                fontWeight: 600, color: 'var(--color-text-secondary)', background: 'transparent',
+                border: '1px solid var(--color-border)', cursor: 'pointer', alignSelf: 'flex-start',
+              }}>Today</button>
+            )}
+          </div>
+        ) : (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginLeft: 8 }}>
+            <NavBtn onClick={() => navigateScope('prev')} label={`Previous ${scope}`}>‹</NavBtn>
+            {!isCurrentWeek && (
+              <button onClick={() => setAnchor(new Date())} style={ghostBtnStyle}>Today</button>
+            )}
+            <span style={{
+              fontSize: 'var(--font-size-sm)', fontWeight: 600,
+              color: 'var(--color-text-primary)',
+              minWidth: 160, textAlign: 'center',
+              whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+            }}>{getScopeLabel()}</span>
+            <NavBtn onClick={() => navigateScope('next')} label={`Next ${scope}`}>›</NavBtn>
+          </div>
+        )}
 
         {!isMobile && <div style={{ flex: 1 }} />}
 
