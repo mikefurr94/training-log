@@ -33,6 +33,7 @@ export default function ActivityBadge({ activity, compact = false, onClick }: Pr
         alignItems: 'center',
         gap: compact ? 3 : 4,
         width: '100%',
+        color: colors.bg,
         background: colors.light,
         border: `1px solid ${colors.border}`,
         borderRadius: 5,
@@ -45,16 +46,18 @@ export default function ActivityBadge({ activity, compact = false, onClick }: Pr
       }}
       onMouseEnter={(e) => {
         e.currentTarget.style.background = colors.bg
+        e.currentTarget.style.color = colors.light
       }}
       onMouseLeave={(e) => {
         e.currentTarget.style.background = colors.light
+        e.currentTarget.style.color = colors.bg
       }}
     >
       <span style={{ fontSize: compact ? 10 : 11, flexShrink: 0 }}>{colors.emoji}</span>
       <span style={{
         fontSize: compact ? 10 : 'var(--font-size-xs)',
         fontWeight: 'var(--font-weight-medium)',
-        color: colors.bg,
+        color: 'inherit',
         whiteSpace: 'nowrap',
         overflow: 'hidden',
         textOverflow: 'ellipsis',

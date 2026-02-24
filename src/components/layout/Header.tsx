@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from 'react'
 import { parseISO, format } from 'date-fns'
 import { useAppStore } from '../../store/useAppStore'
 import { useCalendarRange } from '../../hooks/useCalendarRange'
+import { getDateRange } from '../../utils/dateUtils'
 import { useIsMobile } from '../../hooks/useIsMobile'
 import ViewToggle from '../ui/ViewToggle'
 import ActivityFilters from '../ui/ActivityFilters'
@@ -57,9 +58,17 @@ function DesktopHeader() {
 
   // Grid view uses quarter navigation — compute a quarter label from the anchor
   const anchorDate = useAppStore((s) => s.anchorDate)
+  const currentView = useAppStore((s) => s.currentView)
   const anchor = parseISO(anchorDate)
   const gridLabel = `Q${Math.ceil((anchor.getMonth() + 1) / 3)} ${format(anchor, 'yyyy')}`
   const navLabel = isGridMode ? gridLabel : label
+
+  // Hide "Today" button when the current view already contains today
+  const today = new Date()
+  const isViewingToday = isGridMode
+    ? anchor.getFullYear() === today.getFullYear()
+    : (() => { const { start, end } = getDateRange(currentView, anchor); return today >= start && today <= end })()
+
 
   return (
     <header style={{
@@ -106,12 +115,14 @@ function DesktopHeader() {
       {showCalendarNav && (
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginLeft: 4 }}>
           <NavButton onClick={() => navigate('prev')} label="Previous period">‹</NavButton>
-          <button onClick={goToToday} style={{
-            padding: '4px 10px', borderRadius: 'var(--radius-sm)',
-            fontSize: 'var(--font-size-sm)', fontWeight: 'var(--font-weight-medium)',
-            color: 'var(--color-text-secondary)', background: 'transparent',
-            border: '1px solid var(--color-border)', cursor: 'pointer', whiteSpace: 'nowrap',
-          }}>Today</button>
+          {!isViewingToday && (
+            <button onClick={goToToday} style={{
+              padding: '4px 10px', borderRadius: 'var(--radius-sm)',
+              fontSize: 'var(--font-size-sm)', fontWeight: 'var(--font-weight-medium)',
+              color: 'var(--color-text-secondary)', background: 'transparent',
+              border: '1px solid var(--color-border)', cursor: 'pointer', whiteSpace: 'nowrap',
+            }}>Today</button>
+          )}
           <span style={{
             fontSize: 'var(--font-size-sm)', fontWeight: 'var(--font-weight-semibold)',
             color: 'var(--color-text-primary)', minWidth: 90, textAlign: 'center',
@@ -228,9 +239,15 @@ function MobileHeader() {
   const [showMore, setShowMore] = useState(false)
 
   const mobileAnchorDate = useAppStore((s) => s.anchorDate)
+  const currentView = useAppStore((s) => s.currentView)
   const mobileAnchor = parseISO(mobileAnchorDate)
   const gridLabel = `Q${Math.ceil((mobileAnchor.getMonth() + 1) / 3)} ${format(mobileAnchor, 'yyyy')}`
   const navLabel = isGridMode ? gridLabel : label
+
+  const today = new Date()
+  const isViewingToday = isGridMode
+    ? mobileAnchor.getFullYear() === today.getFullYear()
+    : (() => { const { start, end } = getDateRange(currentView, mobileAnchor); return today >= start && today <= end })()
 
   return (
     <>
@@ -337,7 +354,7 @@ function MobileHeader() {
           )}
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
             {/* Today button */}
-            {showCalendarNav && (
+            {showCalendarNav && !isViewingToday && (
               <button onClick={goToToday} style={{
                 padding: '5px 12px', borderRadius: 7, fontSize: 'var(--font-size-sm)',
                 fontWeight: 600, color: 'var(--color-text-secondary)', background: 'transparent',

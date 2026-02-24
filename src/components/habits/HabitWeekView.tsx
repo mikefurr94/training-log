@@ -32,16 +32,51 @@ export default function HabitWeekView() {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
       {/* Navigation */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-        <NavBtn onClick={() => setAnchor((a) => subWeeks(a, 1))}>‹</NavBtn>
-        {!isCurrentWeek && (
-          <button onClick={() => setAnchor(new Date())} style={ghostBtnStyle}>This week</button>
-        )}
-        <span style={{ fontSize: 'var(--font-size-sm)', fontWeight: 600, color: 'var(--color-text-primary)', minWidth: isMobile ? 0 : 160, textAlign: 'center', flex: isMobile ? 1 : undefined }}>
-          {weekLabel}
-        </span>
-        <NavBtn onClick={() => setAnchor((a) => addWeeks(a, 1))}>›</NavBtn>
-      </div>
+      {isMobile ? (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          <div style={{
+            display: 'flex', alignItems: 'center',
+            border: '1px solid var(--color-border)', borderRadius: 10, overflow: 'hidden',
+          }}>
+            <button onClick={() => setAnchor((a) => subWeeks(a, 1))} aria-label="Previous week" style={{
+              width: 44, height: 40, flexShrink: 0, background: 'transparent', border: 'none',
+              borderRight: '1px solid var(--color-border)',
+              color: 'var(--color-text-secondary)', fontSize: 22, lineHeight: 1,
+              cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 300,
+            }}>‹</button>
+            <span style={{
+              flex: 1, textAlign: 'center', fontSize: 15, fontWeight: 700,
+              color: 'var(--color-text-primary)', letterSpacing: '-0.3px',
+            }}>
+              {weekLabel}
+            </span>
+            <button onClick={() => setAnchor((a) => addWeeks(a, 1))} aria-label="Next week" style={{
+              width: 44, height: 40, flexShrink: 0, background: 'transparent', border: 'none',
+              borderLeft: '1px solid var(--color-border)',
+              color: 'var(--color-text-secondary)', fontSize: 22, lineHeight: 1,
+              cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 300,
+            }}>›</button>
+          </div>
+          {!isCurrentWeek && (
+            <button onClick={() => setAnchor(new Date())} style={{
+              padding: '5px 12px', borderRadius: 7, fontSize: 'var(--font-size-sm)',
+              fontWeight: 600, color: 'var(--color-text-secondary)', background: 'transparent',
+              border: '1px solid var(--color-border)', cursor: 'pointer', alignSelf: 'flex-start',
+            }}>This week</button>
+          )}
+        </div>
+      ) : (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <NavBtn onClick={() => setAnchor((a) => subWeeks(a, 1))}>‹</NavBtn>
+          {!isCurrentWeek && (
+            <button onClick={() => setAnchor(new Date())} style={ghostBtnStyle}>This week</button>
+          )}
+          <span style={{ fontSize: 'var(--font-size-sm)', fontWeight: 600, color: 'var(--color-text-primary)', minWidth: 160, textAlign: 'center' }}>
+            {weekLabel}
+          </span>
+          <NavBtn onClick={() => setAnchor((a) => addWeeks(a, 1))}>›</NavBtn>
+        </div>
+      )}
 
       {isMobile ? (
         <MobileHabitGrid days={days} habits={sortedHabits} habitCompletions={habitCompletions} toggleHabitCompletion={toggleHabitCompletion} />
