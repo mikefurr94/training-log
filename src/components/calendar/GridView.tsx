@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { format, startOfYear, endOfYear, eachWeekOfInterval, addDays } from 'date-fns'
+import { format, startOfYear, endOfYear, eachWeekOfInterval, addDays, startOfWeek } from 'date-fns'
 import { useAppStore } from '../../store/useAppStore'
 import { mapStravaType, getActivityColor, ALL_ACTIVITY_TYPES } from '../../utils/activityColors'
 import { formatDistance, formatDuration, formatPace, formatHeartRate, formatElevation } from '../../utils/formatters'
@@ -65,6 +65,7 @@ export default function GridView({ anchor, activitiesByDate }: Props) {
   })
 
   const totalWeeks = weekStarts.length
+  const currentWeekStart = startOfWeek(new Date(), { weekStartsOn: 1 }).getTime()
 
   return (
     <div style={{
@@ -83,6 +84,7 @@ export default function GridView({ anchor, activitiesByDate }: Props) {
           monthPositions={monthPositions}
           totalWeeks={totalWeeks}
           showMonthLabels={true}
+          currentWeekStart={currentWeekStart}
           onSelect={selectActivity}
           onCellHover={(activity, x, y) => setTooltip({ activity, x, y })}
           onCellLeave={() => setTooltip(null)}
@@ -201,6 +203,7 @@ function ActivityGrid({
   monthPositions,
   totalWeeks,
   showMonthLabels,
+  currentWeekStart,
   onSelect,
   onCellHover,
   onCellLeave,
@@ -210,6 +213,7 @@ function ActivityGrid({
   monthPositions: { month: number; col: number }[]
   totalWeeks: number
   showMonthLabels: boolean
+  currentWeekStart: number
   onSelect: (id: number) => void
   onCellHover: (activity: StravaActivity, x: number, y: number) => void
   onCellLeave: () => void
@@ -293,6 +297,7 @@ function ActivityGrid({
                   ? day.activities.filter((a) => mapStravaType(a.sport_type || a.type) === type)
                   : []
                 const hasActivity = matching.length > 0
+                const isCurrentWeek = week[0].date.getTime() === currentWeekStart
 
                 return (
                   <React.Fragment key={wi}>
@@ -335,7 +340,7 @@ function ActivityGrid({
                           flex: 1,
                           aspectRatio: '1',
                           borderRadius: 3,
-                          background: hasActivity ? colors.hex : 'var(--color-border-light, #e5e7eb)',
+                          background: hasActivity ? colors.hex : isCurrentWeek ? 'var(--color-today-bg)' : 'var(--color-border-light, #e5e7eb)',
                           cursor: hasActivity ? 'pointer' : 'default',
                           transition: 'opacity 80ms ease',
                           minWidth: 0,

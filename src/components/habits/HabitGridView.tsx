@@ -42,7 +42,7 @@ export default function HabitGridView() {
     return markers
   }, [days])
 
-  const cellSize = isMobile ? 8 : 12
+  const cellSize = 12
   const gap = isMobile ? 1 : 2
   const labelWidth = isMobile ? 80 : 140
 
@@ -88,23 +88,34 @@ export default function HabitGridView() {
       </div>
 
       {/* Grid */}
-      <div style={{
+      <div style={isMobile ? {
+        overflowX: 'auto',
+        WebkitOverflowScrolling: 'touch' as any,
+      } : {
         background: 'var(--color-surface)',
         border: '1px solid var(--color-border)',
         borderRadius: 'var(--radius-lg)',
-        padding: isMobile ? '10px 8px' : '16px',
+        padding: '16px',
         overflowX: 'auto',
         WebkitOverflowScrolling: 'touch' as any,
       }}>
         {/* Month headers */}
-        <div style={{ display: 'flex', marginLeft: labelWidth, marginBottom: isMobile ? 2 : 4 }}>
+        <div style={{ display: 'flex', marginLeft: labelWidth, marginBottom: isMobile ? 2 : 4, position: 'relative' }}>
           {monthMarkers.map(({ index, label }, i) => {
             const nextIndex = i < monthMarkers.length - 1 ? monthMarkers[i + 1].index : daysToShow
             const width = (nextIndex - index) * (cellSize + gap)
             return (
-              <div key={`${label}-${index}`} style={{
+              <div key={`${label}-${index}`} style={isMobile ? {
+                flex: nextIndex - index,
+                fontSize: 7,
+                fontWeight: 600,
+                color: 'var(--color-text-tertiary)',
+                textTransform: 'uppercase',
+                letterSpacing: '0.04em',
+                overflow: 'hidden',
+              } : {
                 width,
-                fontSize: isMobile ? 7 : 10,
+                fontSize: 10,
                 fontWeight: 600,
                 color: 'var(--color-text-tertiary)',
                 textTransform: 'uppercase',
@@ -145,7 +156,7 @@ export default function HabitGridView() {
             </div>
 
             {/* Cells */}
-            <div style={{ display: 'flex', gap }}>
+            <div style={{ display: 'flex', gap, flex: isMobile ? 1 : undefined }}>
               {days.map((day) => {
                 const dateStr = format(day, 'yyyy-MM-dd')
                 const completed = (habitCompletions[dateStr] ?? []).includes(habit.id)
@@ -153,10 +164,17 @@ export default function HabitGridView() {
                   <div
                     key={dateStr}
                     title={`${habit.name} — ${format(day, 'MMM d, yyyy')}${completed ? ' (done)' : ''}`}
-                    style={{
+                    style={isMobile ? {
+                      flex: 1,
+                      aspectRatio: '1',
+                      borderRadius: 1,
+                      background: completed ? 'var(--color-habit-done)' : 'var(--color-habit-none)',
+                      opacity: completed ? 1 : 0.4,
+                      minWidth: 0,
+                    } : {
                       width: cellSize,
                       height: cellSize,
-                      borderRadius: isMobile ? 1 : 2,
+                      borderRadius: 2,
                       background: completed ? 'var(--color-habit-done)' : 'var(--color-habit-none)',
                       opacity: completed ? 1 : 0.4,
                       flexShrink: 0,
