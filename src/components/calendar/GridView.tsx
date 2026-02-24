@@ -187,18 +187,19 @@ function ActivityGrid({
                 return (
                   <React.Fragment key={wi}>
                     {!day.inQuarter ? (
-                      <div style={{ width: isMobile ? 10 : 16, height: isMobile ? 10 : 16, borderRadius: isMobile ? 1 : 3, background: 'transparent' }} />
+                      <div style={{ flex: 1, aspectRatio: '1', borderRadius: isMobile ? 1 : 3, background: 'transparent' }} />
                     ) : (
                       <div
                         title={`${format(day.date, 'EEE, MMM d')}${hasActivity ? ` · ${colors.label}` : ''}`}
                         onClick={() => matching[0] && onSelect(matching[0].id)}
                         style={{
-                          width: isMobile ? 10 : 16,
-                          height: isMobile ? 10 : 16,
+                          flex: 1,
+                          aspectRatio: '1',
                           borderRadius: isMobile ? 1 : 3,
                           background: hasActivity ? colors.hex : 'var(--color-border-light, #e5e7eb)',
                           cursor: hasActivity ? 'pointer' : 'default',
                           transition: 'opacity 80ms ease',
+                          minWidth: 0,
                         }}
                         onMouseEnter={(e) => { if (hasActivity) e.currentTarget.style.opacity = '0.7' }}
                         onMouseLeave={(e) => { e.currentTarget.style.opacity = '1' }}
