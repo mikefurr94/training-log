@@ -3,6 +3,7 @@ import Header, { MobileTabBar } from '../components/layout/Header'
 import CalendarRoot from '../components/calendar/CalendarRoot'
 import GridView from '../components/calendar/GridView'
 import ActivityPanel from '../components/activity/ActivityPanel'
+import PlannedActivityPanel from '../components/planning/PlannedActivityPanel'
 import DashboardPage from './DashboardPage'
 import PlannerPage from './PlannerPage'
 import WeekReviewPage from './WeekReviewPage'
@@ -120,6 +121,7 @@ export default function CalendarPage() {
         </AnimatePresence>
 
         <ActivityPanel />
+        <PlannedActivityPanel />
       </div>
 
       {/* Bottom tab bar on mobile */}

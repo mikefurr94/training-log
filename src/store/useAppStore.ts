@@ -192,11 +192,38 @@ export const useAppStore = create<AppStore>()(
       isPanelOpen: false,
 
       selectActivity: (id: number) => {
-        set({ selectedActivityId: id, isPanelOpen: true })
+        set({ selectedActivityId: id, isPanelOpen: true, isPlannedPanelOpen: false, selectedPlannedActivity: null, selectedPlannedDate: null })
       },
 
       closePanel: () => {
         set({ isPanelOpen: false, selectedActivityId: null })
+      },
+
+      // ── Planned activity panel ──────────────────────────────────────
+      selectedPlannedActivity: null,
+      selectedPlannedDate: null,
+      isPlannedPanelOpen: false,
+
+      openPlannedPanel: (activity: PlannedActivity, date: string) => {
+        set({
+          selectedPlannedActivity: activity,
+          selectedPlannedDate: date,
+          isPlannedPanelOpen: true,
+          isPanelOpen: false,
+          selectedActivityId: null,
+        })
+      },
+
+      closePlannedPanel: () => {
+        set({
+          isPlannedPanelOpen: false,
+          selectedPlannedActivity: null,
+          selectedPlannedDate: null,
+        })
+      },
+
+      updatePlannedInPanel: (activity: PlannedActivity) => {
+        set({ selectedPlannedActivity: activity })
       },
 
       // ── UI ────────────────────────────────────────────────────────────

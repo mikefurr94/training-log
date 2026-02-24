@@ -192,6 +192,11 @@ export interface AppState {
   activityStreams: Record<number, HRStream>
   isPanelOpen: boolean
 
+  // Planned activity panel
+  selectedPlannedActivity: PlannedActivity | null
+  selectedPlannedDate: string | null // 'YYYY-MM-DD'
+  isPlannedPanelOpen: boolean
+
   // UI
   isLoading: boolean
   error: string | null
@@ -244,6 +249,11 @@ export interface AppActions {
   // Panel
   selectActivity: (id: number) => void
   closePanel: () => void
+
+  // Planned activity panel
+  openPlannedPanel: (activity: PlannedActivity, date: string) => void
+  closePlannedPanel: () => void
+  updatePlannedInPanel: (activity: PlannedActivity) => void
 
   // UI
   setLoading: (loading: boolean) => void
