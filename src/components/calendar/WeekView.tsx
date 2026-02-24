@@ -1,5 +1,4 @@
 import { format, isToday } from 'date-fns'
-import { secondsToPaceString, speedToSecondsPerMile } from '../../utils/planningUtils'
 import ActivityBadge from './ActivityBadge'
 import PlannedBadge from './PlannedBadge'
 import WeatherInfo from './WeatherInfo'
@@ -119,25 +118,11 @@ function WeekDayColumn({
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 6, flex: 1, overflow: 'auto' }}>
         {/* Actual activities */}
-        {activities.map((activity) => {
-          const isRun = (activity.sport_type || activity.type) === 'Run'
-          const pace = isRun && activity.average_speed > 0
-            ? secondsToPaceString(speedToSecondsPerMile(activity.average_speed))
-            : null
-          return (
-            <div key={activity.id}>
-              <ActivityBadge activity={activity} />
-              <div style={{ fontSize: 10, color: 'var(--color-text-tertiary)', marginTop: 2, paddingLeft: 4, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                {activity.name}
-              </div>
-              {pace && (
-                <div style={{ fontSize: 10, color: 'var(--color-text-tertiary)', marginTop: 1, paddingLeft: 4, fontVariantNumeric: 'tabular-nums' }}>
-                  {pace}/mi
-                </div>
-              )}
-            </div>
-          )
-        })}
+        {activities.map((activity) => (
+          <div key={activity.id}>
+            <ActivityBadge activity={activity} />
+          </div>
+        ))}
 
         {/* Dashed divider if both actual and planned exist */}
         {activities.length > 0 && hasPlanned && (
