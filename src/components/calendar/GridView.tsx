@@ -1,9 +1,11 @@
-import React from 'react'
+import React, { useState } from 'react'
 import { format, startOfYear, endOfYear, eachWeekOfInterval, addDays } from 'date-fns'
 import { useAppStore } from '../../store/useAppStore'
 import { mapStravaType, getActivityColor, ALL_ACTIVITY_TYPES } from '../../utils/activityColors'
+import { formatDistance, formatDuration, formatPace, formatHeartRate, formatElevation } from '../../utils/formatters'
 import type { ActivityType } from '../../utils/activityColors'
 import type { StravaActivity } from '../../store/types'
+import type { DistanceUnit } from '../../utils/formatters'
 
 const MONTH_LABELS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
 const DAY_LABELS = ['M', 'T', 'W', 'T', 'F', 'S', 'S']
@@ -20,9 +22,17 @@ interface DayData {
   inYear: boolean
 }
 
+interface TooltipState {
+  activity: StravaActivity
+  x: number
+  y: number
+}
+
 export default function GridView({ anchor, activitiesByDate }: Props) {
   const enabledTypes = useAppStore((s) => s.enabledTypes)
   const selectActivity = useAppStore((s) => s.selectActivity)
+  const distanceUnit = useAppStore((s) => s.distanceUnit)
+  const [tooltip, setTooltip] = useState<TooltipState | null>(null)
 
   const activeTypes = ALL_ACTIVITY_TYPES.filter((t) => enabledTypes.includes(t))
 
@@ -65,7 +75,7 @@ export default function GridView({ anchor, activitiesByDate }: Props) {
       flexDirection: 'column',
       gap: 32,
     }}>
-      {activeTypes.map((type, typeIdx) => (
+      {activeTypes.map((type) => (
         <ActivityGrid
           key={type}
           type={type}
@@ -74,6 +84,8 @@ export default function GridView({ anchor, activitiesByDate }: Props) {
           totalWeeks={totalWeeks}
           showMonthLabels={true}
           onSelect={selectActivity}
+          onCellHover={(activity, x, y) => setTooltip({ activity, x, y })}
+          onCellLeave={() => setTooltip(null)}
         />
       ))}
 
@@ -82,11 +94,105 @@ export default function GridView({ anchor, activitiesByDate }: Props) {
           No activity types selected. Use the filters above to show activities.
         </div>
       )}
+
+      {tooltip && (
+        <ActivityTooltip
+          activity={tooltip.activity}
+          x={tooltip.x}
+          y={tooltip.y}
+          distanceUnit={distanceUnit}
+        />
+      )}
     </div>
   )
 }
 
-// Quarter boundary months (month index where a new quarter starts, excluding Q1=Jan)
+// ── Tooltip ───────────────────────────────────────────────────────────────────
+
+function ActivityTooltip({ activity, x, y, distanceUnit }: {
+  activity: StravaActivity
+  x: number
+  y: number
+  distanceUnit: DistanceUnit
+}) {
+  const type = mapStravaType(activity.sport_type || activity.type)
+  const colors = getActivityColor(type)
+  const isRun = type === 'Run'
+
+  const TOOLTIP_WIDTH = 200
+  const OFFSET_X = 12
+  const OFFSET_Y = -8
+
+  const left = x + OFFSET_X + TOOLTIP_WIDTH > window.innerWidth
+    ? x - TOOLTIP_WIDTH - OFFSET_X
+    : x + OFFSET_X
+
+  const top = y + OFFSET_Y
+
+  const rows: { label: string; value: string }[] = []
+  if (activity.distance > 0) rows.push({ label: 'Distance', value: formatDistance(activity.distance, distanceUnit) })
+  if (activity.moving_time > 0) rows.push({ label: 'Time', value: formatDuration(activity.moving_time) })
+  if (isRun && activity.average_speed > 0) rows.push({ label: 'Pace', value: formatPace(activity.average_speed, distanceUnit) })
+  if (activity.average_heartrate) rows.push({ label: 'Avg HR', value: formatHeartRate(activity.average_heartrate) })
+  if (activity.total_elevation_gain > 0) rows.push({ label: 'Elevation', value: formatElevation(activity.total_elevation_gain, distanceUnit) })
+
+  return (
+    <div style={{
+      position: 'fixed',
+      top,
+      left,
+      width: TOOLTIP_WIDTH,
+      background: 'var(--color-surface)',
+      border: '1px solid var(--color-border)',
+      borderRadius: 'var(--radius-md)',
+      boxShadow: '0 4px 16px rgba(0,0,0,0.12)',
+      padding: '8px 10px',
+      pointerEvents: 'none',
+      zIndex: 1000,
+    }}>
+      {/* Header */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginBottom: rows.length > 0 ? 6 : 0 }}>
+        <span style={{ fontSize: 13 }}>{colors.emoji}</span>
+        <div style={{ minWidth: 0 }}>
+          <div style={{
+            fontSize: 'var(--font-size-xs)',
+            fontWeight: 'var(--font-weight-semibold)',
+            color: 'var(--color-text-primary)',
+            whiteSpace: 'nowrap',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+          }}>
+            {activity.name}
+          </div>
+          <div style={{ fontSize: 10, color: 'var(--color-text-tertiary)' }}>
+            {format(new Date(activity.start_date_local), 'EEE, MMM d')}
+          </div>
+        </div>
+      </div>
+
+      {/* Stats */}
+      {rows.length > 0 && (
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: '1fr 1fr',
+          gap: '3px 8px',
+          borderTop: '1px solid var(--color-border-light)',
+          paddingTop: 6,
+        }}>
+          {rows.map(({ label, value }) => (
+            <div key={label}>
+              <div style={{ fontSize: 9, color: 'var(--color-text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{label}</div>
+              <div style={{ fontSize: 'var(--font-size-xs)', fontWeight: 'var(--font-weight-medium)', color: 'var(--color-text-primary)' }}>{value}</div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ── Quarter boundary months ───────────────────────────────────────────────────
+
 const QUARTER_START_MONTHS = new Set([3, 6, 9]) // April, July, October
 
 function ActivityGrid({
@@ -96,6 +202,8 @@ function ActivityGrid({
   totalWeeks,
   showMonthLabels,
   onSelect,
+  onCellHover,
+  onCellLeave,
 }: {
   type: ActivityType
   grid: DayData[][]
@@ -103,6 +211,8 @@ function ActivityGrid({
   totalWeeks: number
   showMonthLabels: boolean
   onSelect: (id: number) => void
+  onCellHover: (activity: StravaActivity, x: number, y: number) => void
+  onCellLeave: () => void
 }) {
   const colors = getActivityColor(type)
 
@@ -205,8 +315,22 @@ function ActivityGrid({
                       <div style={{ flex: 1, aspectRatio: '1', borderRadius: 3, background: 'transparent' }} />
                     ) : (
                       <div
-                        title={`${format(day.date, 'EEE, MMM d')}${hasActivity ? ` · ${colors.label}` : ''}`}
                         onClick={() => matching[0] && onSelect(matching[0].id)}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.opacity = '0.7'
+                          if (matching[0]) {
+                            onCellHover(matching[0], e.clientX, e.clientY)
+                          }
+                        }}
+                        onMouseMove={(e) => {
+                          if (matching[0]) {
+                            onCellHover(matching[0], e.clientX, e.clientY)
+                          }
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.opacity = '1'
+                          onCellLeave()
+                        }}
                         style={{
                           flex: 1,
                           aspectRatio: '1',
@@ -216,8 +340,6 @@ function ActivityGrid({
                           transition: 'opacity 80ms ease',
                           minWidth: 0,
                         }}
-                        onMouseEnter={(e) => { if (hasActivity) e.currentTarget.style.opacity = '0.7' }}
-                        onMouseLeave={(e) => { e.currentTarget.style.opacity = '1' }}
                       />
                     )}
                   </React.Fragment>
