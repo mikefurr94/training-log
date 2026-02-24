@@ -1,7 +1,6 @@
 import React from 'react'
-import { format, startOfQuarter, endOfQuarter, eachWeekOfInterval, addDays } from 'date-fns'
+import { format, startOfYear, endOfYear, eachWeekOfInterval, addDays } from 'date-fns'
 import { useAppStore } from '../../store/useAppStore'
-import { useIsMobile } from '../../hooks/useIsMobile'
 import { mapStravaType, getActivityColor, ALL_ACTIVITY_TYPES } from '../../utils/activityColors'
 import type { ActivityType } from '../../utils/activityColors'
 import type { StravaActivity } from '../../store/types'
@@ -18,24 +17,23 @@ interface Props {
 interface DayData {
   date: Date
   activities: StravaActivity[]
-  inQuarter: boolean
+  inYear: boolean
 }
 
 export default function GridView({ anchor, activitiesByDate }: Props) {
   const enabledTypes = useAppStore((s) => s.enabledTypes)
   const selectActivity = useAppStore((s) => s.selectActivity)
-  const isMobile = useIsMobile()
 
   const activeTypes = ALL_ACTIVITY_TYPES.filter((t) => enabledTypes.includes(t))
 
-  const quarterStart = startOfQuarter(anchor)
-  const quarterEnd = endOfQuarter(anchor)
+  const yearStart = startOfYear(anchor)
+  const yearEnd = endOfYear(anchor)
 
-  // Only include weeks whose Monday is on or after the quarter start
+  // Skip the partial first week — only include weeks whose Monday is on or after Jan 1
   const weekStarts = eachWeekOfInterval(
-    { start: quarterStart, end: quarterEnd },
+    { start: yearStart, end: yearEnd },
     { weekStartsOn: 1 }
-  ).filter((ws) => ws >= quarterStart)
+  ).filter((ws) => ws >= yearStart)
 
   const grid: DayData[][] = weekStarts.map((ws) =>
     Array.from({ length: 7 }, (_, di) => {
@@ -44,7 +42,7 @@ export default function GridView({ anchor, activitiesByDate }: Props) {
       return {
         date,
         activities: activitiesByDate[key] ?? [],
-        inQuarter: date >= quarterStart && date <= quarterEnd,
+        inYear: date >= yearStart && date <= yearEnd,
       }
     })
   )
@@ -57,19 +55,17 @@ export default function GridView({ anchor, activitiesByDate }: Props) {
   })
 
   const totalWeeks = weekStarts.length
-  const quarterNum = Math.ceil((anchor.getMonth() + 1) / 3)
 
   return (
     <div style={{
       height: '100%',
       overflow: 'auto',
-      padding: isMobile ? '8px 8px 24px' : '20px 24px 40px',
+      padding: '20px 24px 40px',
       display: 'flex',
       flexDirection: 'column',
-      gap: isMobile ? 20 : 32,
-      WebkitOverflowScrolling: 'touch' as any,
+      gap: 32,
     }}>
-      {activeTypes.map((type) => (
+      {activeTypes.map((type, typeIdx) => (
         <ActivityGrid
           key={type}
           type={type}
@@ -77,9 +73,7 @@ export default function GridView({ anchor, activitiesByDate }: Props) {
           monthPositions={monthPositions}
           totalWeeks={totalWeeks}
           showMonthLabels={true}
-          quarterNum={quarterNum}
           onSelect={selectActivity}
-          isMobile={isMobile}
         />
       ))}
 
@@ -92,62 +86,67 @@ export default function GridView({ anchor, activitiesByDate }: Props) {
   )
 }
 
+// Quarter boundary months (month index where a new quarter starts, excluding Q1=Jan)
+const QUARTER_START_MONTHS = new Set([3, 6, 9]) // April, July, October
+
 function ActivityGrid({
   type,
   grid,
   monthPositions,
   totalWeeks,
   showMonthLabels,
-  quarterNum,
   onSelect,
-  isMobile,
 }: {
   type: ActivityType
   grid: DayData[][]
   monthPositions: { month: number; col: number }[]
   totalWeeks: number
   showMonthLabels: boolean
-  quarterNum: number
   onSelect: (id: number) => void
-  isMobile: boolean
 }) {
   const colors = getActivityColor(type)
-  const dayLabelWidth = isMobile ? 14 : DAY_LABEL_WIDTH
 
-  // Count total for the quarter
+  // Count total for the year
   let total = 0
   for (const week of grid) {
     for (const day of week) {
-      if (!day.inQuarter) continue
+      if (!day.inYear) continue
       if (day.activities.some((a) => mapStravaType(a.sport_type || a.type) === type)) total++
     }
   }
 
+  // Quarter divider positions — cols where Q2/Q3/Q4 begin
+  const quarterCols = monthPositions
+    .filter(({ month }) => QUARTER_START_MONTHS.has(month))
+    .map(({ col }) => col)
+
   return (
     <div>
       {/* Lane header */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: isMobile ? 5 : 8, marginBottom: isMobile ? 4 : 8, marginLeft: dayLabelWidth }}>
-        <span style={{ fontSize: isMobile ? 13 : 16 }}>{colors.emoji}</span>
-        <span style={{ fontSize: isMobile ? 11 : 'var(--font-size-sm)', fontWeight: 700, color: 'var(--color-text-primary)' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8, marginLeft: DAY_LABEL_WIDTH }}>
+        <span style={{ fontSize: 16 }}>{colors.emoji}</span>
+        <span style={{ fontSize: 'var(--font-size-sm)', fontWeight: 700, color: 'var(--color-text-primary)' }}>
           {colors.label}
         </span>
-        <span style={{ fontSize: isMobile ? 9 : 11, color: 'var(--color-text-tertiary)', marginLeft: 2 }}>
-          {total} in Q{quarterNum}
+        <span style={{ fontSize: 11, color: 'var(--color-text-tertiary)', marginLeft: 2 }}>
+          {total} this year
         </span>
       </div>
 
       {/* Month labels */}
       {showMonthLabels && (
-        <div style={{ marginLeft: dayLabelWidth, marginBottom: isMobile ? 2 : 4, position: 'relative', height: isMobile ? 10 : 14 }}>
+        <div style={{ marginLeft: DAY_LABEL_WIDTH, marginBottom: 4, position: 'relative', height: 14 }}>
           {monthPositions.map(({ month, col }) => (
             <span
               key={month}
               style={{
                 position: 'absolute',
                 left: `calc(${(col / totalWeeks) * 100}%)`,
-                fontSize: isMobile ? 7 : 10,
-                color: 'var(--color-text-secondary)',
-                fontWeight: 700,
+                fontSize: 10,
+                color: QUARTER_START_MONTHS.has(month)
+                  ? 'var(--color-text-secondary)'
+                  : 'var(--color-text-tertiary)',
+                fontWeight: QUARTER_START_MONTHS.has(month) ? 700 : 600,
                 whiteSpace: 'nowrap',
                 letterSpacing: '0.04em',
               }}
@@ -158,17 +157,17 @@ function ActivityGrid({
         </div>
       )}
 
-      {/* Day rows */}
+      {/* Day rows with quarter dividers */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
         {DAY_LABELS.map((dayLabel, di) => (
-          <div key={di} style={{ display: 'flex', alignItems: 'stretch', width: '100%', marginBottom: isMobile ? 1 : 3 }}>
+          <div key={di} style={{ display: 'flex', alignItems: 'stretch', width: '100%', marginBottom: 3 }}>
             <div style={{
-              width: dayLabelWidth,
-              fontSize: isMobile ? 7 : 9,
+              width: DAY_LABEL_WIDTH,
+              fontSize: 9,
               color: 'var(--color-text-tertiary)',
               fontWeight: 600,
               textAlign: 'right',
-              paddingRight: isMobile ? 3 : 6,
+              paddingRight: 6,
               flexShrink: 0,
               letterSpacing: '0.04em',
               display: 'flex',
@@ -176,18 +175,34 @@ function ActivityGrid({
             }}>
               {dayLabel}
             </div>
-            <div style={{ display: 'flex', flex: 1, gap: isMobile ? 1 : 3 }}>
+            <div style={{ display: 'flex', flex: 1, gap: 3 }}>
               {grid.map((week, wi) => {
+                const isQuarterStart = quarterCols.includes(wi)
                 const day = week[di]
-                const matching = day.inQuarter
+                const matching = day.inYear
                   ? day.activities.filter((a) => mapStravaType(a.sport_type || a.type) === type)
                   : []
                 const hasActivity = matching.length > 0
 
                 return (
                   <React.Fragment key={wi}>
-                    {!day.inQuarter ? (
-                      <div style={{ flex: 1, aspectRatio: '1', borderRadius: isMobile ? 1 : 3, background: 'transparent' }} />
+                    {/* Inline quarter divider — perfectly centred in its own space */}
+                    {isQuarterStart && (
+                      <div
+                        aria-hidden
+                        style={{
+                          width: 2,
+                          borderRadius: 1,
+                          background: 'var(--color-text-tertiary, #9ca3af)',
+                          opacity: 0.35,
+                          flexShrink: 0,
+                          margin: '0 5px',
+                          alignSelf: 'stretch',
+                        }}
+                      />
+                    )}
+                    {!day.inYear ? (
+                      <div style={{ flex: 1, aspectRatio: '1', borderRadius: 3, background: 'transparent' }} />
                     ) : (
                       <div
                         title={`${format(day.date, 'EEE, MMM d')}${hasActivity ? ` · ${colors.label}` : ''}`}
@@ -195,7 +210,7 @@ function ActivityGrid({
                         style={{
                           flex: 1,
                           aspectRatio: '1',
-                          borderRadius: isMobile ? 1 : 3,
+                          borderRadius: 3,
                           background: hasActivity ? colors.hex : 'var(--color-border-light, #e5e7eb)',
                           cursor: hasActivity ? 'pointer' : 'default',
                           transition: 'opacity 80ms ease',
