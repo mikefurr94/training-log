@@ -4,6 +4,7 @@ import { useActivities } from '../../hooks/useActivities'
 import { useCalendarRange } from '../../hooks/useCalendarRange'
 import { useCalendarData } from '../../hooks/useCalendarData'
 import { usePlannedActivitiesByDate } from '../../hooks/usePlannedActivitiesByDate'
+import { useWeather } from '../../hooks/useWeather'
 import { useIsMobile } from '../../hooks/useIsMobile'
 import WeekView from './WeekView'
 import MonthView from './MonthView'
@@ -19,12 +20,13 @@ export default function CalendarRoot() {
   const activitiesByDate = useActivities()
   const { anchor, start, end } = useCalendarRange()
   const isMobile = useIsMobile()
+  const weatherByDate = useWeather()
 
   // Always call the hook (React rules) but pass empty object when plan is off
   const rawPlannedByDate = usePlannedActivitiesByDate(start, end)
   const plannedByDate = showPlan ? rawPlannedByDate : {}
 
-  const sharedProps = { anchor, activitiesByDate, plannedByDate }
+  const sharedProps = { anchor, activitiesByDate, plannedByDate, weatherByDate }
 
   const viewMap: Record<string, React.ReactNode> = {
     week: <WeekView {...sharedProps} />,

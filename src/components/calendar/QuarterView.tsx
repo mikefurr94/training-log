@@ -2,14 +2,16 @@ import { addMonths, startOfQuarter } from 'date-fns'
 import MonthView from './MonthView'
 import { useIsMobile } from '../../hooks/useIsMobile'
 import type { StravaActivity, PlannedActivity } from '../../store/types'
+import type { DailyWeather } from '../../api/weather'
 
 interface Props {
   anchor: Date
   activitiesByDate: Record<string, StravaActivity[]>
   plannedByDate?: Record<string, PlannedActivity[]>
+  weatherByDate?: Record<string, DailyWeather>
 }
 
-export default function QuarterView({ anchor, activitiesByDate, plannedByDate }: Props) {
+export default function QuarterView({ anchor, activitiesByDate, plannedByDate, weatherByDate }: Props) {
   const isMobile = useIsMobile()
   const quarterStart = startOfQuarter(anchor)
   const months = [
@@ -43,6 +45,7 @@ export default function QuarterView({ anchor, activitiesByDate, plannedByDate }:
             anchor={month}
             activitiesByDate={activitiesByDate}
             plannedByDate={plannedByDate}
+            weatherByDate={weatherByDate}
             compact
             showMonthLabel
           />

@@ -2,16 +2,19 @@ import { useState } from 'react'
 import { format, isToday, isSameMonth, startOfWeek } from 'date-fns'
 import ActivityBadge from './ActivityBadge'
 import PlannedBadge from './PlannedBadge'
+import WeatherInfo from './WeatherInfo'
 import { mapStravaType } from '../../utils/activityColors'
 import { useAppStore } from '../../store/useAppStore'
 import ActivityPlanModal from '../planning/ActivityPlanModal'
 import type { StravaActivity, PlannedActivity, WeekDayIndex } from '../../store/types'
 import type { ActivityType } from '../../utils/activityColors'
+import type { DailyWeather } from '../../api/weather'
 
 interface Props {
   date: Date
   activities: StravaActivity[]
   plannedActivities?: PlannedActivity[]
+  weather?: DailyWeather
   monthRef?: Date // to detect out-of-month days
   compact?: boolean // for quarter/6month views
   isYearView?: boolean
@@ -22,6 +25,7 @@ export default function DayCell({
   date,
   activities,
   plannedActivities,
+  weather,
   monthRef,
   compact = false,
   isYearView = false,
@@ -135,32 +139,41 @@ export default function DayCell({
           overflow: 'hidden',
         }}
       >
-        {/* Date number */}
+        {/* Date number + weather */}
         <div style={{
-          fontSize: compact ? 'var(--font-size-xs)' : 'var(--font-size-sm)',
-          fontWeight: today ? 'var(--font-weight-bold)' : 'var(--font-weight-medium)',
-          color: today ? 'var(--color-accent)' : outsideMonth ? 'var(--color-text-tertiary)' : 'var(--color-text-secondary)',
-          lineHeight: 1,
-          letterSpacing: '-0.1px',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
           flexShrink: 0,
         }}>
-          {today && !compact ? (
-            <span style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              width: 22,
-              height: 22,
-              borderRadius: '50%',
-              background: 'var(--color-accent)',
-              color: '#fff',
-              fontSize: 'var(--font-size-xs)',
-              fontWeight: 'var(--font-weight-bold)',
-            }}>
-              {format(date, 'd')}
-            </span>
-          ) : (
-            format(date, 'd')
+          <div style={{
+            fontSize: compact ? 'var(--font-size-xs)' : 'var(--font-size-sm)',
+            fontWeight: today ? 'var(--font-weight-bold)' : 'var(--font-weight-medium)',
+            color: today ? 'var(--color-accent)' : outsideMonth ? 'var(--color-text-tertiary)' : 'var(--color-text-secondary)',
+            lineHeight: 1,
+            letterSpacing: '-0.1px',
+          }}>
+            {today && !compact ? (
+              <span style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                width: 22,
+                height: 22,
+                borderRadius: '50%',
+                background: 'var(--color-accent)',
+                color: '#fff',
+                fontSize: 'var(--font-size-xs)',
+                fontWeight: 'var(--font-weight-bold)',
+              }}>
+                {format(date, 'd')}
+              </span>
+            ) : (
+              format(date, 'd')
+            )}
+          </div>
+          {weather && hasPlanned && (
+            <WeatherInfo weather={weather} compact={compact} />
           )}
         </div>
 
