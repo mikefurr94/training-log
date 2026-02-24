@@ -216,9 +216,6 @@ function DesktopHeader() {
 
 function MobileHeader() {
   const athlete = useAppStore((s) => s.athlete)
-  const isLoading = useAppStore((s) => s.isLoading)
-  const navigate = useAppStore((s) => s.navigate)
-  const goToToday = useAppStore((s) => s.goToToday)
   const logout = useAppStore((s) => s.logout)
   const distanceUnit = useAppStore((s) => s.distanceUnit)
   const setDistanceUnit = useAppStore((s) => s.setDistanceUnit)
@@ -229,25 +226,10 @@ function MobileHeader() {
   const toggleTheme = useAppStore((s) => s.toggleTheme)
   const showPlan = useAppStore((s) => s.showPlan)
   const toggleShowPlan = useAppStore((s) => s.toggleShowPlan)
-  const { label } = useCalendarRange()
-
   const isTraining = activeApp === 'training'
-  const isGridMode = isTraining && appMode === 'grid'
-  const showCalendarNav = isTraining && (appMode === 'calendar' || appMode === 'grid')
   const isCalendarMode = isTraining && appMode === 'calendar'
   const showFilters = isTraining && (appMode === 'calendar' || appMode === 'grid' || appMode === 'dashboard' || appMode === 'review')
   const [showMore, setShowMore] = useState(false)
-
-  const mobileAnchorDate = useAppStore((s) => s.anchorDate)
-  const currentView = useAppStore((s) => s.currentView)
-  const mobileAnchor = parseISO(mobileAnchorDate)
-  const gridLabel = `Q${Math.ceil((mobileAnchor.getMonth() + 1) / 3)} ${format(mobileAnchor, 'yyyy')}`
-  const navLabel = isGridMode ? gridLabel : label
-
-  const today = new Date()
-  const isViewingToday = isGridMode
-    ? mobileAnchor.getFullYear() === today.getFullYear()
-    : (() => { const { start, end } = getDateRange(currentView, mobileAnchor); return today >= start && today <= end })()
 
   return (
     <>
@@ -306,38 +288,6 @@ function MobileHeader() {
           )}
         </div>{/* end settings */}
         </div>{/* end row 1 */}
-
-        {/* Row 2: period nav — full-width pill matching Habits app */}
-        {showCalendarNav && (
-          <div style={{ padding: '0 12px 10px' }}>
-            <div style={{
-              display: 'flex', alignItems: 'center',
-              border: '1px solid var(--color-border)', borderRadius: 10, overflow: 'hidden',
-            }}>
-              <button onClick={() => navigate('prev')} aria-label="Previous" style={{
-                width: 44, height: 40, flexShrink: 0, background: 'transparent', border: 'none',
-                borderRight: '1px solid var(--color-border)',
-                color: 'var(--color-text-secondary)', fontSize: 22, lineHeight: 1,
-                cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 300,
-              }}>‹</button>
-              <span style={{
-                flex: 1, textAlign: 'center', fontSize: 15, fontWeight: 700,
-                color: 'var(--color-text-primary)', letterSpacing: '-0.3px',
-                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4,
-              }}>
-                {isLoading && <Spinner size={8} />}
-                {navLabel}
-              </span>
-              <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
-              <button onClick={() => navigate('next')} aria-label="Next" style={{
-                width: 44, height: 40, flexShrink: 0, background: 'transparent', border: 'none',
-                borderLeft: '1px solid var(--color-border)',
-                color: 'var(--color-text-secondary)', fontSize: 22, lineHeight: 1,
-                cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 300,
-              }}>›</button>
-            </div>
-          </div>
-        )}
       </header>
 
       {/* Expandable menu */}
@@ -353,14 +303,6 @@ function MobileHeader() {
             </div>
           )}
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-            {/* Today button */}
-            {showCalendarNav && !isViewingToday && (
-              <button onClick={goToToday} style={{
-                padding: '5px 12px', borderRadius: 7, fontSize: 'var(--font-size-sm)',
-                fontWeight: 600, color: 'var(--color-text-secondary)', background: 'transparent',
-                border: '1px solid var(--color-border)', cursor: 'pointer', whiteSpace: 'nowrap',
-              }}>Today</button>
-            )}
             {isCalendarMode && <ViewToggle />}
             {/* Plan overlay toggle */}
             {isTraining && (appMode === 'calendar' || appMode === 'grid') && (

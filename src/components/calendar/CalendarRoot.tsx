@@ -6,6 +6,7 @@ import { useCalendarData } from '../../hooks/useCalendarData'
 import { usePlannedActivitiesByDate } from '../../hooks/usePlannedActivitiesByDate'
 import { useWeather } from '../../hooks/useWeather'
 import { useIsMobile } from '../../hooks/useIsMobile'
+import MobilePeriodNav from '../ui/MobilePeriodNav'
 import WeekView from './WeekView'
 import MonthView from './MonthView'
 import QuarterView from './QuarterView'
@@ -46,6 +47,7 @@ export default function CalendarRoot() {
       display: 'flex',
       flexDirection: 'column',
     }}>
+      {isMobile && <div style={{ marginBottom: 8, flexShrink: 0 }}><MobilePeriodNav /></div>}
       <AnimatePresence mode="wait">
         <motion.div
           key={`${currentView}-${anchorDate}`}

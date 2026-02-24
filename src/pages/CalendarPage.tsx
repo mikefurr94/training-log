@@ -14,6 +14,7 @@ import { useAppStore } from '../store/useAppStore'
 import { useActivities } from '../hooks/useActivities'
 import { useCalendarRange } from '../hooks/useCalendarRange'
 import { useIsMobile } from '../hooks/useIsMobile'
+import MobilePeriodNav from '../components/ui/MobilePeriodNav'
 
 // Separate component so hooks run inside the calendar data context
 function GridContainer() {
@@ -77,6 +78,7 @@ export default function CalendarPage() {
 
             {isTraining && appMode === 'grid' && (
               <div style={{ flex: 1, overflow: 'auto' }}>
+                {isMobile && <div style={{ padding: '8px 12px 0' }}><MobilePeriodNav /></div>}
                 <GridContainer />
               </div>
             )}

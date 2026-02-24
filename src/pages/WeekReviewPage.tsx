@@ -86,9 +86,11 @@ export default function WeekReviewPage() {
     }}>
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', gap: isMobile ? 6 : 12, flexWrap: 'wrap' }}>
-        <h2 style={{ margin: 0, fontSize: isMobile ? 'var(--font-size-base)' : 'var(--font-size-lg)', fontWeight: 'var(--font-weight-bold)', color: 'var(--color-text-primary)' }}>
-          Review
-        </h2>
+        {!isMobile && (
+          <h2 style={{ margin: 0, fontSize: 'var(--font-size-lg)', fontWeight: 'var(--font-weight-bold)', color: 'var(--color-text-primary)' }}>
+            Review
+          </h2>
+        )}
 
         {/* Scope tabs — week-only on mobile */}
         {!isMobile && (
