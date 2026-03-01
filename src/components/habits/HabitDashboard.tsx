@@ -1,9 +1,9 @@
 import { useMemo } from 'react'
 import {
-  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
+  XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   LineChart, Line, Legend,
 } from 'recharts'
-import { format } from 'date-fns'
+import { format, subWeeks, startOfWeek, addDays } from 'date-fns'
 import { useAppStore } from '../../store/useAppStore'
 import { useIsMobile } from '../../hooks/useIsMobile'
 import { calculateStreak, buildHabitWeekStats } from '../../utils/habitUtils'
@@ -47,17 +47,6 @@ export default function HabitDashboard() {
     }
     return total > 0 ? Math.round((completed / total) * 100) : 0
   }, [sortedHabits, habitCompletions, today])
-
-  const barData = useMemo(() =>
-    weekStats.map((ws) => {
-      const row: Record<string, string | number> = { week: ws.label }
-      for (const h of sortedHabits) {
-        row[h.id] = Math.round((ws.rates[h.id] ?? 0) * 100)
-      }
-      return row
-    }),
-    [weekStats, sortedHabits]
-  )
 
   const lineData = useMemo(() =>
     weekStats.map((ws) => ({
@@ -111,91 +100,10 @@ export default function HabitDashboard() {
         </ChartCard>
       </section>
 
-      {/* Bar chart */}
+      {/* Weekly Review */}
       <section>
-        <SectionHeader title="Habit Breakdown" subtitle={`${WEEKS_TO_SHOW}-wk`} isMobile={isMobile} />
-        <ChartCard isMobile={isMobile}>
-          <ResponsiveContainer width="100%" height={isMobile ? 180 : 220}>
-            <BarChart data={barData} margin={{ top: 4, right: 4, left: isMobile ? -28 : -20, bottom: 0 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" vertical={false} />
-              <XAxis dataKey="week" tick={{ fontSize: isMobile ? 9 : 11, fill: 'var(--color-text-tertiary)' }} tickLine={false} axisLine={false} interval={chartInterval} />
-              <YAxis tick={{ fontSize: isMobile ? 9 : 11, fill: 'var(--color-text-tertiary)' }} tickLine={false} axisLine={false} domain={[0, 100]} unit="%" />
-              <Tooltip content={<CustomTooltip habits={sortedHabits} />} />
-              {sortedHabits.map((h, i) => (
-                <Bar key={h.id} dataKey={h.id} fill={HABIT_COLORS[i % HABIT_COLORS.length]} radius={[2, 2, 0, 0]} name={h.name} />
-              ))}
-            </BarChart>
-          </ResponsiveContainer>
-        </ChartCard>
-      </section>
-
-      {/* Streak table */}
-      <section>
-        <SectionHeader title="Streak Leaderboard" isMobile={isMobile} />
-        <div style={{
-          background: 'var(--color-surface)', borderRadius: 'var(--radius-lg)',
-          border: '1px solid var(--color-border)', overflow: 'hidden',
-        }}>
-          {isMobile ? (
-            <div style={{ display: 'flex', flexDirection: 'column' }}>
-              {streaks.map((h, i) => (
-                <div key={h.id} style={{
-                  display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px',
-                  borderBottom: i < streaks.length - 1 ? '1px solid var(--color-border-light)' : 'none',
-                  background: i % 2 === 0 ? 'var(--color-surface)' : 'var(--color-bg)',
-                }}>
-                  <span style={{ fontSize: 18 }}>{h.emoji}</span>
-                  <span style={{ fontSize: 'var(--font-size-sm)', fontWeight: 500, flex: 1 }}>{h.name}</span>
-                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 1 }}>
-                    <span style={{
-                      fontSize: 14, fontWeight: 700,
-                      color: h.current > 0 ? HABIT_COLORS[i % HABIT_COLORS.length] : 'var(--color-text-tertiary)',
-                      fontVariantNumeric: 'tabular-nums',
-                    }}>
-                      {h.current > 0 ? `${h.current}d` : '—'}
-                    </span>
-                    <span style={{ fontSize: 10, color: 'var(--color-text-tertiary)' }}>
-                      best: {h.longest > 0 ? `${h.longest}d` : '—'}
-                    </span>
-                  </div>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 'var(--font-size-sm)' }}>
-              <thead>
-                <tr style={{ background: 'var(--color-bg)', borderBottom: '1px solid var(--color-border)' }}>
-                  {['Habit', 'Current Streak', 'Longest Streak'].map((h) => (
-                    <th key={h} style={{
-                      padding: '9px 14px', textAlign: h === 'Habit' ? 'left' : 'right',
-                      fontSize: 11, fontWeight: 600, color: 'var(--color-text-tertiary)',
-                      textTransform: 'uppercase', letterSpacing: '0.05em',
-                    }}>{h}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {streaks.map((h, i) => (
-                  <tr key={h.id} style={{
-                    borderBottom: i < streaks.length - 1 ? '1px solid var(--color-border-light)' : 'none',
-                    background: i % 2 === 0 ? 'var(--color-surface)' : 'var(--color-bg)',
-                  }}>
-                    <td style={{ padding: '9px 14px', display: 'flex', alignItems: 'center', gap: 8 }}>
-                      <span style={{ fontSize: 16 }}>{h.emoji}</span>
-                      <span style={{ fontWeight: 500 }}>{h.name}</span>
-                    </td>
-                    <td style={{ padding: '9px 14px', textAlign: 'right', fontWeight: 700, color: h.current > 0 ? HABIT_COLORS[i % HABIT_COLORS.length] : 'var(--color-text-tertiary)', fontVariantNumeric: 'tabular-nums' }}>
-                      {h.current > 0 ? `${h.current} days` : '—'}
-                    </td>
-                    <td style={{ padding: '9px 14px', textAlign: 'right', color: 'var(--color-text-secondary)', fontVariantNumeric: 'tabular-nums' }}>
-                      {h.longest > 0 ? `${h.longest} days` : '—'}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
-        </div>
+        <SectionHeader title="Weekly Review" subtitle="8-wk" isMobile={isMobile} />
+        <WeeklyReview habits={sortedHabits} completions={habitCompletions} isMobile={isMobile} />
       </section>
     </div>
   )
@@ -254,6 +162,105 @@ function CustomTooltip({ active, payload, label, habits }: any) {
         <div key={p.name} style={{ display: 'flex', gap: 8, justifyContent: 'space-between', color: p.color }}>
           <span>{p.name}</span>
           <span style={{ fontWeight: 700 }}>{p.value}%</span>
+        </div>
+      ))}
+    </div>
+  )
+}
+
+// ── Weekly Review ─────────────────────────────────────────────────────────────
+
+function WeeklyReview({ habits, completions, isMobile }: {
+  habits: { id: string; name: string; emoji: string; order: number }[]
+  completions: Record<string, string[]>
+  isMobile: boolean
+}) {
+  const weeks = useMemo(() => {
+    const today = new Date()
+    const rows: { label: string; counts: Record<string, number> }[] = []
+
+    for (let w = 0; w < 8; w++) {
+      const ws = startOfWeek(subWeeks(today, w), { weekStartsOn: 1 })
+      const counts: Record<string, number> = {}
+      for (const h of habits) {
+        let done = 0
+        for (let d = 0; d < 7; d++) {
+          const key = format(addDays(ws, d), 'yyyy-MM-dd')
+          if ((completions[key] ?? []).includes(h.id)) done++
+        }
+        counts[h.id] = done
+      }
+      rows.push({ label: format(ws, 'MMM d'), counts })
+    }
+
+    return rows
+  }, [habits, completions])
+
+  return (
+    <div style={{
+      background: 'var(--color-surface)', borderRadius: 'var(--radius-lg)',
+      border: '1px solid var(--color-border)', overflow: 'hidden',
+    }}>
+      {/* Header row */}
+      <div style={{
+        display: 'flex', alignItems: 'center',
+        background: 'var(--color-bg)', borderBottom: '1px solid var(--color-border)',
+        padding: isMobile ? '8px 10px' : '9px 14px',
+        gap: isMobile ? 6 : 8,
+      }}>
+        <div style={{
+          width: isMobile ? 60 : 80, flexShrink: 0,
+          fontSize: 11, fontWeight: 600, color: 'var(--color-text-tertiary)',
+          textTransform: 'uppercase', letterSpacing: '0.05em',
+        }}>
+          Week
+        </div>
+        {habits.map((h) => (
+          <div key={h.id} style={{
+            flex: 1, textAlign: 'center', minWidth: 0,
+            fontSize: isMobile ? 14 : 16,
+          }} title={h.name}>
+            {h.emoji}
+          </div>
+        ))}
+      </div>
+
+      {/* Week rows */}
+      {weeks.map((week, i) => (
+        <div key={week.label} style={{
+          display: 'flex', alignItems: 'center',
+          padding: isMobile ? '8px 10px' : '9px 14px',
+          gap: isMobile ? 6 : 8,
+          borderBottom: i < weeks.length - 1 ? '1px solid var(--color-border-light)' : 'none',
+          background: i % 2 === 0 ? 'var(--color-surface)' : 'var(--color-bg)',
+        }}>
+          <div style={{
+            width: isMobile ? 60 : 80, flexShrink: 0,
+            fontSize: isMobile ? 11 : 'var(--font-size-sm)', fontWeight: 500,
+            color: 'var(--color-text-secondary)',
+          }}>
+            {week.label}
+          </div>
+          {habits.map((h, hi) => {
+            const count = week.counts[h.id] ?? 0
+            const ratio = count / 7
+            return (
+              <div key={h.id} style={{
+                flex: 1, textAlign: 'center',
+                fontSize: isMobile ? 13 : 14,
+                fontWeight: 700,
+                fontVariantNumeric: 'tabular-nums',
+                color: count === 7
+                  ? HABIT_COLORS[hi % HABIT_COLORS.length]
+                  : count === 0
+                    ? 'var(--color-text-tertiary)'
+                    : 'var(--color-text-primary)',
+                opacity: count === 0 ? 0.5 : 0.4 + ratio * 0.6,
+              }}>
+                {count}/7
+              </div>
+            )
+          })}
         </div>
       ))}
     </div>
