@@ -1,14 +1,14 @@
 import type { CoachPlan, CoachWizardData, FitnessSummary } from '../store/types'
 
 export async function loadCoachPlan(athleteId: number): Promise<CoachPlan | null> {
-  const res = await fetch(`/api/coach/plan?athlete_id=${athleteId}`)
+  const res = await fetch(`/api/coach?action=plan&athlete_id=${athleteId}`)
   if (!res.ok) throw new Error('Failed to load coach plan')
   const data = await res.json()
   return data.plan ?? null
 }
 
 export async function saveCoachPlan(athleteId: number, plan: CoachPlan): Promise<void> {
-  const res = await fetch(`/api/coach/plan?athlete_id=${athleteId}`, {
+  const res = await fetch(`/api/coach?action=plan&athlete_id=${athleteId}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(plan),
@@ -21,7 +21,7 @@ export async function generateCoachPlan(
   wizardData: CoachWizardData,
   fitnessSummary: FitnessSummary
 ): Promise<CoachPlan> {
-  const res = await fetch('/api/coach/generate', {
+  const res = await fetch('/api/coach?action=generate', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ athlete_id: athleteId, ...wizardData, fitnessSummary }),
@@ -39,7 +39,7 @@ export async function getCoachDayDetail(
   weekContext: { weekNumber: number; phase: string; summary: string },
   activity: { label: string; targetDistanceMiles?: number; intensity?: string }
 ): Promise<string> {
-  const res = await fetch('/api/coach/detail', {
+  const res = await fetch('/api/coach?action=detail', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ plan_id: planId, date, weekContext, activity }),
@@ -58,7 +58,7 @@ export async function adjustCoachPlan(
     remainingWeeks: unknown[]
   }
 ): Promise<{ weeks: unknown[] }> {
-  const res = await fetch('/api/coach/adjust', {
+  const res = await fetch('/api/coach?action=adjust', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ plan_id: planId, athlete_id: athleteId, request, context }),
@@ -72,7 +72,7 @@ export async function coachCheckin(
   athleteId: number,
   weeksCompleted: unknown[]
 ): Promise<{ suggestions: string; updatedWeeks?: unknown[] }> {
-  const res = await fetch('/api/coach/checkin', {
+  const res = await fetch('/api/coach?action=checkin', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ plan_id: planId, athlete_id: athleteId, weeksCompleted }),
