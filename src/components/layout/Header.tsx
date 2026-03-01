@@ -6,7 +6,7 @@ import { getDateRange } from '../../utils/dateUtils'
 import { useIsMobile } from '../../hooks/useIsMobile'
 import ViewToggle from '../ui/ViewToggle'
 import ActivityFilters from '../ui/ActivityFilters'
-import type { AppMode, HabitView } from '../../store/types'
+import type { AppMode, HabitView, ActiveApp } from '../../store/types'
 
 const TRAINING_TABS: { mode: AppMode; label: string; icon: string }[] = [
   { mode: 'calendar',  label: 'Calendar',  icon: '📅' },
@@ -14,7 +14,6 @@ const TRAINING_TABS: { mode: AppMode; label: string; icon: string }[] = [
   { mode: 'dashboard', label: 'Dashboard', icon: '📊' },
   { mode: 'review',    label: 'Review',    icon: '📈' },
   { mode: 'planner',   label: 'Template',  icon: '📋' },
-  { mode: 'coach',     label: 'Coach',     icon: '🏅' },
 ]
 
 const HABIT_TABS: { mode: HabitView; label: string; icon: string }[] = [
@@ -89,29 +88,31 @@ function DesktopHeader() {
       <AppSwitcher activeApp={activeApp} onSwitch={setActiveApp} />
       <div style={{ width: 1, height: 24, background: 'var(--color-border)', marginLeft: 2 }} />
 
-      <div style={{
-        display: 'flex',
-        background: 'var(--color-bg)',
-        border: '1px solid var(--color-border)',
-        borderRadius: 'var(--radius-md)',
-        padding: 3,
-        gap: 1,
-        flexShrink: 0,
-      }}>
-        {isTraining ? (
-          TRAINING_TABS.map(({ mode, label: mLabel }) => (
-            <button key={mode} onClick={() => setAppMode(mode)} style={tabStyle(appMode === mode)}>
-              {mLabel}
-            </button>
-          ))
-        ) : (
-          HABIT_TABS.map(({ mode, label: mLabel }) => (
-            <button key={mode} onClick={() => setHabitView(mode)} style={tabStyle(habitView === mode)}>
-              {mLabel}
-            </button>
-          ))
-        )}
-      </div>
+      {activeApp !== 'coach' && (
+        <div style={{
+          display: 'flex',
+          background: 'var(--color-bg)',
+          border: '1px solid var(--color-border)',
+          borderRadius: 'var(--radius-md)',
+          padding: 3,
+          gap: 1,
+          flexShrink: 0,
+        }}>
+          {isTraining ? (
+            TRAINING_TABS.map(({ mode, label: mLabel }) => (
+              <button key={mode} onClick={() => setAppMode(mode)} style={tabStyle(appMode === mode)}>
+                {mLabel}
+              </button>
+            ))
+          ) : (
+            HABIT_TABS.map(({ mode, label: mLabel }) => (
+              <button key={mode} onClick={() => setHabitView(mode)} style={tabStyle(habitView === mode)}>
+                {mLabel}
+              </button>
+            ))
+          )}
+        </div>
+      )}
 
       {showCalendarNav && (
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginLeft: 4 }}>
@@ -246,18 +247,18 @@ function MobileHeader() {
       }}>
         {/* Row 1: app switcher + settings */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 12px' }}>
-          {/* App switcher (tap to toggle) */}
+          {/* App switcher (tap to cycle) */}
           <button
-            onClick={() => setActiveApp(isTraining ? 'habits' : 'training')}
+            onClick={() => setActiveApp(activeApp === 'training' ? 'habits' : activeApp === 'habits' ? 'coach' : 'training')}
             style={{
               display: 'flex', alignItems: 'center', gap: 5, padding: '4px 8px',
               borderRadius: 'var(--radius-sm)', border: 'none', background: 'var(--color-bg)',
               cursor: 'pointer', flexShrink: 0,
             }}
           >
-            <span style={{ fontSize: 16 }}>{isTraining ? '🏃' : '✅'}</span>
+            <span style={{ fontSize: 16 }}>{activeApp === 'training' ? '🏃' : activeApp === 'habits' ? '✅' : '🏅'}</span>
             <span style={{ fontWeight: 700, fontSize: 'var(--font-size-sm)', color: 'var(--color-text-primary)', letterSpacing: '-0.3px' }}>
-              {isTraining ? 'Training' : 'Habits'}
+              {activeApp === 'training' ? 'Training' : activeApp === 'habits' ? 'Habits' : 'Coach'}
             </span>
             <span style={{ fontSize: 9, color: 'var(--color-text-tertiary)', marginLeft: 1 }}>⇄</span>
           </button>
@@ -356,11 +357,14 @@ export function MobileTabBar() {
   const setHabitView = useAppStore((s) => s.setHabitView)
 
   const isTraining = activeApp === 'training'
+  const isCoach = activeApp === 'coach'
   const tabs = isTraining ? TRAINING_TABS : HABIT_TABS
   const currentMode = isTraining ? appMode : habitView
   const setMode = isTraining
     ? (mode: string) => setAppMode(mode as AppMode)
     : (mode: string) => setHabitView(mode as HabitView)
+
+  if (isCoach) return null
 
   return (
     <nav style={{
@@ -398,7 +402,7 @@ export function MobileTabBar() {
 
 // ── App switcher dropdown (desktop) ──────────────────────────────────────────
 
-function AppSwitcher({ activeApp, onSwitch }: { activeApp: string; onSwitch: (app: 'training' | 'habits') => void }) {
+function AppSwitcher({ activeApp, onSwitch }: { activeApp: ActiveApp; onSwitch: (app: ActiveApp) => void }) {
   const [open, setOpen] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
 
@@ -411,9 +415,12 @@ function AppSwitcher({ activeApp, onSwitch }: { activeApp: string; onSwitch: (ap
     return () => document.removeEventListener('mousedown', handleClick)
   }, [open])
 
-  const isTraining = activeApp === 'training'
-  const label = isTraining ? 'Training Log' : 'Habit Log'
-  const emoji = isTraining ? '🏃' : '✅'
+  const APP_OPTIONS: { app: ActiveApp; emoji: string; label: string }[] = [
+    { app: 'training', emoji: '🏃', label: 'Training Log' },
+    { app: 'habits',   emoji: '✅', label: 'Habit Log' },
+    { app: 'coach',    emoji: '🏅', label: 'Coach' },
+  ]
+  const current = APP_OPTIONS.find((o) => o.app === activeApp) ?? APP_OPTIONS[0]
 
   return (
     <div ref={ref} style={{ position: 'relative', flexShrink: 0 }}>
@@ -423,8 +430,8 @@ function AppSwitcher({ activeApp, onSwitch }: { activeApp: string; onSwitch: (ap
         background: open ? 'var(--color-bg)' : 'transparent', cursor: 'pointer',
         transition: 'background 120ms ease',
       }}>
-        <span style={{ fontSize: 20 }}>{emoji}</span>
-        <span style={{ fontWeight: 'var(--font-weight-bold)', fontSize: 'var(--font-size-base)', color: 'var(--color-text-primary)', letterSpacing: '-0.3px' }}>{label}</span>
+        <span style={{ fontSize: 20 }}>{current.emoji}</span>
+        <span style={{ fontWeight: 'var(--font-weight-bold)', fontSize: 'var(--font-size-base)', color: 'var(--color-text-primary)', letterSpacing: '-0.3px' }}>{current.label}</span>
         <span style={{ fontSize: 10, color: 'var(--color-text-tertiary)', marginLeft: 2, transition: 'transform 150ms ease', transform: open ? 'rotate(180deg)' : 'rotate(0deg)' }}>▾</span>
       </button>
 
@@ -436,8 +443,9 @@ function AppSwitcher({ activeApp, onSwitch }: { activeApp: string; onSwitch: (ap
           padding: 4, minWidth: 180, zIndex: 100,
           display: 'flex', flexDirection: 'column', gap: 2,
         }}>
-          <DropdownItem emoji="🏃" label="Training Log" active={isTraining} onClick={() => { onSwitch('training'); setOpen(false) }} />
-          <DropdownItem emoji="✅" label="Habit Log" active={!isTraining} onClick={() => { onSwitch('habits'); setOpen(false) }} />
+          {APP_OPTIONS.map(({ app, emoji, label }) => (
+            <DropdownItem key={app} emoji={emoji} label={label} active={activeApp === app} onClick={() => { onSwitch(app); setOpen(false) }} />
+          ))}
         </div>
       )}
     </div>

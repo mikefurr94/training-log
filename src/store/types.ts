@@ -239,9 +239,9 @@ export interface CoachWizardData {
 
 // ── App Mode ────────────────────────────────────────────────────────────────
 
-export type AppMode = 'calendar' | 'grid' | 'dashboard' | 'planner' | 'review' | 'coach'
+export type AppMode = 'calendar' | 'grid' | 'dashboard' | 'planner' | 'review'
 
-export type ActiveApp = 'training' | 'habits'
+export type ActiveApp = 'training' | 'habits' | 'coach'
 
 // ── Store ────────────────────────────────────────────────────────────────────
 

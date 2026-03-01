@@ -33,7 +33,8 @@ export default function CalendarPage() {
   const isMobile = useIsMobile()
 
   const isTraining = activeApp === 'training'
-  const viewKey = isTraining ? appMode : habitView
+  const isCoach = activeApp === 'coach'
+  const viewKey = isTraining ? appMode : activeApp
 
   const mobilePadding = isMobile ? '12px 12px 20px' : '24px 24px 40px'
 
@@ -102,26 +103,27 @@ export default function CalendarPage() {
               </div>
             )}
 
-            {isTraining && appMode === 'coach' && (
+            {/* Coach section */}
+            {isCoach && (
               <div style={{ flex: 1, overflow: 'auto' }}>
                 <CoachPage />
               </div>
             )}
 
             {/* Habit views */}
-            {!isTraining && habitView === 'week' && (
+            {activeApp === 'habits' && habitView === 'week' && (
               <div style={{ flex: 1, overflow: 'auto', padding: mobilePadding }}>
                 <HabitWeekView />
               </div>
             )}
 
-            {!isTraining && habitView === 'grid' && (
+            {activeApp === 'habits' && habitView === 'grid' && (
               <div style={{ flex: 1, overflow: 'auto', padding: mobilePadding }}>
                 <HabitGridView />
               </div>
             )}
 
-            {!isTraining && habitView === 'dashboard' && (
+            {activeApp === 'habits' && habitView === 'dashboard' && (
               <div style={{ flex: 1, overflow: 'auto', padding: mobilePadding }}>
                 <HabitDashboard />
               </div>
