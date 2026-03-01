@@ -1,5 +1,5 @@
 import { useMemo } from 'react'
-import { startOfWeek, addDays, addWeeks, startOfDay, isBefore, isAfter, format } from 'date-fns'
+import { startOfWeek, addDays, addWeeks, startOfDay, isAfter, format } from 'date-fns'
 import { useAppStore } from '../store/useAppStore'
 import type { PlannedActivity, WeekDayIndex } from '../store/types'
 
@@ -7,8 +7,7 @@ import type { PlannedActivity, WeekDayIndex } from '../store/types'
  * Returns a map of 'YYYY-MM-DD' → PlannedActivity[] for every day in [start, end].
  * Merges weekTemplate with any weekOverrides per day.
  *
- * Only returns planned activities for days in the range [today, today + 4 weeks].
- * Past days and days beyond 4 weeks from today return an empty array.
+ * Returns planned activities for all days in range (past and future up to 4 weeks out).
  */
 export function usePlannedActivitiesByDate(
   start: Date,
@@ -27,8 +26,8 @@ export function usePlannedActivitiesByDate(
       const dateStr = format(current, 'yyyy-MM-dd')
       const currentDay = startOfDay(current)
 
-      // Only show planned activities between today and 4 weeks out
-      if (isBefore(currentDay, today) || isAfter(currentDay, horizon)) {
+      // Only hide planned activities beyond 4 weeks in the future
+      if (isAfter(currentDay, horizon)) {
         map[dateStr] = []
         current = addDays(current, 1)
         continue
