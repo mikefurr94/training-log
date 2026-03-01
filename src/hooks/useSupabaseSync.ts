@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react'
 import { useAppStore } from '../store/useAppStore'
 import { loadHabits, saveHabitDay, loadPlan, savePlan } from '../api/db'
+import { loadCoachPlan, saveCoachPlan } from '../api/coach'
 
 // Debounce helper
 function debounce<T extends (...args: unknown[]) => void>(fn: T, ms: number): T {
@@ -17,10 +18,13 @@ export function useSupabaseSync() {
   const weekTemplate = useAppStore((s) => s.weekTemplate)
   const weekOverrides = useAppStore((s) => s.weekOverrides)
   const keyDates = useAppStore((s) => s.keyDates)
+  const coachPlan = useAppStore((s) => s.coachPlan)
   const setHabitCompletions = useAppStore((s) => s.setHabitCompletions)
+  const setCoachPlan = useAppStore((s) => s.setCoachPlan)
   const loadedRef = useRef(false)
   const prevCompletionsRef = useRef<string>('')
   const prevPlanRef = useRef<string>('')
+  const prevCoachPlanRef = useRef<string>('')
 
   const athleteId = athlete?.id
 
@@ -44,6 +48,12 @@ export function useSupabaseSync() {
         }
       })
       .catch(console.error)
+
+    loadCoachPlan(athleteId)
+      .then((plan) => {
+        if (plan) setCoachPlan(plan)
+      })
+      .catch(console.error)
   }, [athleteId])
 
   // Reset on logout
@@ -52,6 +62,7 @@ export function useSupabaseSync() {
       loadedRef.current = false
       prevCompletionsRef.current = ''
       prevPlanRef.current = ''
+      prevCoachPlanRef.current = ''
     }
   }, [athleteId])
 
@@ -95,4 +106,23 @@ export function useSupabaseSync() {
 
     syncPlan()
   }, [athleteId, weekTemplate, weekOverrides, keyDates])
+
+  // Sync coach plan to Supabase when it changes
+  useEffect(() => {
+    if (!athleteId || !loadedRef.current || !coachPlan) return
+
+    const serialized = JSON.stringify(coachPlan)
+    if (serialized === prevCoachPlanRef.current) return
+    prevCoachPlanRef.current = serialized
+
+    const syncCoachPlan = debounce(async () => {
+      try {
+        await saveCoachPlan(athleteId, coachPlan)
+      } catch (err) {
+        console.error('Failed to sync coach plan:', err)
+      }
+    }, 2000)
+
+    syncCoachPlan()
+  }, [athleteId, coachPlan])
 }

@@ -45,6 +45,13 @@
   --color-rest-light: #fdf2f8;
   --color-rest-border: #fbcfe8;
 
+  /* Training phases (Marathon Coach) */
+  --color-phase-base: #3b82f6;
+  --color-phase-build: #10b981;
+  --color-phase-peak: #f59e0b;
+  --color-phase-taper: #8b5cf6;
+  --color-phase-race: #ef4444;
+
   /* Strava brand (used only for Connect button) */
   --color-strava: #fc4c02;
   --color-strava-hover: #e03d00;
@@ -157,6 +164,12 @@
   --color-rest: #f472b6;
   --color-rest-light: #2d0f1e;
   --color-rest-border: #7c1d44;
+
+  --color-phase-base: #60a5fa;
+  --color-phase-build: #34d399;
+  --color-phase-peak: #fbbf24;
+  --color-phase-taper: #a78bfa;
+  --color-phase-race: #f87171;
 
   --color-strava: #fc4c02;
   --color-strava-hover: #e03d00;

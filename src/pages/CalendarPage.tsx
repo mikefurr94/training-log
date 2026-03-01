@@ -15,6 +15,7 @@ import { useActivities } from '../hooks/useActivities'
 import { useCalendarRange } from '../hooks/useCalendarRange'
 import { useIsMobile } from '../hooks/useIsMobile'
 import MobilePeriodNav from '../components/ui/MobilePeriodNav'
+import CoachPage from '../components/coach/CoachPage'
 
 // Separate component so hooks run inside the calendar data context
 function GridContainer() {
@@ -98,6 +99,12 @@ export default function CalendarPage() {
             {isTraining && appMode === 'review' && (
               <div style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
                 <WeekReviewPage />
+              </div>
+            )}
+
+            {isTraining && appMode === 'coach' && (
+              <div style={{ flex: 1, overflow: 'auto' }}>
+                <CoachPage />
               </div>
             )}
 

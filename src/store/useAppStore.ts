@@ -19,6 +19,8 @@ import type {
   HabitView,
   ActiveApp,
   ThemeMode,
+  CoachPlan,
+  CoachPlannedActivity,
 } from './types'
 import type { CalendarView } from '../utils/dateUtils'
 
@@ -372,6 +374,84 @@ export const useAppStore = create<AppStore>()(
           document.documentElement.setAttribute('data-theme', newTheme)
           return { theme: newTheme }
         }),
+
+      // ── Marathon Coach ────────────────────────────────────────────────────
+      coachPlan: null,
+      coachLoading: false,
+      coachError: null,
+      coachWizardOpen: false,
+      coachSelectedWeek: null,
+      coachSelectedDate: null,
+
+      setCoachPlan: (plan: CoachPlan | null) => set({ coachPlan: plan }),
+      setCoachLoading: (loading: boolean) => set({ coachLoading: loading }),
+      setCoachError: (error: string | null) => set({ coachError: error }),
+      setCoachWizardOpen: (open: boolean) => set({ coachWizardOpen: open }),
+      setCoachSelectedWeek: (weekNumber: number | null) => set({ coachSelectedWeek: weekNumber }),
+      setCoachSelectedDate: (date: string | null) => set({ coachSelectedDate: date }),
+
+      updateCoachDay: (date: string, activities: CoachPlannedActivity[]) => {
+        const { coachPlan } = get()
+        if (!coachPlan) return
+        set({
+          coachPlan: {
+            ...coachPlan,
+            weeks: coachPlan.weeks.map((week) => ({
+              ...week,
+              days: week.days.map((day) =>
+                day.date === date ? { ...day, activities } : day
+              ),
+            })),
+          },
+        })
+      },
+
+      markDayDetailGenerated: (date: string, detail: string, activityId: string) => {
+        const { coachPlan } = get()
+        if (!coachPlan) return
+        set({
+          coachPlan: {
+            ...coachPlan,
+            weeks: coachPlan.weeks.map((week) => ({
+              ...week,
+              days: week.days.map((day) =>
+                day.date === date
+                  ? {
+                      ...day,
+                      detailGenerated: true,
+                      activities: day.activities.map((a) =>
+                        a.id === activityId ? { ...a, detail } : a
+                      ),
+                    }
+                  : day
+              ),
+            })),
+          },
+        })
+      },
+
+      skipCoachActivity: (date: string, activityId: string) => {
+        const { coachPlan } = get()
+        if (!coachPlan) return
+        set({
+          coachPlan: {
+            ...coachPlan,
+            weeks: coachPlan.weeks.map((week) => ({
+              ...week,
+              days: week.days.map((day) =>
+                day.date === date
+                  ? {
+                      ...day,
+                      activities: day.activities.map((a) =>
+                        a.id === activityId ? { ...a, skipped: !a.skipped } : a
+                      ),
+                    }
+                  : day
+              ),
+            })),
+          },
+        })
+      },
     }),
     {
       name: 'training-log-store',
