@@ -220,8 +220,8 @@ Each week should have exactly 7 days (Monday through Sunday). Use the week start
 
   try {
     const message = await anthropic.messages.create({
-      model: 'claude-sonnet-4-20250514',
-      max_tokens: 8000,
+      model: 'claude-sonnet-4-6',
+      max_tokens: 16000,
       system: GENERATE_SYSTEM_PROMPT,
       messages: [{ role: 'user', content: userPrompt }],
     })
@@ -316,7 +316,7 @@ Keep the response concise but actionable. Use plain text formatting with line br
 
   try {
     const message = await anthropic.messages.create({
-      model: 'claude-sonnet-4-20250514',
+      model: 'claude-sonnet-4-6',
       max_tokens: 1000,
       messages: [{ role: 'user', content: prompt }],
     })
@@ -392,7 +392,7 @@ Return ONLY the JSON object.`
 
   try {
     const message = await anthropic.messages.create({
-      model: 'claude-sonnet-4-20250514',
+      model: 'claude-sonnet-4-6',
       max_tokens: 6000,
       messages: [{ role: 'user', content: prompt }],
     })
@@ -442,7 +442,7 @@ Return ONLY the JSON object.`
 
   try {
     const message = await anthropic.messages.create({
-      model: 'claude-sonnet-4-20250514',
+      model: 'claude-sonnet-4-6',
       max_tokens: 800,
       messages: [{ role: 'user', content: prompt }],
     })
