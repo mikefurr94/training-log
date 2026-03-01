@@ -284,6 +284,29 @@ export const useAppStore = create<AppStore>()(
         }
       },
 
+      movePlannedActivity: (fromDate: string, toDate: string, activityId: string) => {
+        const { weekTemplate, weekOverrides } = get()
+
+        function getDayActs(dateStr: string): [PlannedActivity[], Date, WeekDayIndex] {
+          const d = new Date(dateStr + 'T12:00:00')
+          const ws = startOfWeek(d, { weekStartsOn: 1 })
+          const wsStr = format(ws, 'yyyy-MM-dd')
+          const idx = d.getDay() as WeekDayIndex
+          const ov = get().weekOverrides.find((o) => o.weekStart === wsStr)
+          const acts = (ov?.days[idx] !== undefined ? ov.days[idx]! : weekTemplate.days[idx]) ?? []
+          return [acts, d, idx]
+        }
+
+        const [fromActs, fromD, fromIdx] = getDayActs(fromDate)
+        const activity = fromActs.find((a) => a.id === activityId)
+        if (!activity) return
+
+        get().setDayOverride(fromD, fromIdx, fromActs.filter((a) => a.id !== activityId))
+
+        const [toActs, toD, toIdx] = getDayActs(toDate)
+        get().setDayOverride(toD, toIdx, [...toActs, activity])
+      },
+
       clearWeekOverride: (weekStart: Date) => {
         const { weekOverrides } = get()
         const weekStartStr = format(

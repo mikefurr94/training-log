@@ -45,13 +45,15 @@ export default function WeekReviewPage() {
     format(weekStart, 'yyyy-MM-dd') === format(startOfWeek(new Date(), { weekStartsOn: 1 }), 'yyyy-MM-dd')
 
   const { completed, partial, missed } = useMemo(() => {
+    const today = new Date(); today.setHours(0, 0, 0, 0)
     let completed = 0, partial = 0, missed = 0
     for (const day of days) {
-      for (const r of matchActualToPlanned(day.planned, day.actuals)) {
-        if (r.status === 'completed') completed++
-        else if (r.status === 'partial') partial++
-        else if (r.status === 'missed') missed++
-      }
+      if (day.date > today) continue
+      const results = matchActualToPlanned(day.planned, day.actuals)
+      if (results.length === 0) continue
+      if (results.some(r => r.status === 'missed')) missed++
+      else if (results.some(r => r.status === 'partial')) partial++
+      else completed++
     }
     return { completed, partial, missed }
   }, [days])
@@ -285,13 +287,24 @@ function ExportModal({ days, weekLabel, onClose, isMobile }: { days: DayData[]; 
     const isFuture = day.date > today
     const results = matchActualToPlanned(day.planned, day.actuals)
 
+    const matchedIds = new Set(results.map((r) => r.actualActivityId).filter(Boolean))
+    const unplannedActs = day.actuals.filter((a) => !matchedIds.has(a.id))
+    const absorbedIds = new Set<number>()
+
     for (const result of results) {
-      const actual = result.actualActivityId ? day.actuals.find((a) => a.id === result.actualActivityId) : undefined
+      let actual = result.actualActivityId ? day.actuals.find((a) => a.id === result.actualActivityId) : undefined
+      // For missed planned activities, show what was actually done that day (if anything)
+      if (result.status === 'missed') {
+        const unabsorbed = unplannedActs.find((a) => !absorbedIds.has(a.id))
+        if (unabsorbed) {
+          actual = unabsorbed
+          absorbedIds.add(unabsorbed.id)
+        }
+      }
       rows.push({ dayName, result, actual, isUnplanned: false, isFuture })
     }
 
-    const matchedIds = new Set(results.map((r) => r.actualActivityId).filter(Boolean))
-    for (const act of day.actuals.filter((a) => !matchedIds.has(a.id))) {
+    for (const act of unplannedActs.filter((a) => !absorbedIds.has(a.id))) {
       rows.push({ dayName, result: null, actual: act, isUnplanned: true, isFuture })
     }
 
@@ -303,11 +316,11 @@ function ExportModal({ days, weekLabel, onClose, isMobile }: { days: DayData[]; 
   let completed = 0, partial = 0, missed = 0
   for (const day of days) {
     if (day.date > today) continue
-    for (const r of matchActualToPlanned(day.planned, day.actuals)) {
-      if (r.status === 'completed') completed++
-      else if (r.status === 'partial') partial++
-      else if (r.status === 'missed') missed++
-    }
+    const results = matchActualToPlanned(day.planned, day.actuals)
+    if (results.length === 0) continue
+    if (results.some(r => r.status === 'missed')) missed++
+    else if (results.some(r => r.status === 'partial')) partial++
+    else completed++
   }
   const total = completed + partial + missed
   const pct = total > 0 ? Math.round((completed / total) * 100) : null
@@ -411,6 +424,10 @@ function buildActualLabel(result: PlanMatchResult | null, actual: StravaActivity
   }
   if (!result && !actual) return '😴 Rest'
   if (result && result.planned.type === 'Rest' && !actual) return '😴 Rest'
+  if (result && result.status === 'missed' && actual) {
+    const distMi = actual.distance > 0 ? ` · ${(actual.distance / 1609.344).toFixed(1)}mi` : ''
+    return `${actual.name}${distMi}`
+  }
   if (result && result.status === 'missed') return '😴 Rest'
   if (!result) return '—'
   if (!actual) return '—'

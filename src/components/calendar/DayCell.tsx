@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { format, isToday, isSameMonth } from 'date-fns'
 import ActivityBadge from './ActivityBadge'
 import PlannedBadge from './PlannedBadge'
@@ -32,6 +33,10 @@ export default function DayCell({
   const enabledTypes = useAppStore((s) => s.enabledTypes)
   const selectActivity = useAppStore((s) => s.selectActivity)
   const openPlannedPanel = useAppStore((s) => s.openPlannedPanel)
+  const showPlan = useAppStore((s) => s.showPlan)
+  const movePlannedActivity = useAppStore((s) => s.movePlannedActivity)
+
+  const [isDragOver, setIsDragOver] = useState(false)
 
   const today = isToday(date)
   const outsideMonth = monthRef ? !isSameMonth(date, monthRef) : false
@@ -57,6 +62,31 @@ export default function DayCell({
   const plannedOverflow = compact ? 0 : Math.max(0, filteredPlanned.length - plannedSlots)
 
   const hasPlanned = filteredPlanned.length > 0
+
+  function handleDragOver(e: React.DragEvent) {
+    e.preventDefault()
+    if (showPlan) setIsDragOver(true)
+  }
+
+  function handleDragLeave(e: React.DragEvent) {
+    // Only clear if leaving the cell itself (not entering a child)
+    if (!e.currentTarget.contains(e.relatedTarget as Node)) {
+      setIsDragOver(false)
+    }
+  }
+
+  function handleDrop(e: React.DragEvent) {
+    e.preventDefault()
+    setIsDragOver(false)
+    try {
+      const data = JSON.parse(e.dataTransfer.getData('text/plain'))
+      if (data.activityId && data.fromDate && data.fromDate !== dateKey) {
+        movePlannedActivity(data.fromDate, dateKey, data.activityId)
+      }
+    } catch {
+      // ignore malformed drag data
+    }
+  }
 
   if (isYearView) {
     // Compact square for year heatmap — no planned data shown
@@ -89,6 +119,9 @@ export default function DayCell({
 
   return (
     <div
+      onDragOver={handleDragOver}
+      onDragLeave={handleDragLeave}
+      onDrop={handleDrop}
       style={{
         padding: compact ? '4px 5px' : '6px 8px',
         background: today
@@ -102,8 +135,10 @@ export default function DayCell({
         flexDirection: 'column',
         gap: 3,
         minHeight: compact ? 50 : 90,
-        transition: 'background var(--transition-fast)',
+        transition: 'background var(--transition-fast), box-shadow var(--transition-fast)',
         overflow: 'hidden',
+        outline: isDragOver ? '2px dashed var(--color-accent)' : 'none',
+        outlineOffset: -2,
       }}
     >
       {/* Date number + weather */}
@@ -175,6 +210,11 @@ export default function DayCell({
             activity={planned}
             compact={compact}
             onClick={(e) => { e.stopPropagation(); openPlannedPanel(planned, dateKey) }}
+            onDragStart={(e) => {
+              e.dataTransfer.setData('text/plain', JSON.stringify({ activityId: planned.id, fromDate: dateKey }))
+              e.dataTransfer.effectAllowed = 'move'
+            }}
+            onDragEnd={() => {}}
           />
         ))}
         {plannedOverflow > 0 && (

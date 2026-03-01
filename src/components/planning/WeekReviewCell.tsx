@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { format } from 'date-fns'
 import { useAppStore } from '../../store/useAppStore'
 import { matchActualToPlanned, STATUS_ICONS, STATUS_COLORS, getPlannedActivityEmoji, getPlannedActivityLabel, secondsToPaceString, speedToSecondsPerMile } from '../../utils/planningUtils'
@@ -22,9 +23,14 @@ export default function WeekReviewCell({ date, planned, actuals, onSelectActivit
   cellDate.setHours(0, 0, 0, 0)
   const isFuture = cellDate > today
   const matchResults = matchActualToPlanned(planned, actuals)
+  const movePlannedActivity = useAppStore((s) => s.movePlannedActivity)
 
   const dayIndex = date.getDay()
   const isToday = format(date, 'yyyy-MM-dd') === format(new Date(), 'yyyy-MM-dd')
+  const dateKey = format(date, 'yyyy-MM-dd')
+
+  const [isDragOver, setIsDragOver] = useState(false)
+  const [draggingId, setDraggingId] = useState<string | null>(null)
 
   // Find unplanned actuals (not matched to any planned)
   const matchedIds = new Set(
@@ -32,15 +38,45 @@ export default function WeekReviewCell({ date, planned, actuals, onSelectActivit
   )
   const unplannedActuals = actuals.filter((a) => !matchedIds.has(a.id))
 
+  function handleDragOver(e: React.DragEvent) {
+    e.preventDefault()
+    setIsDragOver(true)
+  }
+
+  function handleDragLeave(e: React.DragEvent) {
+    if (!e.currentTarget.contains(e.relatedTarget as Node)) {
+      setIsDragOver(false)
+    }
+  }
+
+  function handleDrop(e: React.DragEvent) {
+    e.preventDefault()
+    setIsDragOver(false)
+    try {
+      const data = JSON.parse(e.dataTransfer.getData('text/plain'))
+      if (data.activityId && data.fromDate && data.fromDate !== dateKey) {
+        movePlannedActivity(data.fromDate, dateKey, data.activityId)
+      }
+    } catch {
+      // ignore malformed drag data
+    }
+  }
+
   if (compact) {
     return (
-      <div style={{
-        display: 'flex',
-        alignItems: 'flex-start',
-        gap: 10,
-        padding: '10px 12px',
-        background: isToday ? 'var(--color-today-bg)' : 'var(--color-surface)',
-      }}>
+      <div
+        onDragOver={handleDragOver}
+        onDragLeave={handleDragLeave}
+        onDrop={handleDrop}
+        style={{
+          display: 'flex',
+          alignItems: 'flex-start',
+          gap: 10,
+          padding: '10px 12px',
+          background: isToday ? 'var(--color-today-bg)' : 'var(--color-surface)',
+          outline: isDragOver ? '2px dashed var(--color-accent)' : 'none',
+          outlineOffset: -2,
+        }}>
         {/* Day label */}
         <div style={{
           width: 44,
@@ -91,6 +127,13 @@ export default function WeekReviewCell({ date, planned, actuals, onSelectActivit
             return (
               <div
                 key={result.planned.id}
+                draggable
+                onDragStart={(e) => {
+                  setDraggingId(result.planned.id)
+                  e.dataTransfer.setData('text/plain', JSON.stringify({ activityId: result.planned.id, fromDate: dateKey }))
+                  e.dataTransfer.effectAllowed = 'move'
+                }}
+                onDragEnd={() => setDraggingId(null)}
                 style={{
                   display: 'flex',
                   alignItems: 'center',
@@ -100,6 +143,8 @@ export default function WeekReviewCell({ date, planned, actuals, onSelectActivit
                   background: colors.bg,
                   border: `1px solid ${colors.border}`,
                   fontSize: 11,
+                  cursor: 'grab',
+                  opacity: draggingId === result.planned.id ? 0.4 : 1,
                 }}
               >
                 <span style={{ fontSize: 11 }}>
@@ -206,10 +251,11 @@ export default function WeekReviewCell({ date, planned, actuals, onSelectActivit
         minWidth: 0,
         display: 'flex',
         flexDirection: 'column',
-        border: '1px solid var(--color-border)',
+        border: isDragOver ? '1px dashed var(--color-accent)' : '1px solid var(--color-border)',
         borderRadius: 'var(--radius-md)',
         overflow: 'hidden',
         background: 'var(--color-surface)',
+        transition: 'border-color var(--transition-fast)',
       }}
     >
       {/* Day header */}
@@ -244,13 +290,18 @@ export default function WeekReviewCell({ date, planned, actuals, onSelectActivit
         </div>
       </div>
 
-      {/* Planned section — fixed height so Actual always starts at the same position */}
+      {/* Planned section — drop target */}
       <div
+        onDragOver={handleDragOver}
+        onDragLeave={handleDragLeave}
+        onDrop={handleDrop}
         style={{
           padding: '12px 12px 8px',
           height: 200,
           overflow: 'auto',
           flexShrink: 0,
+          background: isDragOver ? 'var(--color-accent-light)' : 'transparent',
+          transition: 'background var(--transition-fast)',
         }}
       >
         <div
@@ -266,14 +317,21 @@ export default function WeekReviewCell({ date, planned, actuals, onSelectActivit
           Planned
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-          {matchResults.map((result, i) => {
+          {matchResults.map((result) => {
             const colors = isFuture
               ? { bg: 'var(--color-bg)', border: 'var(--color-border)', text: 'var(--color-text-secondary)' }
               : STATUS_COLORS[result.status]
             return (
               <div
                 key={result.planned.id}
+                draggable
                 title={isFuture ? undefined : result.notes}
+                onDragStart={(e) => {
+                  setDraggingId(result.planned.id)
+                  e.dataTransfer.setData('text/plain', JSON.stringify({ activityId: result.planned.id, fromDate: dateKey }))
+                  e.dataTransfer.effectAllowed = 'move'
+                }}
+                onDragEnd={() => setDraggingId(null)}
                 style={{
                   display: 'flex',
                   alignItems: 'center',
@@ -283,6 +341,8 @@ export default function WeekReviewCell({ date, planned, actuals, onSelectActivit
                   background: colors.bg,
                   border: `1px solid ${colors.border}`,
                   fontSize: 11,
+                  cursor: 'grab',
+                  opacity: draggingId === result.planned.id ? 0.4 : 1,
                 }}
               >
                 <span style={{ fontSize: 11 }}>

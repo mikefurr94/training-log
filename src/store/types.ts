@@ -361,6 +361,7 @@ export interface AppActions {
   // Weekly planning
   setDayTemplate: (day: WeekDayIndex, activities: PlannedActivity[]) => void
   setDayOverride: (weekStart: Date, day: WeekDayIndex, activities: PlannedActivity[]) => void
+  movePlannedActivity: (fromDate: string, toDate: string, activityId: string) => void
   clearWeekOverride: (weekStart: Date) => void
   getWeekPlan: (weekStart: Date) => Record<WeekDayIndex, PlannedActivity[]>
 

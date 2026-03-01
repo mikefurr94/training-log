@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { getActivityColor } from '../../utils/activityColors'
 import { getPlannedActivityLabel } from '../../utils/planningUtils'
 import type { PlannedActivity } from '../../store/types'
@@ -7,23 +8,35 @@ interface Props {
   activity: PlannedActivity
   compact?: boolean
   onClick?: (e: React.MouseEvent) => void
+  onDragStart?: (e: React.DragEvent) => void
+  onDragEnd?: (e: React.DragEvent) => void
 }
 
-export default function PlannedBadge({ activity, compact = false, onClick }: Props) {
+export default function PlannedBadge({ activity, compact = false, onClick, onDragStart, onDragEnd }: Props) {
   const type = activity.type as ActivityType
   const colors = getActivityColor(type)
+  const [isDragging, setIsDragging] = useState(false)
 
   let label = getPlannedActivityLabel(activity)
   if (activity.type === 'WeightTraining') {
     label = activity.workoutType
   }
 
-  // Planned badges use a transparent background with a dashed colored border
-  // so they look clearly like future/scheduled items, not completed activities.
+  const draggable = !!onDragStart
+
   return (
     <button
+      draggable={draggable}
       onClick={onClick}
       title={getPlannedActivityLabel(activity)}
+      onDragStart={(e) => {
+        setIsDragging(true)
+        onDragStart?.(e)
+      }}
+      onDragEnd={(e) => {
+        setIsDragging(false)
+        onDragEnd?.(e)
+      }}
       style={{
         display: 'flex',
         alignItems: 'center',
@@ -33,14 +46,15 @@ export default function PlannedBadge({ activity, compact = false, onClick }: Pro
         border: `1.5px dashed ${colors.hex}80`,
         borderRadius: 5,
         padding: compact ? '2px 5px' : '3px 7px',
-        cursor: onClick ? 'pointer' : 'default',
+        cursor: draggable ? 'grab' : onClick ? 'pointer' : 'default',
         textAlign: 'left',
         transition: 'all var(--transition-fast)',
         overflow: 'hidden',
         minWidth: 0,
+        opacity: isDragging ? 0.4 : 1,
       }}
       onMouseEnter={(e) => {
-        if (onClick) {
+        if (onClick || draggable) {
           e.currentTarget.style.background = `${colors.hex}14`
           e.currentTarget.style.borderColor = colors.hex
         }
