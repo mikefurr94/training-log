@@ -14,6 +14,7 @@ const TRAINING_TABS: { mode: AppMode; label: string; icon: string }[] = [
   { mode: 'dashboard', label: 'Dashboard', icon: '📊' },
   { mode: 'review',    label: 'Review',    icon: '📈' },
   { mode: 'planner',   label: 'Template',  icon: '📋' },
+  { mode: 'coach',     label: 'Coach',     icon: '🏅' },
 ]
 
 const HABIT_TABS: { mode: HabitView; label: string; icon: string }[] = [
