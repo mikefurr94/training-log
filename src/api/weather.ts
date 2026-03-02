@@ -9,6 +9,7 @@ export interface DailyWeather {
   tempLow: number // °F
   feelsLikeHigh: number // °F
   feelsLikeLow: number // °F
+  feelsLikeAt7am: number | null // °F — hourly apparent temp at 7:00 AM local
   weatherCode: number // WMO weather code
 }
 
@@ -52,20 +53,33 @@ export async function fetchWeatherForecast(
   lat: number,
   lon: number
 ): Promise<DailyWeather[]> {
-  const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&daily=temperature_2m_max,temperature_2m_min,apparent_temperature_max,apparent_temperature_min,weathercode&temperature_unit=fahrenheit&timezone=auto&forecast_days=16`
+  const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&daily=temperature_2m_max,temperature_2m_min,apparent_temperature_max,apparent_temperature_min,weathercode&hourly=apparent_temperature&temperature_unit=fahrenheit&timezone=auto&forecast_days=16`
 
   const res = await fetch(url)
   if (!res.ok) throw new Error(`Weather API error: ${res.status}`)
 
   const data = await res.json()
   const daily = data.daily
+  const hourlyApparent: number[] | undefined = data.hourly?.apparent_temperature
 
-  return daily.time.map((date: string, i: number) => ({
-    date,
-    tempHigh: Math.round(daily.temperature_2m_max[i]),
-    tempLow: Math.round(daily.temperature_2m_min[i]),
-    feelsLikeHigh: Math.round(daily.apparent_temperature_max[i]),
-    feelsLikeLow: Math.round(daily.apparent_temperature_min[i]),
-    weatherCode: daily.weathercode[i],
-  }))
+  return daily.time.map((date: string, i: number) => {
+    // Extract 7:00 AM feels-like from hourly data (24 entries per day, index 7 = 7am)
+    let feelsLikeAt7am: number | null = null
+    if (hourlyApparent) {
+      const idx = i * 24 + 7
+      if (idx < hourlyApparent.length && hourlyApparent[idx] != null) {
+        feelsLikeAt7am = Math.round(hourlyApparent[idx])
+      }
+    }
+
+    return {
+      date,
+      tempHigh: Math.round(daily.temperature_2m_max[i]),
+      tempLow: Math.round(daily.temperature_2m_min[i]),
+      feelsLikeHigh: Math.round(daily.apparent_temperature_max[i]),
+      feelsLikeLow: Math.round(daily.apparent_temperature_min[i]),
+      feelsLikeAt7am,
+      weatherCode: daily.weathercode[i],
+    }
+  })
 }

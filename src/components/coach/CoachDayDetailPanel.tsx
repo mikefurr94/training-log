@@ -1,6 +1,8 @@
 import { format, parseISO } from 'date-fns'
 import { useAppStore } from '../../store/useAppStore'
 import { useIsMobile } from '../../hooks/useIsMobile'
+import { useWeather } from '../../hooks/useWeather'
+import { getWeatherIcon } from '../../api/weather'
 import CoachActivityBadge from './CoachActivityBadge'
 import type { CoachDay, CoachWeek, CoachPlannedActivity } from '../../store/types'
 
@@ -27,7 +29,11 @@ interface Props {
 export default function CoachDayDetailPanel({ day, week, onClose }: Props) {
   const isMobile = useIsMobile()
   const skipCoachActivity = useAppStore((s) => s.skipCoachActivity)
+  const weatherByDate = useWeather()
   const date = parseISO(day.date)
+
+  const hasRun = day.activities.some((a) => a.type === 'Run')
+  const weather = weatherByDate[day.date]
 
   return (
     <>
@@ -74,6 +80,24 @@ export default function CoachDayDetailPanel({ day, week, onClose }: Props) {
             color: 'var(--color-text-tertiary)', fontSize: 20, lineHeight: 1,
           }}>x</button>
         </div>
+
+        {/* 7am weather for run days */}
+        {hasRun && weather && (
+          <div style={{
+            padding: '10px 20px',
+            borderBottom: '1px solid var(--color-border)',
+            display: 'flex', alignItems: 'center', gap: 6,
+            fontSize: 'var(--font-size-sm)',
+            color: 'var(--color-text-secondary)',
+          }}>
+            <span style={{ fontSize: 14, lineHeight: 1 }}>{getWeatherIcon(weather.weatherCode).icon}</span>
+            <span>
+              {weather.feelsLikeAt7am != null
+                ? `Feels like ${weather.feelsLikeAt7am}° at 7am`
+                : `Feels like ${weather.feelsLikeLow}°–${weather.feelsLikeHigh}°`}
+            </span>
+          </div>
+        )}
 
         {/* Content */}
         <div style={{ flex: 1, overflow: 'auto', padding: 20 }}>
