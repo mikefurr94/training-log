@@ -2,7 +2,21 @@ import { format, parseISO } from 'date-fns'
 import { useAppStore } from '../../store/useAppStore'
 import { useIsMobile } from '../../hooks/useIsMobile'
 import CoachActivityBadge from './CoachActivityBadge'
-import type { CoachDay, CoachWeek } from '../../store/types'
+import type { CoachDay, CoachWeek, CoachPlannedActivity } from '../../store/types'
+
+function getActivityDetail(a: CoachPlannedActivity): string {
+  if (a.detail) return a.detail
+  if (a.type === 'Rest') return 'Rest'
+  if (a.type === 'Yoga') return a.durationMinutes ? `${a.durationMinutes} min yoga` : 'Yoga'
+  if (a.type === 'WeightTraining') return a.durationMinutes ? `${a.durationMinutes} min ${a.label.toLowerCase()}` : a.label
+  // Runs
+  const parts: string[] = []
+  if (a.targetDistanceMiles) parts.push(`${a.targetDistanceMiles} mi`)
+  if (a.targetPace) parts.push(`@ ${a.targetPace}/mi`)
+  if (parts.length > 0) return parts.join(' ')
+  if (a.durationMinutes) return `${a.durationMinutes} min ${a.label.toLowerCase()}`
+  return a.label
+}
 
 interface Props {
   day: CoachDay
@@ -81,7 +95,7 @@ export default function CoachDayDetailPanel({ day, week, onClose }: Props) {
                   {/* Activity header */}
                   <div style={{
                     display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-                    marginBottom: activity.detail ? 10 : 0,
+                    marginBottom: 10,
                   }}>
                     <CoachActivityBadge activity={activity} />
                     <button
@@ -100,15 +114,13 @@ export default function CoachDayDetailPanel({ day, week, onClose }: Props) {
                   </div>
 
                   {/* Inline workout detail */}
-                  {activity.detail && (
-                    <div style={{
-                      fontSize: 'var(--font-size-sm)',
-                      color: 'var(--color-text-secondary)',
-                      lineHeight: 1.5,
-                    }}>
-                      {activity.detail}
-                    </div>
-                  )}
+                  <div style={{
+                    fontSize: 'var(--font-size-sm)',
+                    color: 'var(--color-text-secondary)',
+                    lineHeight: 1.5,
+                  }}>
+                    {getActivityDetail(activity)}
+                  </div>
                 </div>
               ))}
             </div>
