@@ -1,5 +1,7 @@
+import { useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import Header, { MobileTabBar } from '../components/layout/Header'
+import SideNav from '../components/layout/SideNav'
 import CalendarRoot from '../components/calendar/CalendarRoot'
 import GridView from '../components/calendar/GridView'
 import ActivityPanel from '../components/activity/ActivityPanel'
@@ -31,6 +33,7 @@ export default function CalendarPage() {
   const appMode = useAppStore((s) => s.appMode)
   const habitView = useAppStore((s) => s.habitView)
   const isMobile = useIsMobile()
+  const [sideNavOpen, setSideNavOpen] = useState(false)
 
   const isTraining = activeApp === 'training'
   const isCoach = activeApp === 'coach'
@@ -41,102 +44,114 @@ export default function CalendarPage() {
   return (
     <div style={{
       display: 'flex',
-      flexDirection: 'column',
+      flexDirection: 'row',
       height: '100vh',
       overflow: 'hidden',
       background: 'var(--color-bg)',
     }}>
-      <Header />
+      {/* Side navigation */}
+      <SideNav open={sideNavOpen} onClose={() => setSideNavOpen(false)} />
 
-      {error && (
-        <div style={{
-          background: 'var(--color-status-missed-bg)',
-          borderBottom: '1px solid var(--color-status-missed-border)',
-          color: 'var(--color-status-missed-text)',
-          fontSize: 'var(--font-size-sm)',
-          padding: isMobile ? '6px 12px' : '8px 24px',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          flexShrink: 0,
-        }}>
-          <span>⚠️ {error}</span>
-          <button onClick={() => setError(null)} style={{ color: 'var(--color-status-missed-text)', fontWeight: 600, fontSize: 18, lineHeight: 1 }}>×</button>
+      {/* Main column */}
+      <div style={{
+        display: 'flex',
+        flexDirection: 'column',
+        flex: 1,
+        minWidth: 0,
+        overflow: 'hidden',
+      }}>
+        <Header onOpenSideNav={() => setSideNavOpen(true)} />
+
+        {error && (
+          <div style={{
+            background: 'var(--color-status-missed-bg)',
+            borderBottom: '1px solid var(--color-status-missed-border)',
+            color: 'var(--color-status-missed-text)',
+            fontSize: 'var(--font-size-sm)',
+            padding: isMobile ? '6px 12px' : '8px 24px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            flexShrink: 0,
+          }}>
+            <span>⚠️ {error}</span>
+            <button onClick={() => setError(null)} style={{ color: 'var(--color-status-missed-text)', fontWeight: 600, fontSize: 18, lineHeight: 1 }}>×</button>
+          </div>
+        )}
+
+        <div style={{ flex: 1, overflow: 'hidden', position: 'relative' }}>
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={viewKey}
+              initial={{ opacity: 0, y: 6 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -6 }}
+              transition={{ duration: 0.15, ease: 'easeOut' }}
+              style={{ height: '100%', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}
+            >
+              {/* Training views */}
+              {isTraining && appMode === 'calendar' && <CalendarRoot />}
+
+              {isTraining && appMode === 'grid' && (
+                <div style={{ flex: 1, overflow: 'auto' }}>
+                  {isMobile && <div style={{ padding: '8px 12px 0' }}><MobilePeriodNav /></div>}
+                  <GridContainer />
+                </div>
+              )}
+
+              {isTraining && appMode === 'dashboard' && (
+                <div style={{ flex: 1, overflow: 'auto' }}>
+                  <DashboardPage />
+                </div>
+              )}
+
+              {isTraining && appMode === 'planner' && (
+                <div style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+                  <PlannerPage />
+                </div>
+              )}
+
+              {isTraining && appMode === 'review' && (
+                <div style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+                  <WeekReviewPage />
+                </div>
+              )}
+
+              {/* Coach section */}
+              {isCoach && (
+                <div style={{ flex: 1, overflow: 'auto' }}>
+                  <CoachPage />
+                </div>
+              )}
+
+              {/* Habit views */}
+              {activeApp === 'habits' && habitView === 'week' && (
+                <div style={{ flex: 1, overflow: 'auto', padding: mobilePadding }}>
+                  <HabitWeekView />
+                </div>
+              )}
+
+              {activeApp === 'habits' && habitView === 'grid' && (
+                <div style={{ flex: 1, overflow: 'auto', padding: mobilePadding }}>
+                  <HabitGridView />
+                </div>
+              )}
+
+              {activeApp === 'habits' && habitView === 'dashboard' && (
+                <div style={{ flex: 1, overflow: 'auto', padding: mobilePadding }}>
+                  <HabitDashboard />
+                </div>
+              )}
+            </motion.div>
+          </AnimatePresence>
+
+          <ActivityPanel />
+          <PlannedActivityPanel />
         </div>
-      )}
 
-      <div style={{ flex: 1, overflow: 'hidden', position: 'relative' }}>
-        <AnimatePresence mode="wait">
-          <motion.div
-            key={viewKey}
-            initial={{ opacity: 0, y: 6 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -6 }}
-            transition={{ duration: 0.15, ease: 'easeOut' }}
-            style={{ height: '100%', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}
-          >
-            {/* Training views */}
-            {isTraining && appMode === 'calendar' && <CalendarRoot />}
-
-            {isTraining && appMode === 'grid' && (
-              <div style={{ flex: 1, overflow: 'auto' }}>
-                {isMobile && <div style={{ padding: '8px 12px 0' }}><MobilePeriodNav /></div>}
-                <GridContainer />
-              </div>
-            )}
-
-            {isTraining && appMode === 'dashboard' && (
-              <div style={{ flex: 1, overflow: 'auto' }}>
-                <DashboardPage />
-              </div>
-            )}
-
-            {isTraining && appMode === 'planner' && (
-              <div style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
-                <PlannerPage />
-              </div>
-            )}
-
-            {isTraining && appMode === 'review' && (
-              <div style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
-                <WeekReviewPage />
-              </div>
-            )}
-
-            {/* Coach section */}
-            {isCoach && (
-              <div style={{ flex: 1, overflow: 'auto' }}>
-                <CoachPage />
-              </div>
-            )}
-
-            {/* Habit views */}
-            {activeApp === 'habits' && habitView === 'week' && (
-              <div style={{ flex: 1, overflow: 'auto', padding: mobilePadding }}>
-                <HabitWeekView />
-              </div>
-            )}
-
-            {activeApp === 'habits' && habitView === 'grid' && (
-              <div style={{ flex: 1, overflow: 'auto', padding: mobilePadding }}>
-                <HabitGridView />
-              </div>
-            )}
-
-            {activeApp === 'habits' && habitView === 'dashboard' && (
-              <div style={{ flex: 1, overflow: 'auto', padding: mobilePadding }}>
-                <HabitDashboard />
-              </div>
-            )}
-          </motion.div>
-        </AnimatePresence>
-
-        <ActivityPanel />
-        <PlannedActivityPanel />
+        {/* Bottom tab bar on mobile */}
+        {isMobile && <MobileTabBar />}
       </div>
-
-      {/* Bottom tab bar on mobile */}
-      {isMobile && <MobileTabBar />}
     </div>
   )
 }

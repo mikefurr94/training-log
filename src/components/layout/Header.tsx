@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react'
+import { useState } from 'react'
 import { parseISO, format } from 'date-fns'
 import { useAppStore } from '../../store/useAppStore'
 import { useCalendarRange } from '../../hooks/useCalendarRange'
@@ -6,7 +6,7 @@ import { getDateRange } from '../../utils/dateUtils'
 import { useIsMobile } from '../../hooks/useIsMobile'
 import ViewToggle from '../ui/ViewToggle'
 import ActivityFilters from '../ui/ActivityFilters'
-import type { AppMode, HabitView, ActiveApp } from '../../store/types'
+import type { AppMode, HabitView } from '../../store/types'
 
 const TRAINING_TABS: { mode: AppMode; label: string; icon: string }[] = [
   { mode: 'calendar',  label: 'Calendar',  icon: '📅' },
@@ -22,30 +22,29 @@ const HABIT_TABS: { mode: HabitView; label: string; icon: string }[] = [
   { mode: 'dashboard', label: 'Dashboard', icon: '📊' },
 ]
 
-export default function Header() {
+interface HeaderProps {
+  onOpenSideNav?: () => void
+}
+
+export default function Header({ onOpenSideNav }: HeaderProps) {
   const isMobile = useIsMobile()
-  if (isMobile) return <MobileHeader />
+  if (isMobile) return <MobileHeader onOpenSideNav={onOpenSideNav} />
   return <DesktopHeader />
 }
 
 // ── Desktop Header ──────────────────────────────────────────────────────────
 
 function DesktopHeader() {
-  const athlete = useAppStore((s) => s.athlete)
   const isLoading = useAppStore((s) => s.isLoading)
   const navigate = useAppStore((s) => s.navigate)
   const goToToday = useAppStore((s) => s.goToToday)
-  const logout = useAppStore((s) => s.logout)
   const distanceUnit = useAppStore((s) => s.distanceUnit)
   const setDistanceUnit = useAppStore((s) => s.setDistanceUnit)
   const activeApp = useAppStore((s) => s.activeApp)
-  const setActiveApp = useAppStore((s) => s.setActiveApp)
   const appMode = useAppStore((s) => s.appMode)
   const setAppMode = useAppStore((s) => s.setAppMode)
   const habitView = useAppStore((s) => s.habitView)
   const setHabitView = useAppStore((s) => s.setHabitView)
-  const theme = useAppStore((s) => s.theme)
-  const toggleTheme = useAppStore((s) => s.toggleTheme)
   const showPlan = useAppStore((s) => s.showPlan)
   const toggleShowPlan = useAppStore((s) => s.toggleShowPlan)
   const { label } = useCalendarRange()
@@ -69,7 +68,6 @@ function DesktopHeader() {
     ? anchor.getFullYear() === today.getFullYear()
     : (() => { const { start, end } = getDateRange(currentView, anchor); return today >= start && today <= end })()
 
-
   return (
     <header style={{
       height: 60,
@@ -85,9 +83,7 @@ function DesktopHeader() {
       overflow: 'visible',
       minWidth: 0,
     }}>
-      <AppSwitcher activeApp={activeApp} onSwitch={setActiveApp} />
-      <div style={{ width: 1, height: 24, background: 'var(--color-border)', marginLeft: 2 }} />
-
+      {/* View tabs */}
       {activeApp !== 'coach' && (
         <div style={{
           display: 'flex',
@@ -146,28 +142,29 @@ function DesktopHeader() {
         </div>
       )}
 
-      <div style={{ width: 1, height: 28, background: 'var(--color-border)' }} />
-
       {/* Plan overlay toggle — available in calendar and grid modes */}
       {isTraining && (appMode === 'calendar' || appMode === 'grid') && (
-        <button
-          onClick={toggleShowPlan}
-          title={showPlan ? 'Hide training plan overlay' : 'Show training plan overlay'}
-          style={{
-            padding: '4px 10px',
-            borderRadius: 'var(--radius-sm)',
-            fontSize: 'var(--font-size-sm)',
-            fontWeight: showPlan ? 'var(--font-weight-semibold)' : 'var(--font-weight-medium)',
-            color: showPlan ? 'var(--color-accent)' : 'var(--color-text-secondary)',
-            background: showPlan ? 'var(--color-accent-light)' : 'transparent',
-            border: showPlan ? '1.5px solid var(--color-accent)' : '1.5px dashed var(--color-border)',
-            cursor: 'pointer',
-            whiteSpace: 'nowrap',
-            transition: 'all var(--transition-fast)',
-          }}
-        >
-          Plan
-        </button>
+        <>
+          <div style={{ width: 1, height: 28, background: 'var(--color-border)' }} />
+          <button
+            onClick={toggleShowPlan}
+            title={showPlan ? 'Hide training plan overlay' : 'Show training plan overlay'}
+            style={{
+              padding: '4px 10px',
+              borderRadius: 'var(--radius-sm)',
+              fontSize: 'var(--font-size-sm)',
+              fontWeight: showPlan ? 'var(--font-weight-semibold)' : 'var(--font-weight-medium)',
+              color: showPlan ? 'var(--color-accent)' : 'var(--color-text-secondary)',
+              background: showPlan ? 'var(--color-accent-light)' : 'transparent',
+              border: showPlan ? '1.5px solid var(--color-accent)' : '1.5px dashed var(--color-border)',
+              cursor: 'pointer',
+              whiteSpace: 'nowrap',
+              transition: 'all var(--transition-fast)',
+            }}
+          >
+            Plan
+          </button>
+        </>
       )}
 
       {isCalendarMode && (
@@ -184,54 +181,26 @@ function DesktopHeader() {
           background: 'transparent', border: '1px solid var(--color-border)', cursor: 'pointer', minWidth: 42,
         }} title="Toggle distance unit">{distanceUnit}</button>
       )}
-
-      <button onClick={toggleTheme} title={`Switch to ${theme === 'light' ? 'dark' : 'light'} mode`} style={{
-        padding: '4px 10px', borderRadius: 'var(--radius-sm)', fontSize: 16,
-        color: 'var(--color-text-secondary)', background: 'transparent',
-        border: '1px solid var(--color-border)', cursor: 'pointer', minWidth: 36,
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
-      }}>{theme === 'light' ? '🌙' : '☀️'}</button>
-
-      {athlete && (
-        <button
-          title={`${athlete.firstname} ${athlete.lastname} — click to disconnect`}
-          onClick={() => { if (confirm('Disconnect from Strava and clear all data?')) logout() }}
-          style={{
-            width: 32, height: 32, borderRadius: '50%', overflow: 'hidden',
-            border: '2px solid var(--color-border)', cursor: 'pointer', padding: 0,
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            background: 'var(--color-accent-light)',
-          }}
-        >
-          {athlete.profile_medium ? (
-            <img src={athlete.profile_medium} alt={athlete.firstname} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-          ) : (
-            <span style={{ fontSize: 14, color: 'var(--color-accent)' }}>{athlete.firstname?.[0]}</span>
-          )}
-        </button>
-      )}
     </header>
   )
 }
 
 // ── Mobile Header ────────────────────────────────────────────────────────────
 
-function MobileHeader() {
-  const athlete = useAppStore((s) => s.athlete)
-  const logout = useAppStore((s) => s.logout)
+function MobileHeader({ onOpenSideNav }: { onOpenSideNav?: () => void }) {
   const distanceUnit = useAppStore((s) => s.distanceUnit)
   const setDistanceUnit = useAppStore((s) => s.setDistanceUnit)
   const activeApp = useAppStore((s) => s.activeApp)
-  const setActiveApp = useAppStore((s) => s.setActiveApp)
   const appMode = useAppStore((s) => s.appMode)
-  const theme = useAppStore((s) => s.theme)
-  const toggleTheme = useAppStore((s) => s.toggleTheme)
   const showPlan = useAppStore((s) => s.showPlan)
   const toggleShowPlan = useAppStore((s) => s.toggleShowPlan)
   const isTraining = activeApp === 'training'
   const isCalendarMode = isTraining && appMode === 'calendar'
   const showFilters = isTraining && (appMode === 'calendar' || appMode === 'grid' || appMode === 'dashboard' || appMode === 'review')
   const [showMore, setShowMore] = useState(false)
+
+  const appLabel = activeApp === 'training' ? 'Training' : activeApp === 'habits' ? 'Habits' : 'Coach'
+  const appEmoji = activeApp === 'training' ? '🏃' : activeApp === 'habits' ? '✅' : '🏅'
 
   return (
     <>
@@ -245,51 +214,39 @@ function MobileHeader() {
         zIndex: 10,
         paddingTop: 'env(safe-area-inset-top, 0px)',
       }}>
-        {/* Row 1: app switcher + settings */}
+        {/* Row 1: hamburger + app name + settings */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 12px' }}>
-          {/* App switcher (tap to cycle) */}
+          {/* Hamburger / side nav opener */}
           <button
-            onClick={() => setActiveApp(activeApp === 'training' ? 'habits' : activeApp === 'habits' ? 'coach' : 'training')}
+            onClick={onOpenSideNav}
             style={{
-              display: 'flex', alignItems: 'center', gap: 5, padding: '4px 8px',
-              borderRadius: 'var(--radius-sm)', border: 'none', background: 'var(--color-bg)',
+              width: 32, height: 32, borderRadius: 'var(--radius-sm)',
+              border: '1px solid var(--color-border)', background: 'transparent',
+              fontSize: 16, color: 'var(--color-text-secondary)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
               cursor: 'pointer', flexShrink: 0,
             }}
-          >
-            <span style={{ fontSize: 16 }}>{activeApp === 'training' ? '🏃' : activeApp === 'habits' ? '✅' : '🏅'}</span>
-            <span style={{ fontWeight: 700, fontSize: 'var(--font-size-sm)', color: 'var(--color-text-primary)', letterSpacing: '-0.3px' }}>
-              {activeApp === 'training' ? 'Training' : activeApp === 'habits' ? 'Habits' : 'Coach'}
-            </span>
-            <span style={{ fontSize: 9, color: 'var(--color-text-tertiary)', marginLeft: 1 }}>⇄</span>
-          </button>
+          >☰</button>
+
+          {/* Current app indicator */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 5, flexShrink: 0 }}>
+            <span style={{ fontSize: 16 }}>{appEmoji}</span>
+            <span style={{
+              fontWeight: 700, fontSize: 'var(--font-size-sm)',
+              color: 'var(--color-text-primary)', letterSpacing: '-0.3px',
+            }}>{appLabel}</span>
+          </div>
 
           <div style={{ flex: 1 }} />
 
-        {/* Settings */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 4, flexShrink: 0 }}>
+          {/* More settings button */}
           <button onClick={() => setShowMore(v => !v)} style={{
             width: 32, height: 32, borderRadius: 'var(--radius-sm)',
             border: '1px solid var(--color-border)', background: showMore ? 'var(--color-bg)' : 'transparent',
             color: 'var(--color-text-secondary)', fontSize: 14,
             display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer',
           }}>⋯</button>
-
-          {athlete && (
-            <button onClick={() => { if (confirm('Disconnect from Strava?')) logout() }} style={{
-              width: 28, height: 28, borderRadius: '50%', overflow: 'hidden',
-              border: '2px solid var(--color-border)', cursor: 'pointer', padding: 0,
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              background: 'var(--color-accent-light)', minHeight: 28, minWidth: 28,
-            }}>
-              {athlete.profile_medium ? (
-                <img src={athlete.profile_medium} alt={athlete.firstname} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-              ) : (
-                <span style={{ fontSize: 12, color: 'var(--color-accent)' }}>{athlete.firstname?.[0]}</span>
-              )}
-            </button>
-          )}
-        </div>{/* end settings */}
-        </div>{/* end row 1 */}
+        </div>
       </header>
 
       {/* Expandable menu */}
@@ -334,12 +291,6 @@ function MobileHeader() {
                 border: '1px solid var(--color-border)', cursor: 'pointer',
               }}>{distanceUnit}</button>
             )}
-            <button onClick={toggleTheme} style={{
-              padding: '4px 10px', borderRadius: 'var(--radius-sm)', fontSize: 14,
-              color: 'var(--color-text-secondary)', background: 'transparent',
-              border: '1px solid var(--color-border)', cursor: 'pointer',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-            }}>{theme === 'light' ? '🌙' : '☀️'}</button>
           </div>
         </div>
       )}
@@ -397,73 +348,6 @@ export function MobileTabBar() {
         )
       })}
     </nav>
-  )
-}
-
-// ── App switcher dropdown (desktop) ──────────────────────────────────────────
-
-function AppSwitcher({ activeApp, onSwitch }: { activeApp: ActiveApp; onSwitch: (app: ActiveApp) => void }) {
-  const [open, setOpen] = useState(false)
-  const ref = useRef<HTMLDivElement>(null)
-
-  useEffect(() => {
-    if (!open) return
-    function handleClick(e: MouseEvent) {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false)
-    }
-    document.addEventListener('mousedown', handleClick)
-    return () => document.removeEventListener('mousedown', handleClick)
-  }, [open])
-
-  const APP_OPTIONS: { app: ActiveApp; emoji: string; label: string }[] = [
-    { app: 'training', emoji: '🏃', label: 'Training Log' },
-    { app: 'habits',   emoji: '✅', label: 'Habit Log' },
-    { app: 'coach',    emoji: '🏅', label: 'Coach' },
-  ]
-  const current = APP_OPTIONS.find((o) => o.app === activeApp) ?? APP_OPTIONS[0]
-
-  return (
-    <div ref={ref} style={{ position: 'relative', flexShrink: 0 }}>
-      <button onClick={() => setOpen((v) => !v)} style={{
-        display: 'flex', alignItems: 'center', gap: 7, padding: '4px 8px 4px 4px',
-        borderRadius: 'var(--radius-sm)', border: 'none',
-        background: open ? 'var(--color-bg)' : 'transparent', cursor: 'pointer',
-        transition: 'background 120ms ease',
-      }}>
-        <span style={{ fontSize: 20 }}>{current.emoji}</span>
-        <span style={{ fontWeight: 'var(--font-weight-bold)', fontSize: 'var(--font-size-base)', color: 'var(--color-text-primary)', letterSpacing: '-0.3px' }}>{current.label}</span>
-        <span style={{ fontSize: 10, color: 'var(--color-text-tertiary)', marginLeft: 2, transition: 'transform 150ms ease', transform: open ? 'rotate(180deg)' : 'rotate(0deg)' }}>▾</span>
-      </button>
-
-      {open && (
-        <div style={{
-          position: 'absolute', top: 'calc(100% + 4px)', left: 0,
-          background: 'var(--color-surface)', border: '1px solid var(--color-border)',
-          borderRadius: 'var(--radius-md)', boxShadow: 'var(--shadow-lg)',
-          padding: 4, minWidth: 180, zIndex: 100,
-          display: 'flex', flexDirection: 'column', gap: 2,
-        }}>
-          {APP_OPTIONS.map(({ app, emoji, label }) => (
-            <DropdownItem key={app} emoji={emoji} label={label} active={activeApp === app} onClick={() => { onSwitch(app); setOpen(false) }} />
-          ))}
-        </div>
-      )}
-    </div>
-  )
-}
-
-function DropdownItem({ emoji, label, active, onClick }: { emoji: string; label: string; active: boolean; onClick: () => void }) {
-  return (
-    <button onClick={onClick} style={{
-      display: 'flex', alignItems: 'center', gap: 8, padding: '8px 12px',
-      borderRadius: 'var(--radius-sm)', border: 'none',
-      background: active ? 'var(--color-accent-light)' : 'transparent',
-      cursor: 'pointer', width: '100%', textAlign: 'left', transition: 'background 120ms ease',
-    }}>
-      <span style={{ fontSize: 16 }}>{emoji}</span>
-      <span style={{ fontSize: 'var(--font-size-sm)', fontWeight: active ? 600 : 500, color: active ? 'var(--color-accent)' : 'var(--color-text-primary)' }}>{label}</span>
-      {active && <span style={{ marginLeft: 'auto', fontSize: 12, color: 'var(--color-accent)' }}>✓</span>}
-    </button>
   )
 }
 
