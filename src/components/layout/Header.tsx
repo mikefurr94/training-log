@@ -8,18 +8,87 @@ import ViewToggle from '../ui/ViewToggle'
 import ActivityFilters from '../ui/ActivityFilters'
 import type { AppMode, HabitView } from '../../store/types'
 
-const TRAINING_TABS: { mode: AppMode; label: string; icon: string }[] = [
-  { mode: 'calendar',  label: 'Calendar',  icon: '📅' },
-  { mode: 'grid',      label: 'Grid',      icon: '▦' },
-  { mode: 'dashboard', label: 'Dashboard', icon: '📊' },
-  { mode: 'review',    label: 'Review',    icon: '📈' },
-  { mode: 'planner',   label: 'Template',  icon: '📋' },
+// ── Tab SVG Icons (same style as SideNav) ────────────────────────────────────
+
+function IconCalendar({ color }: { color: string }) {
+  return (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="3" y="4" width="18" height="18" rx="2" />
+      <line x1="16" y1="2" x2="16" y2="6" />
+      <line x1="8" y1="2" x2="8" y2="6" />
+      <line x1="3" y1="10" x2="21" y2="10" />
+    </svg>
+  )
+}
+
+function IconGrid({ color }: { color: string }) {
+  return (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="3" y="3" width="7" height="7" rx="1" />
+      <rect x="14" y="3" width="7" height="7" rx="1" />
+      <rect x="3" y="14" width="7" height="7" rx="1" />
+      <rect x="14" y="14" width="7" height="7" rx="1" />
+    </svg>
+  )
+}
+
+function IconDashboard({ color }: { color: string }) {
+  return (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+      <line x1="18" y1="20" x2="18" y2="10" />
+      <line x1="12" y1="20" x2="12" y2="4" />
+      <line x1="6" y1="20" x2="6" y2="14" />
+      <line x1="3" y1="20" x2="21" y2="20" />
+    </svg>
+  )
+}
+
+function IconReview({ color }: { color: string }) {
+  return (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+      <polyline points="22 7 13.5 15.5 8.5 10.5 2 17" />
+      <polyline points="16 7 22 7 22 13" />
+    </svg>
+  )
+}
+
+function IconTemplate({ color }: { color: string }) {
+  return (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2" />
+      <rect x="9" y="3" width="6" height="4" rx="1" />
+      <line x1="9" y1="12" x2="15" y2="12" />
+      <line x1="9" y1="16" x2="13" y2="16" />
+    </svg>
+  )
+}
+
+function IconWeekly({ color }: { color: string }) {
+  return (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="3" y="4" width="18" height="18" rx="2" />
+      <line x1="16" y1="2" x2="16" y2="6" />
+      <line x1="8" y1="2" x2="8" y2="6" />
+      <line x1="3" y1="10" x2="21" y2="10" />
+      <path d="M8 15l2 2 4-4" />
+    </svg>
+  )
+}
+
+// ── Tab Definitions ───────────────────────────────────────────────────────────
+
+const TRAINING_TABS: { mode: AppMode; label: string; Icon: React.FC<{ color: string }> }[] = [
+  { mode: 'calendar',  label: 'Calendar',  Icon: IconCalendar },
+  { mode: 'grid',      label: 'Grid',      Icon: IconGrid },
+  { mode: 'dashboard', label: 'Dashboard', Icon: IconDashboard },
+  { mode: 'review',    label: 'Review',    Icon: IconReview },
+  { mode: 'planner',   label: 'Template',  Icon: IconTemplate },
 ]
 
-const HABIT_TABS: { mode: HabitView; label: string; icon: string }[] = [
-  { mode: 'week',      label: 'Weekly',    icon: '📋' },
-  { mode: 'grid',      label: 'Grid',      icon: '▦' },
-  { mode: 'dashboard', label: 'Dashboard', icon: '📊' },
+const HABIT_TABS: { mode: HabitView; label: string; Icon: React.FC<{ color: string }> }[] = [
+  { mode: 'week',      label: 'Weekly',    Icon: IconWeekly },
+  { mode: 'grid',      label: 'Grid',      Icon: IconGrid },
+  { mode: 'dashboard', label: 'Dashboard', Icon: IconDashboard },
 ]
 
 interface HeaderProps {
@@ -382,8 +451,9 @@ export function MobileTabBar() {
       background: 'var(--color-surface)', borderTop: '1px solid var(--color-border)',
       flexShrink: 0, paddingBottom: 'env(safe-area-inset-bottom, 0px)', zIndex: 10,
     }}>
-      {tabs.map(({ mode, label, icon }) => {
+      {tabs.map(({ mode, label, Icon }) => {
         const active = currentMode === mode
+        const iconColor = active ? 'var(--color-accent)' : 'var(--color-text-tertiary)'
         return (
           <button key={mode} onClick={() => setMode(mode)} style={{
             flex: 1, display: 'flex', flexDirection: 'column',
@@ -391,7 +461,7 @@ export function MobileTabBar() {
             padding: '6px 4px 4px', background: 'transparent', border: 'none',
             cursor: 'pointer', minHeight: 48, position: 'relative',
           }}>
-            <span style={{ fontSize: 18, lineHeight: 1, opacity: active ? 1 : 0.5 }}>{icon}</span>
+            <Icon color={iconColor} />
             <span style={{
               fontSize: 10, fontWeight: active ? 700 : 500,
               color: active ? 'var(--color-accent)' : 'var(--color-text-tertiary)',
