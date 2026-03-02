@@ -450,7 +450,7 @@ function WeatherCard({ weather }: { weather: DailyWeather }) {
         </div>
 
         {/* Temp grid */}
-        <div style={{ display: 'flex', gap: 16 }}>
+        <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
           <div>
             <div style={{ fontSize: 9, fontWeight: 600, color: 'var(--color-text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 2 }}>
               High / Low
@@ -461,14 +461,22 @@ function WeatherCard({ weather }: { weather: DailyWeather }) {
           </div>
           <div>
             <div style={{ fontSize: 9, fontWeight: 600, color: 'var(--color-text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 2 }}>
-              {weather.feelsLikeAt7am != null ? 'Feels at 7am' : 'Feels like'}
+              Feels like
             </div>
             <div style={{ fontSize: 'var(--font-size-base)', fontWeight: 'var(--font-weight-bold)', color: 'var(--color-text-primary)', fontVariantNumeric: 'tabular-nums' }}>
-              {weather.feelsLikeAt7am != null
-                ? `${weather.feelsLikeAt7am}°`
-                : `${weather.feelsLikeHigh}° / ${weather.feelsLikeLow}°`}
+              {weather.feelsLikeHigh}° / {weather.feelsLikeLow}°
             </div>
           </div>
+          {weather.feelsLikeAt7am != null && (
+            <div>
+              <div style={{ fontSize: 9, fontWeight: 600, color: 'var(--color-text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 2 }}>
+                Feels at 7am
+              </div>
+              <div style={{ fontSize: 'var(--font-size-base)', fontWeight: 'var(--font-weight-bold)', color: 'var(--color-accent)', fontVariantNumeric: 'tabular-nums' }}>
+                {weather.feelsLikeAt7am}°
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>
