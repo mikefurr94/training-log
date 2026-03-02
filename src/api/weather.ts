@@ -62,16 +62,30 @@ export async function fetchWeatherForecast(
 
   const data = await res.json()
   const daily = data.daily
+  const hourlyTimes: string[] | undefined = data.hourly?.time
   const hourlyApparent: number[] | undefined = data.hourly?.apparent_temperature
 
-  return daily.time.map((date: string, i: number) => {
-    // Extract 7:00 AM feels-like from hourly data (24 entries per day, index 7 = 7am)
-    let feelsLikeAt7am: number | null = null
-    if (hourlyApparent) {
-      const idx = i * 24 + 7
-      if (idx < hourlyApparent.length && hourlyApparent[idx] != null) {
-        feelsLikeAt7am = Math.round(hourlyApparent[idx])
+  // Build a map of "YYYY-MM-DD" → index of 7am entry in hourly arrays
+  const hourly7amIndex: Record<string, number> = {}
+  if (hourlyTimes) {
+    for (let h = 0; h < hourlyTimes.length; h++) {
+      // hourly times are "YYYY-MM-DDTHH:00" — extract date and hour
+      const t = hourlyTimes[h]
+      if (t.endsWith('T07:00')) {
+        hourly7amIndex[t.slice(0, 10)] = h
       }
+    }
+  }
+
+  console.log('[Weather] API response timezone:', data.timezone, '| Browser TZ:', tz)
+  console.log('[Weather] Daily dates → highs:', daily.time.map((d: string, i: number) => `${d}: ${Math.round(daily.temperature_2m_max[i])}°`).join(', '))
+
+  return daily.time.map((date: string, i: number) => {
+    // Extract 7:00 AM feels-like using timestamp matching (not index math)
+    let feelsLikeAt7am: number | null = null
+    if (hourlyApparent && hourly7amIndex[date] !== undefined) {
+      const val = hourlyApparent[hourly7amIndex[date]]
+      if (val != null) feelsLikeAt7am = Math.round(val)
     }
 
     return {
