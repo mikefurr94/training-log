@@ -461,10 +461,12 @@ function WeatherCard({ weather }: { weather: DailyWeather }) {
           </div>
           <div>
             <div style={{ fontSize: 9, fontWeight: 600, color: 'var(--color-text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 2 }}>
-              Feels like
+              {weather.feelsLikeAt7am != null ? 'Feels at 7am' : 'Feels like'}
             </div>
             <div style={{ fontSize: 'var(--font-size-base)', fontWeight: 'var(--font-weight-bold)', color: 'var(--color-text-primary)', fontVariantNumeric: 'tabular-nums' }}>
-              {weather.feelsLikeHigh}° / {weather.feelsLikeLow}°
+              {weather.feelsLikeAt7am != null
+                ? `${weather.feelsLikeAt7am}°`
+                : `${weather.feelsLikeHigh}° / ${weather.feelsLikeLow}°`}
             </div>
           </div>
         </div>
