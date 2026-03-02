@@ -2,16 +2,12 @@ import { useAppStore } from '../../store/useAppStore'
 import { useIsMobile } from '../../hooks/useIsMobile'
 import CoachWizard from './CoachWizard'
 import CoachPlanOverview from './CoachPlanOverview'
-import CoachCheckinPanel from './CoachCheckinPanel'
-import CoachChatInput from './CoachChatInput'
 
 export default function CoachPage() {
   const coachPlan = useAppStore((s) => s.coachPlan)
   const coachLoading = useAppStore((s) => s.coachLoading)
-  const coachError = useAppStore((s) => s.coachError)
   const coachWizardOpen = useAppStore((s) => s.coachWizardOpen)
   const setCoachWizardOpen = useAppStore((s) => s.setCoachWizardOpen)
-  const setCoachError = useAppStore((s) => s.setCoachError)
   const isMobile = useIsMobile()
 
   // Loading state
@@ -45,34 +41,16 @@ export default function CoachPage() {
     )
   }
 
-  // Active plan
+  // Active plan — just the calendar, full height, same padding as training section
   if (coachPlan) {
     return (
       <div style={{
-        display: 'flex', flexDirection: 'column', height: '100%',
-        padding: isMobile ? '16px 12px' : '24px 32px',
-        gap: 16,
+        height: '100%',
+        padding: isMobile ? 8 : 16,
+        display: 'flex',
+        flexDirection: 'column',
       }}>
-        {coachError && (
-          <div style={{
-            background: 'var(--color-status-missed-bg)',
-            border: '1px solid var(--color-status-missed-border)',
-            borderRadius: 'var(--radius-md)',
-            padding: '8px 12px',
-            fontSize: 'var(--font-size-sm)',
-            color: 'var(--color-status-missed-text)',
-            display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-          }}>
-            <span>{coachError}</span>
-            <button onClick={() => setCoachError(null)} style={{
-              background: 'none', border: 'none', cursor: 'pointer',
-              color: 'var(--color-status-missed-text)', fontWeight: 600, fontSize: 16,
-            }}>x</button>
-          </div>
-        )}
-        <CoachCheckinPanel />
         <CoachPlanOverview />
-        <CoachChatInput />
       </div>
     )
   }
@@ -103,20 +81,6 @@ export default function CoachPage() {
           race goals, and preferred schedule. Track your progress and get real-time coaching
           adjustments.
         </p>
-
-        {coachError && (
-          <div style={{
-            background: 'var(--color-status-missed-bg)',
-            border: '1px solid var(--color-status-missed-border)',
-            borderRadius: 'var(--radius-md)',
-            padding: '8px 16px',
-            fontSize: 'var(--font-size-sm)',
-            color: 'var(--color-status-missed-text)',
-            maxWidth: 400,
-          }}>
-            {coachError}
-          </div>
-        )}
 
         <button
           onClick={() => setCoachWizardOpen(true)}

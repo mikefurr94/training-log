@@ -1,8 +1,9 @@
-import { useMemo, useState } from 'react'
-import { format, parseISO, addMonths, subMonths, isSameMonth, isSameDay, isToday, startOfMonth } from 'date-fns'
+import { useMemo } from 'react'
+import { format, parseISO, isSameMonth, isSameDay, isToday, startOfMonth } from 'date-fns'
 import { buildMonthGrid } from '../../utils/dateUtils'
 import { getActivityColor } from '../../utils/activityColors'
 import { PHASE_COLORS } from '../../utils/coachUtils'
+import { useAppStore } from '../../store/useAppStore'
 import { useIsMobile } from '../../hooks/useIsMobile'
 import type { CoachPlan, CoachDay, CoachPlannedActivity } from '../../store/types'
 import type { ActivityType } from '../../utils/activityColors'
@@ -18,7 +19,20 @@ export default function CoachCalendarView({ plan, onDayClick }: Props) {
   const isMobile = useIsMobile()
   const raceDate = parseISO(plan.raceDate)
 
-  // Build a lookup: date string -> CoachDay
+  // Read current month from store
+  const coachCalendarMonth = useAppStore((s) => s.coachCalendarMonth)
+  const planStart = startOfMonth(parseISO(plan.planStartDate))
+  const planEnd = startOfMonth(raceDate)
+
+  const currentMonth = useMemo(() => {
+    if (coachCalendarMonth) return startOfMonth(parseISO(coachCalendarMonth))
+    const todayM = startOfMonth(new Date())
+    if (todayM < planStart) return planStart
+    if (todayM > planEnd) return planEnd
+    return todayM
+  }, [coachCalendarMonth, plan.planStartDate, plan.raceDate])
+
+  // Build lookups: date string -> CoachDay, date string -> phase
   const daysByDate = useMemo(() => {
     const map: Record<string, CoachDay> = {}
     for (const week of plan.weeks) {
@@ -29,7 +43,6 @@ export default function CoachCalendarView({ plan, onDayClick }: Props) {
     return map
   }, [plan.weeks])
 
-  // Build a lookup: date string -> phase
   const phaseByDate = useMemo(() => {
     const map: Record<string, string> = {}
     for (const week of plan.weeks) {
@@ -40,63 +53,10 @@ export default function CoachCalendarView({ plan, onDayClick }: Props) {
     return map
   }, [plan.weeks])
 
-  // Determine the range of months to navigate
-  const planStart = parseISO(plan.planStartDate)
-  const startMonth = startOfMonth(planStart)
-  const endMonth = startOfMonth(raceDate)
-
-  const [currentMonth, setCurrentMonth] = useState(() => {
-    // Start on the month containing today, or plan start if today is before
-    const today = new Date()
-    const todayMonth = startOfMonth(today)
-    if (todayMonth < startMonth) return startMonth
-    if (todayMonth > endMonth) return endMonth
-    return todayMonth
-  })
-
-  const canGoPrev = currentMonth > startMonth
-  const canGoNext = currentMonth < endMonth
-
   const weeks = buildMonthGrid(currentMonth)
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 8, flex: 1 }}>
-      {/* Month navigation */}
-      <div style={{
-        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-      }}>
-        <button
-          onClick={() => canGoPrev && setCurrentMonth(subMonths(currentMonth, 1))}
-          disabled={!canGoPrev}
-          style={{
-            background: 'none', border: 'none', cursor: canGoPrev ? 'pointer' : 'default',
-            fontSize: 18, color: canGoPrev ? 'var(--color-text-secondary)' : 'var(--color-border)',
-            padding: '4px 8px', borderRadius: 'var(--radius-sm)',
-          }}
-        >
-          ‹
-        </button>
-        <span style={{
-          fontSize: 'var(--font-size-base)',
-          fontWeight: 'var(--font-weight-semibold)',
-          color: 'var(--color-text-primary)',
-          letterSpacing: '-0.2px',
-        }}>
-          {format(currentMonth, 'MMMM yyyy')}
-        </span>
-        <button
-          onClick={() => canGoNext && setCurrentMonth(addMonths(currentMonth, 1))}
-          disabled={!canGoNext}
-          style={{
-            background: 'none', border: 'none', cursor: canGoNext ? 'pointer' : 'default',
-            fontSize: 18, color: canGoNext ? 'var(--color-text-secondary)' : 'var(--color-border)',
-            padding: '4px 8px', borderRadius: 'var(--radius-sm)',
-          }}
-        >
-          ›
-        </button>
-      </div>
-
       {/* Day-of-week headers */}
       <div style={{
         display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 4,
@@ -139,7 +99,6 @@ export default function CoachCalendarView({ plan, onDayClick }: Props) {
                 <CoachDayCell
                   key={key}
                   date={date}
-                  dateKey={key}
                   coachDay={coachDay}
                   phase={phase}
                   isRaceDay={isRace}
@@ -162,7 +121,6 @@ export default function CoachCalendarView({ plan, onDayClick }: Props) {
 
 interface DayCellProps {
   date: Date
-  dateKey: string
   coachDay?: CoachDay
   phase?: string
   isRaceDay: boolean
@@ -174,7 +132,7 @@ interface DayCellProps {
 }
 
 function CoachDayCell({
-  date, dateKey, coachDay, phase, isRaceDay, outsideMonth, inPlan, isToday: today, isMobile, onClick,
+  date, coachDay, phase, isRaceDay, outsideMonth, inPlan, isToday: today, isMobile, onClick,
 }: DayCellProps) {
   const activities = coachDay?.activities ?? []
   const nonRestActivities = activities.filter((a) => a.type !== 'Rest')
@@ -299,35 +257,19 @@ function CoachDayCell({
 
 function CoachActivityBadge({ activity, isMobile }: { activity: CoachPlannedActivity; isMobile: boolean }) {
   const colors = getActivityColor(activity.type as ActivityType)
-
-  let label = activity.label
-  if (isMobile && label.length > 8) {
-    // Shorten common labels on mobile
-    label = label.replace('Easy Run', 'Easy')
-      .replace('Long Run', 'Long')
-      .replace('Tempo Run', 'Tempo')
-      .replace('Recovery Run', 'Recovery')
-      .replace('Interval', 'Intervals')
-  }
-
-  // Show distance for runs if available
-  const distText = activity.targetDistanceMiles
-    ? `${activity.targetDistanceMiles} mi`
-    : ''
+  const distText = activity.targetDistanceMiles ? `${activity.targetDistanceMiles} mi` : ''
 
   return (
-    <div
-      style={{
-        display: 'flex', alignItems: 'center', gap: isMobile ? 3 : 4,
-        width: '100%',
-        background: colors.light,
-        border: `1px solid ${colors.border}`,
-        borderRadius: 5,
-        padding: isMobile ? '2px 4px' : '3px 7px',
-        overflow: 'hidden',
-        minWidth: 0,
-      }}
-    >
+    <div style={{
+      display: 'flex', alignItems: 'center', gap: isMobile ? 3 : 4,
+      width: '100%',
+      background: colors.light,
+      border: `1px solid ${colors.border}`,
+      borderRadius: 5,
+      padding: isMobile ? '2px 4px' : '3px 7px',
+      overflow: 'hidden',
+      minWidth: 0,
+    }}>
       <span style={{ fontSize: isMobile ? 9 : 11, flexShrink: 0 }}>{colors.emoji}</span>
       <span style={{
         fontSize: isMobile ? 9 : 'var(--font-size-xs)',
@@ -336,7 +278,7 @@ function CoachActivityBadge({ activity, isMobile }: { activity: CoachPlannedActi
         whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
         minWidth: 0, lineHeight: 1.2, letterSpacing: '-0.1px',
       }}>
-        {distText || label}
+        {distText || activity.label}
       </span>
     </div>
   )

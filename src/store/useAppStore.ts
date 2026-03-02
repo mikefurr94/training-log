@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
-import { format, parseISO, startOfWeek } from 'date-fns'
+import { format, parseISO, startOfWeek, startOfMonth, addMonths, subMonths } from 'date-fns'
 import { navigateAnchor } from '../utils/dateUtils'
 import type {
   AppStore,
@@ -405,6 +405,7 @@ export const useAppStore = create<AppStore>()(
       coachWizardOpen: false,
       coachSelectedWeek: null,
       coachSelectedDate: null,
+      coachCalendarMonth: null,
 
       setCoachPlan: (plan: CoachPlan | null) => set({ coachPlan: plan }),
       setCoachLoading: (loading: boolean) => set({ coachLoading: loading }),
@@ -412,6 +413,24 @@ export const useAppStore = create<AppStore>()(
       setCoachWizardOpen: (open: boolean) => set({ coachWizardOpen: open }),
       setCoachSelectedWeek: (weekNumber: number | null) => set({ coachSelectedWeek: weekNumber }),
       setCoachSelectedDate: (date: string | null) => set({ coachSelectedDate: date }),
+      setCoachCalendarMonth: (month: string | null) => set({ coachCalendarMonth: month }),
+      navigateCoachCalendar: (direction: 'prev' | 'next') => {
+        const { coachCalendarMonth, coachPlan } = get()
+        if (!coachPlan) return
+        const planStart = startOfMonth(parseISO(coachPlan.planStartDate))
+        const planEnd = startOfMonth(parseISO(coachPlan.raceDate))
+        const current = coachCalendarMonth
+          ? startOfMonth(parseISO(coachCalendarMonth))
+          : (() => {
+              const today = startOfMonth(new Date())
+              if (today < planStart) return planStart
+              if (today > planEnd) return planEnd
+              return today
+            })()
+        const next = direction === 'next' ? addMonths(current, 1) : subMonths(current, 1)
+        if (next < planStart || next > planEnd) return
+        set({ coachCalendarMonth: format(next, 'yyyy-MM-dd') })
+      },
 
       updateCoachDay: (date: string, activities: CoachPlannedActivity[]) => {
         const { coachPlan } = get()

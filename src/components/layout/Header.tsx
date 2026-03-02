@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { parseISO, format } from 'date-fns'
+import { parseISO, format, startOfMonth, addMonths, subMonths } from 'date-fns'
 import { useAppStore } from '../../store/useAppStore'
 import { useCalendarRange } from '../../hooks/useCalendarRange'
 import { getDateRange } from '../../utils/dateUtils'
@@ -50,6 +50,7 @@ function DesktopHeader() {
   const { label } = useCalendarRange()
 
   const isTraining = activeApp === 'training'
+  const isCoach = activeApp === 'coach'
   const isCalendarMode = isTraining && appMode === 'calendar'
   const isGridMode = isTraining && appMode === 'grid'
   const showCalendarNav = isTraining && (appMode === 'calendar' || appMode === 'grid')
@@ -67,6 +68,42 @@ function DesktopHeader() {
   const isViewingToday = isGridMode
     ? anchor.getFullYear() === today.getFullYear()
     : (() => { const { start, end } = getDateRange(currentView, anchor); return today >= start && today <= end })()
+
+  // Coach calendar nav
+  const coachPlan = useAppStore((s) => s.coachPlan)
+  const coachCalendarMonth = useAppStore((s) => s.coachCalendarMonth)
+  const navigateCoachCalendar = useAppStore((s) => s.navigateCoachCalendar)
+  const setCoachCalendarMonth = useAppStore((s) => s.setCoachCalendarMonth)
+
+  const coachCurrentMonth = coachPlan
+    ? (() => {
+        if (coachCalendarMonth) return startOfMonth(parseISO(coachCalendarMonth))
+        const planStart = startOfMonth(parseISO(coachPlan.planStartDate))
+        const planEnd = startOfMonth(parseISO(coachPlan.raceDate))
+        const todayM = startOfMonth(new Date())
+        if (todayM < planStart) return planStart
+        if (todayM > planEnd) return planEnd
+        return todayM
+      })()
+    : null
+  const coachPlanStart = coachPlan ? startOfMonth(parseISO(coachPlan.planStartDate)) : null
+  const coachPlanEnd = coachPlan ? startOfMonth(parseISO(coachPlan.raceDate)) : null
+  const coachCanPrev = coachCurrentMonth && coachPlanStart ? coachCurrentMonth > coachPlanStart : false
+  const coachCanNext = coachCurrentMonth && coachPlanEnd ? coachCurrentMonth < coachPlanEnd : false
+  const coachTodayMonth = startOfMonth(new Date())
+  const coachIsViewingToday = coachCurrentMonth
+    ? coachCurrentMonth.getTime() === coachTodayMonth.getTime()
+    : true
+  const coachNavLabel = coachCurrentMonth ? format(coachCurrentMonth, 'MMMM yyyy') : ''
+
+  function handleCoachGoToday() {
+    if (!coachPlan) return
+    const planStart = startOfMonth(parseISO(coachPlan.planStartDate))
+    const planEnd = startOfMonth(parseISO(coachPlan.raceDate))
+    const todayM = startOfMonth(new Date())
+    const clamped = todayM < planStart ? planStart : todayM > planEnd ? planEnd : todayM
+    setCoachCalendarMonth(format(clamped, 'yyyy-MM-dd'))
+  }
 
   return (
     <header style={{
@@ -131,6 +168,28 @@ function DesktopHeader() {
           </span>
           <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
           <NavButton onClick={() => navigate('next')} label="Next period">›</NavButton>
+        </div>
+      )}
+
+      {isCoach && coachPlan && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginLeft: 4 }}>
+          <NavButton onClick={() => navigateCoachCalendar('prev')} label="Previous month" disabled={!coachCanPrev}>‹</NavButton>
+          {!coachIsViewingToday && (
+            <button onClick={handleCoachGoToday} style={{
+              padding: '4px 10px', borderRadius: 'var(--radius-sm)',
+              fontSize: 'var(--font-size-sm)', fontWeight: 'var(--font-weight-medium)',
+              color: 'var(--color-text-secondary)', background: 'transparent',
+              border: '1px solid var(--color-border)', cursor: 'pointer', whiteSpace: 'nowrap',
+            }}>Today</button>
+          )}
+          <span style={{
+            fontSize: 'var(--font-size-sm)', fontWeight: 'var(--font-weight-semibold)',
+            color: 'var(--color-text-primary)', minWidth: 100, textAlign: 'center',
+            letterSpacing: '-0.2px', whiteSpace: 'nowrap',
+          }}>
+            {coachNavLabel}
+          </span>
+          <NavButton onClick={() => navigateCoachCalendar('next')} label="Next month" disabled={!coachCanNext}>›</NavButton>
         </div>
       )}
 
@@ -380,13 +439,13 @@ function tabStyle(active: boolean): React.CSSProperties {
   }
 }
 
-function NavButton({ onClick, label, children }: { onClick: () => void; label: string; children: React.ReactNode }) {
+function NavButton({ onClick, label, children, disabled }: { onClick: () => void; label: string; children: React.ReactNode; disabled?: boolean }) {
   return (
-    <button onClick={onClick} aria-label={label} style={{
+    <button onClick={onClick} aria-label={label} disabled={disabled} style={{
       width: 28, height: 28, borderRadius: 'var(--radius-sm)',
       background: 'transparent', border: '1px solid var(--color-border)',
-      color: 'var(--color-text-secondary)', fontSize: 20, lineHeight: 1,
-      cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 300,
+      color: disabled ? 'var(--color-border)' : 'var(--color-text-secondary)', fontSize: 20, lineHeight: 1,
+      cursor: disabled ? 'default' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 300,
     }}>{children}</button>
   )
 }

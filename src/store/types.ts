@@ -310,6 +310,7 @@ export interface AppState {
   coachWizardOpen: boolean
   coachSelectedWeek: number | null
   coachSelectedDate: string | null
+  coachCalendarMonth: string | null // 'YYYY-MM-DD' first of month, null = auto
 }
 
 export interface AppActions {
@@ -389,6 +390,8 @@ export interface AppActions {
   setCoachWizardOpen: (open: boolean) => void
   setCoachSelectedWeek: (weekNumber: number | null) => void
   setCoachSelectedDate: (date: string | null) => void
+  setCoachCalendarMonth: (month: string | null) => void
+  navigateCoachCalendar: (direction: 'prev' | 'next') => void
   updateCoachDay: (date: string, activities: CoachPlannedActivity[]) => void
   markDayDetailGenerated: (date: string, detail: string, activityId: string) => void
   skipCoachActivity: (date: string, activityId: string) => void
