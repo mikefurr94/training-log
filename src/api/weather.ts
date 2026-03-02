@@ -77,9 +77,6 @@ export async function fetchWeatherForecast(
     }
   }
 
-  console.log('[Weather] API response timezone:', data.timezone, '| Browser TZ:', tz)
-  console.log('[Weather] Daily dates → highs:', daily.time.map((d: string, i: number) => `${d}: ${Math.round(daily.temperature_2m_max[i])}°`).join(', '))
-
   return daily.time.map((date: string, i: number) => {
     // Extract 7:00 AM feels-like using timestamp matching (not index math)
     let feelsLikeAt7am: number | null = null
