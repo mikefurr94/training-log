@@ -4,14 +4,11 @@ import { useAppStore } from '../../store/useAppStore'
 import { useIsMobile } from '../../hooks/useIsMobile'
 import { RACE_DISTANCE_LABELS } from '../../utils/coachUtils'
 import CoachProgressBar from './CoachProgressBar'
-import CoachWeekCard from './CoachWeekCard'
-import CoachWeekDetail from './CoachWeekDetail'
+import CoachCalendarView from './CoachCalendarView'
 import CoachDayDetailPanel from './CoachDayDetailPanel'
 
 export default function CoachPlanOverview() {
   const coachPlan = useAppStore((s) => s.coachPlan)
-  const coachSelectedWeek = useAppStore((s) => s.coachSelectedWeek)
-  const setCoachSelectedWeek = useAppStore((s) => s.setCoachSelectedWeek)
   const coachSelectedDate = useAppStore((s) => s.coachSelectedDate)
   const setCoachSelectedDate = useAppStore((s) => s.setCoachSelectedDate)
   const isMobile = useIsMobile()
@@ -87,28 +84,11 @@ export default function CoachPlanOverview() {
       {/* Progress bar */}
       <CoachProgressBar weeks={coachPlan.weeks} currentWeekIndex={currentWeekIndex} />
 
-      {/* Week list */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-        {coachPlan.weeks.map((week) => (
-          <div key={week.weekNumber}>
-            <CoachWeekCard
-              week={week}
-              isExpanded={coachSelectedWeek === week.weekNumber}
-              isCurrent={week.weekNumber - 1 === currentWeekIndex}
-              onClick={() =>
-                setCoachSelectedWeek(
-                  coachSelectedWeek === week.weekNumber ? null : week.weekNumber
-                )
-              }
-            />
-            {coachSelectedWeek === week.weekNumber && (
-              <div style={{ marginTop: 6 }}>
-                <CoachWeekDetail week={week} />
-              </div>
-            )}
-          </div>
-        ))}
-      </div>
+      {/* Calendar view */}
+      <CoachCalendarView
+        plan={coachPlan}
+        onDayClick={(date) => setCoachSelectedDate(date)}
+      />
 
       {/* Day detail panel */}
       {selectedDay && selectedWeekForDay && (
