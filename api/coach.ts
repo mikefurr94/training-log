@@ -30,7 +30,8 @@ Return your plan as a JSON object with this exact structure:
               "durationMinutes": number,
               "targetDistanceMiles": number (for runs),
               "targetPace": "M:SS" (for runs, optional),
-              "intensity": "easy" | "moderate" | "hard" | "recovery"
+              "intensity": "easy" | "moderate" | "hard" | "recovery",
+              "detail": "Brief 1-line workout structure"
             }
           ],
           "detailGenerated": false
@@ -49,8 +50,16 @@ Key principles:
 - One quality run per week (tempo, intervals, or race pace) during build/peak phases
 - Rest days are important - don't schedule activities on rest days
 - Each activity needs a unique id (use short random strings like "a1b2c3")
-
-For the initial plan, provide summary-level activity descriptions only. Do NOT provide detailed workout breakdowns - those will be requested separately.
+- Every activity MUST include a "detail" field with a brief 1-line workout structure description. Examples:
+  - Easy Run: "5 mi @ 8:30/mi easy pace"
+  - Tempo Run: "1 mi warm up @ 8:30/mi, 4 mi @ 7:00/mi, 1 mi cool down @ 8:30/mi"
+  - Intervals: "1 mi warm up, 6x800m @ 6:15/mi w/ 90s jog rest, 1 mi cool down"
+  - Long Run: "14 mi @ 8:45/mi, last 2 mi at marathon pace"
+  - Recovery Run: "3 mi @ 9:30/mi very easy"
+  - Upper Body: "45 min upper body strength"
+  - Yoga: "30 min recovery yoga"
+  - Rest Day: "Rest"
+  Keep details specific with real paces and distances appropriate to the athlete's fitness level.
 
 Return ONLY the JSON object, no other text.`
 

@@ -1,10 +1,8 @@
-import { useState } from 'react'
 import { format, parseISO } from 'date-fns'
 import { useAppStore } from '../../store/useAppStore'
 import { useIsMobile } from '../../hooks/useIsMobile'
-import { getCoachDayDetail } from '../../api/coach'
 import CoachActivityBadge from './CoachActivityBadge'
-import type { CoachDay, CoachWeek, CoachPlannedActivity } from '../../store/types'
+import type { CoachDay, CoachWeek } from '../../store/types'
 
 interface Props {
   day: CoachDay
@@ -14,33 +12,8 @@ interface Props {
 
 export default function CoachDayDetailPanel({ day, week, onClose }: Props) {
   const isMobile = useIsMobile()
-  const coachPlan = useAppStore((s) => s.coachPlan)
-  const markDayDetailGenerated = useAppStore((s) => s.markDayDetailGenerated)
   const skipCoachActivity = useAppStore((s) => s.skipCoachActivity)
-  const [loadingId, setLoadingId] = useState<string | null>(null)
   const date = parseISO(day.date)
-
-  async function handleLoadDetail(activity: CoachPlannedActivity) {
-    if (!coachPlan || activity.detail) return
-    setLoadingId(activity.id)
-    try {
-      const detail = await getCoachDayDetail(
-        coachPlan.id,
-        day.date,
-        { weekNumber: week.weekNumber, phase: week.phase, summary: week.summary },
-        {
-          label: activity.label,
-          targetDistanceMiles: activity.targetDistanceMiles,
-          intensity: activity.intensity,
-        }
-      )
-      markDayDetailGenerated(day.date, detail, activity.id)
-    } catch (err) {
-      console.error('Failed to load detail:', err)
-    } finally {
-      setLoadingId(null)
-    }
-  }
 
   return (
     <>
@@ -108,7 +81,7 @@ export default function CoachDayDetailPanel({ day, week, onClose }: Props) {
                   {/* Activity header */}
                   <div style={{
                     display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-                    marginBottom: 10,
+                    marginBottom: activity.detail ? 10 : 0,
                   }}>
                     <CoachActivityBadge activity={activity} />
                     <button
@@ -126,70 +99,15 @@ export default function CoachDayDetailPanel({ day, week, onClose }: Props) {
                     </button>
                   </div>
 
-                  {/* Activity info */}
-                  <div style={{
-                    display: 'flex', gap: 12, flexWrap: 'wrap', marginBottom: 10,
-                    fontSize: 'var(--font-size-sm)',
-                  }}>
-                    {activity.targetDistanceMiles && (
-                      <div>
-                        <span style={{ color: 'var(--color-text-tertiary)' }}>Distance: </span>
-                        <span style={{ fontWeight: 600, color: 'var(--color-text-primary)' }}>
-                          {activity.targetDistanceMiles} mi
-                        </span>
-                      </div>
-                    )}
-                    {activity.targetPace && (
-                      <div>
-                        <span style={{ color: 'var(--color-text-tertiary)' }}>Pace: </span>
-                        <span style={{ fontWeight: 600, color: 'var(--color-text-primary)' }}>
-                          {activity.targetPace}/mi
-                        </span>
-                      </div>
-                    )}
-                    {activity.durationMinutes && (
-                      <div>
-                        <span style={{ color: 'var(--color-text-tertiary)' }}>Duration: </span>
-                        <span style={{ fontWeight: 600, color: 'var(--color-text-primary)' }}>
-                          {activity.durationMinutes} min
-                        </span>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Detail section */}
-                  {activity.detail ? (
+                  {/* Inline workout detail */}
+                  {activity.detail && (
                     <div style={{
                       fontSize: 'var(--font-size-sm)',
                       color: 'var(--color-text-secondary)',
-                      lineHeight: 1.6,
-                      whiteSpace: 'pre-wrap',
-                      padding: '10px 12px',
-                      background: 'var(--color-surface)',
-                      borderRadius: 'var(--radius-sm)',
-                      border: '1px solid var(--color-border)',
+                      lineHeight: 1.5,
                     }}>
                       {activity.detail}
                     </div>
-                  ) : (
-                    <button
-                      onClick={() => handleLoadDetail(activity)}
-                      disabled={loadingId === activity.id}
-                      style={{
-                        width: '100%',
-                        padding: '8px 12px',
-                        borderRadius: 'var(--radius-sm)',
-                        border: '1px dashed var(--color-border)',
-                        background: 'transparent',
-                        color: 'var(--color-accent)',
-                        fontSize: 'var(--font-size-sm)',
-                        fontWeight: 'var(--font-weight-medium)',
-                        cursor: loadingId === activity.id ? 'wait' : 'pointer',
-                        opacity: loadingId === activity.id ? 0.5 : 1,
-                      }}
-                    >
-                      {loadingId === activity.id ? 'Loading workout details...' : 'Load Workout Details'}
-                    </button>
                   )}
                 </div>
               ))}
