@@ -6,7 +6,7 @@ import {
 import { format, subWeeks, startOfWeek, addDays } from 'date-fns'
 import { useAppStore } from '../../store/useAppStore'
 import { useIsMobile } from '../../hooks/useIsMobile'
-import { calculateStreak, buildHabitWeekStats } from '../../utils/habitUtils'
+import { buildHabitWeekStats } from '../../utils/habitUtils'
 
 const WEEKS_TO_SHOW = 12
 const HABIT_COLORS = ['#6366f1', '#10b981', '#8b5cf6', '#f59e0b', '#06b6d4', '#ec4899', '#ef4444', '#f97316']
@@ -21,32 +21,10 @@ export default function HabitDashboard() {
     [habits]
   )
 
-  const today = useMemo(() => new Date(), [])
-
-  const streaks = useMemo(() =>
-    sortedHabits.map((h) => ({
-      ...h,
-      ...calculateStreak(h.id, habitCompletions, today),
-    })),
-    [sortedHabits, habitCompletions, today]
-  )
-
   const weekStats = useMemo(
     () => buildHabitWeekStats(sortedHabits, habitCompletions, WEEKS_TO_SHOW),
     [sortedHabits, habitCompletions]
   )
-
-  const last30 = useMemo(() => {
-    let total = 0, completed = 0
-    for (let i = 0; i < 30; i++) {
-      const d = format(new Date(today.getTime() - i * 86400000), 'yyyy-MM-dd')
-      for (const h of sortedHabits) {
-        total++
-        if ((habitCompletions[d] ?? []).includes(h.id)) completed++
-      }
-    }
-    return total > 0 ? Math.round((completed / total) * 100) : 0
-  }, [sortedHabits, habitCompletions, today])
 
   const lineData = useMemo(() =>
     weekStats.map((ws) => ({
@@ -66,21 +44,6 @@ export default function HabitDashboard() {
       display: 'flex', flexDirection: 'column', gap: isMobile ? 16 : 24,
       maxWidth: 1000, margin: '0 auto', width: '100%',
     }}>
-      {/* Overall stat */}
-      <section>
-        <SectionHeader title="30-Day Overview" isMobile={isMobile} />
-        <div style={{
-          display: 'grid',
-          gridTemplateColumns: isMobile ? 'repeat(2, 1fr)' : 'repeat(auto-fit, minmax(160px, 1fr))',
-          gap: isMobile ? 8 : 12,
-        }}>
-          <StatCard emoji="📊" label="Overall" value={`${last30}%`} subtitle="Last 30 days" color="var(--color-accent)" isMobile={isMobile} />
-          {streaks.map((h, i) => (
-            <StatCard key={h.id} emoji={h.emoji} label={h.name} value={`${h.current}d`} subtitle={`Best: ${h.longest}d`} color={HABIT_COLORS[i % HABIT_COLORS.length]} isMobile={isMobile} />
-          ))}
-        </div>
-      </section>
-
       {/* Weekly completion rates chart */}
       <section>
         <SectionHeader title="Weekly Completion" subtitle={`${WEEKS_TO_SHOW}-wk`} isMobile={isMobile} />
@@ -125,24 +88,6 @@ function SectionHeader({ title, subtitle, isMobile = false }: { title: string; s
   )
 }
 
-function StatCard({ emoji, label, value, subtitle, color, isMobile = false }: {
-  emoji: string; label: string; value: string; subtitle: string; color: string; isMobile?: boolean
-}) {
-  return (
-    <div style={{
-      background: 'var(--color-surface)', borderRadius: 'var(--radius-lg)',
-      border: '1px solid var(--color-border)', padding: isMobile ? '10px 12px' : '14px 16px',
-      display: 'flex', flexDirection: 'column', gap: isMobile ? 3 : 6,
-    }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-        <span style={{ fontSize: isMobile ? 14 : 16 }}>{emoji}</span>
-        <span style={{ fontSize: isMobile ? 10 : 11, fontWeight: 600, color: 'var(--color-text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>{label}</span>
-      </div>
-      <div style={{ fontSize: isMobile ? 20 : 24, fontWeight: 800, color, letterSpacing: '-1px', fontVariantNumeric: 'tabular-nums' }}>{value}</div>
-      <div style={{ fontSize: isMobile ? 10 : 11, color: 'var(--color-text-tertiary)' }}>{subtitle}</div>
-    </div>
-  )
-}
 
 function ChartCard({ children, isMobile = false }: { children: React.ReactNode; isMobile?: boolean }) {
   return (
