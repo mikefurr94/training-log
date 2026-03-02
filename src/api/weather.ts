@@ -53,7 +53,7 @@ export async function fetchWeatherForecast(
   lat: number,
   lon: number
 ): Promise<DailyWeather[]> {
-  const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&daily=temperature_2m_max,temperature_2m_min,apparent_temperature_max,apparent_temperature_min,weathercode&hourly=apparent_temperature&temperature_unit=fahrenheit&timezone=auto&forecast_days=16`
+  const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&daily=temperature_2m_max,temperature_2m_min,apparent_temperature_max,apparent_temperature_min,weather_code&hourly=apparent_temperature&temperature_unit=fahrenheit&timezone=auto&forecast_days=16&models=ecmwf_ifs025`
 
   const res = await fetch(url)
   if (!res.ok) throw new Error(`Weather API error: ${res.status}`)
@@ -79,7 +79,7 @@ export async function fetchWeatherForecast(
       feelsLikeHigh: Math.round(daily.apparent_temperature_max[i]),
       feelsLikeLow: Math.round(daily.apparent_temperature_min[i]),
       feelsLikeAt7am,
-      weatherCode: daily.weathercode[i],
+      weatherCode: daily.weather_code[i],
     }
   })
 }
