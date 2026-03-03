@@ -224,6 +224,16 @@ export interface FitnessSummary {
   recentTrend: 'increasing' | 'steady' | 'decreasing'
 }
 
+export interface CoachChatMessage {
+  id: string
+  planId: string
+  athleteId: number
+  role: 'user' | 'assistant'
+  content: string
+  planModified: boolean
+  createdAt: string
+}
+
 export type CoachWizardStep = 'race' | 'goals' | 'schedule' | 'fitness' | 'review'
 
 export interface CoachWizardData {
@@ -241,7 +251,7 @@ export interface CoachWizardData {
 
 export type AppMode = 'calendar' | 'grid' | 'dashboard' | 'planner' | 'review'
 
-export type ActiveApp = 'training' | 'habits' | 'coach'
+export type ActiveApp = 'training' | 'habits'
 
 // ── Store ────────────────────────────────────────────────────────────────────
 
@@ -311,6 +321,11 @@ export interface AppState {
   coachSelectedWeek: number | null
   coachSelectedDate: string | null
   coachCalendarMonth: string | null // 'YYYY-MM-DD' first of month, null = auto
+
+  // Coach Chat
+  coachChatOpen: boolean
+  coachChatMessages: CoachChatMessage[]
+  coachChatLoading: boolean
 }
 
 export interface AppActions {
@@ -362,6 +377,7 @@ export interface AppActions {
   // Weekly planning
   setDayTemplate: (day: WeekDayIndex, activities: PlannedActivity[]) => void
   setDayOverride: (weekStart: Date, day: WeekDayIndex, activities: PlannedActivity[]) => void
+  clearDayOverride: (weekStart: Date, day: WeekDayIndex) => void
   movePlannedActivity: (fromDate: string, toDate: string, activityId: string) => void
   clearWeekOverride: (weekStart: Date) => void
   getWeekPlan: (weekStart: Date) => Record<WeekDayIndex, PlannedActivity[]>
@@ -395,6 +411,13 @@ export interface AppActions {
   updateCoachDay: (date: string, activities: CoachPlannedActivity[]) => void
   markDayDetailGenerated: (date: string, detail: string, activityId: string) => void
   skipCoachActivity: (date: string, activityId: string) => void
+
+  // Coach Chat
+  openCoachChat: () => void
+  closeCoachChat: () => void
+  setCoachChatMessages: (messages: CoachChatMessage[]) => void
+  addCoachChatMessage: (message: CoachChatMessage) => void
+  setCoachChatLoading: (loading: boolean) => void
 }
 
 export type AppStore = AppState & AppActions

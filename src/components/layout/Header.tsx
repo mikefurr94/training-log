@@ -82,7 +82,7 @@ const TRAINING_TABS: { mode: AppMode; label: string; Icon: React.FC<{ color: str
   { mode: 'grid',      label: 'Grid',      Icon: IconGrid },
   { mode: 'dashboard', label: 'Dashboard', Icon: IconDashboard },
   { mode: 'review',    label: 'Review',    Icon: IconReview },
-  { mode: 'planner',   label: 'Template',  Icon: IconTemplate },
+  { mode: 'planner',   label: 'Plan',       Icon: IconTemplate },
 ]
 
 const HABIT_TABS: { mode: HabitView; label: string; Icon: React.FC<{ color: string }> }[] = [
@@ -119,7 +119,6 @@ function DesktopHeader() {
   const { label } = useCalendarRange()
 
   const isTraining = activeApp === 'training'
-  const isCoach = activeApp === 'coach'
   const isCalendarMode = isTraining && appMode === 'calendar'
   const isGridMode = isTraining && appMode === 'grid'
   const showCalendarNav = isTraining && (appMode === 'calendar' || appMode === 'grid')
@@ -190,8 +189,7 @@ function DesktopHeader() {
       minWidth: 0,
     }}>
       {/* View tabs */}
-      {activeApp !== 'coach' && (
-        <div style={{
+      <div style={{
           display: 'flex',
           background: 'var(--color-bg)',
           border: '1px solid var(--color-border)',
@@ -214,7 +212,6 @@ function DesktopHeader() {
             ))
           )}
         </div>
-      )}
 
       {showCalendarNav && (
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginLeft: 4 }}>
@@ -240,7 +237,7 @@ function DesktopHeader() {
         </div>
       )}
 
-      {isCoach && coachPlan && (
+      {isTraining && appMode === 'planner' && coachPlan && (
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginLeft: 4 }}>
           <NavButton onClick={() => navigateCoachCalendar('prev')} label="Previous month" disabled={!coachCanPrev}>‹</NavButton>
           {!coachIsViewingToday && (
@@ -327,8 +324,8 @@ function MobileHeader({ onOpenSideNav }: { onOpenSideNav?: () => void }) {
   const showFilters = isTraining && (appMode === 'calendar' || appMode === 'grid' || appMode === 'dashboard' || appMode === 'review')
   const [showMore, setShowMore] = useState(false)
 
-  const appLabel = activeApp === 'training' ? 'Training' : activeApp === 'habits' ? 'Habits' : 'Coach'
-  const appEmoji = activeApp === 'training' ? '🏃' : activeApp === 'habits' ? '✅' : '🏅'
+  const appLabel = activeApp === 'training' ? 'Training' : 'Habits'
+  const appEmoji = activeApp === 'training' ? '🏃' : '✅'
 
   return (
     <>
@@ -436,14 +433,11 @@ export function MobileTabBar() {
   const setHabitView = useAppStore((s) => s.setHabitView)
 
   const isTraining = activeApp === 'training'
-  const isCoach = activeApp === 'coach'
   const tabs = isTraining ? TRAINING_TABS : HABIT_TABS
   const currentMode = isTraining ? appMode : habitView
   const setMode = isTraining
     ? (mode: string) => setAppMode(mode as AppMode)
     : (mode: string) => setHabitView(mode as HabitView)
-
-  if (isCoach) return null
 
   return (
     <nav style={{

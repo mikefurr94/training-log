@@ -37,16 +37,6 @@ function IconHabits({ color }: { color: string }) {
   )
 }
 
-function IconCoach({ color }: { color: string }) {
-  return (
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
-      {/* Award / medal */}
-      <circle cx="12" cy="8" r="5" />
-      <path d="M8.56 14.89L7 22l5-3 5 3-1.56-7.11" />
-    </svg>
-  )
-}
-
 function IconTheme({ isDark }: { isDark: boolean }) {
   return isDark ? (
     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
@@ -70,7 +60,6 @@ function IconTheme({ isDark }: { isDark: boolean }) {
 const NAV_ITEMS: { app: ActiveApp; label: string; Icon: React.FC<{ color: string }> }[] = [
   { app: 'training', label: 'Training', Icon: IconTraining },
   { app: 'habits',   label: 'Habits',   Icon: IconHabits },
-  { app: 'coach',    label: 'Coach',    Icon: IconCoach },
 ]
 
 // ── Desktop: persistent slim sidebar ──────────────────────────────────────────

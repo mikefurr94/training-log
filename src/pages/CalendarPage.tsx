@@ -17,7 +17,7 @@ import { useActivities } from '../hooks/useActivities'
 import { useCalendarRange } from '../hooks/useCalendarRange'
 import { useIsMobile } from '../hooks/useIsMobile'
 import MobilePeriodNav from '../components/ui/MobilePeriodNav'
-import CoachPage from '../components/coach/CoachPage'
+// Coach functionality is now integrated into PlannerPage (Plan tab)
 
 // Separate component so hooks run inside the calendar data context
 function GridContainer() {
@@ -36,7 +36,6 @@ export default function CalendarPage() {
   const [sideNavOpen, setSideNavOpen] = useState(false)
 
   const isTraining = activeApp === 'training'
-  const isCoach = activeApp === 'coach'
   const viewKey = isTraining ? appMode : activeApp
 
   const mobilePadding = isMobile ? '12px 12px 20px' : '24px 24px 40px'
@@ -114,13 +113,6 @@ export default function CalendarPage() {
               {isTraining && appMode === 'review' && (
                 <div style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
                   <WeekReviewPage />
-                </div>
-              )}
-
-              {/* Coach section */}
-              {isCoach && (
-                <div style={{ flex: 1, overflow: 'auto' }}>
-                  <CoachPage />
                 </div>
               )}
 

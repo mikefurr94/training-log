@@ -1,4 +1,4 @@
-import type { CoachPlan, CoachWizardData, FitnessSummary } from '../store/types'
+import type { CoachPlan, CoachWizardData, FitnessSummary, CoachChatMessage } from '../store/types'
 
 export async function loadCoachPlan(athleteId: number): Promise<CoachPlan | null> {
   const res = await fetch(`/api/coach?action=plan&athlete_id=${athleteId}`)
@@ -79,4 +79,41 @@ export async function coachCheckin(
   })
   if (!res.ok) throw new Error('Failed to get check-in')
   return res.json()
+}
+
+export async function sendCoachChat(
+  planId: string,
+  athleteId: number,
+  message: string,
+  history: { role: string; content: string }[],
+  planContext: string
+): Promise<{ message: string; updatedWeeks: unknown[] | null; planModified: boolean }> {
+  const res = await fetch('/api/coach?action=chat', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      plan_id: planId,
+      athlete_id: athleteId,
+      message,
+      history,
+      planContext,
+    }),
+  })
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ error: 'Chat failed' }))
+    throw new Error(err.error || 'Failed to send chat message')
+  }
+  return res.json()
+}
+
+export async function loadCoachChatHistory(
+  planId: string,
+  athleteId: number
+): Promise<CoachChatMessage[]> {
+  const res = await fetch(
+    `/api/coach?action=chat-history&plan_id=${planId}&athlete_id=${athleteId}`
+  )
+  if (!res.ok) return []
+  const data = await res.json()
+  return data.messages ?? []
 }

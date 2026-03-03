@@ -21,6 +21,7 @@ import type {
   ThemeMode,
   CoachPlan,
   CoachPlannedActivity,
+  CoachChatMessage,
 } from './types'
 import type { CalendarView } from '../utils/dateUtils'
 
@@ -284,6 +285,23 @@ export const useAppStore = create<AppStore>()(
         }
       },
 
+      clearDayOverride: (weekStart: Date, day: WeekDayIndex) => {
+        const { weekOverrides } = get()
+        const weekStartStr = format(
+          startOfWeek(weekStart, { weekStartsOn: 1 }),
+          'yyyy-MM-dd'
+        )
+        set({
+          weekOverrides: weekOverrides
+            .map((o) => {
+              if (o.weekStart !== weekStartStr) return o
+              const { [day]: _, ...rest } = o.days
+              return { ...o, days: rest }
+            })
+            .filter((o) => Object.keys(o.days).length > 0),
+        })
+      },
+
       movePlannedActivity: (fromDate: string, toDate: string, activityId: string) => {
         const { weekTemplate, weekOverrides } = get()
 
@@ -494,6 +512,18 @@ export const useAppStore = create<AppStore>()(
           },
         })
       },
+
+      // ── Coach Chat ──────────────────────────────────────────────────────────
+      coachChatOpen: false,
+      coachChatMessages: [] as CoachChatMessage[],
+      coachChatLoading: false,
+
+      openCoachChat: () => set({ coachChatOpen: true }),
+      closeCoachChat: () => set({ coachChatOpen: false }),
+      setCoachChatMessages: (messages: CoachChatMessage[]) => set({ coachChatMessages: messages }),
+      addCoachChatMessage: (message: CoachChatMessage) =>
+        set((s) => ({ coachChatMessages: [...s.coachChatMessages, message] })),
+      setCoachChatLoading: (loading: boolean) => set({ coachChatLoading: loading }),
     }),
     {
       name: 'training-log-store',

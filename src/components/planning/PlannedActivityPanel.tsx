@@ -6,7 +6,39 @@ import { useIsMobile } from '../../hooks/useIsMobile'
 import { useWeather } from '../../hooks/useWeather'
 import { getActivityColor } from '../../utils/activityColors'
 import { getWeatherIcon, type DailyWeather } from '../../api/weather'
-import type { PlannedActivity, WorkoutType, WeekDayIndex } from '../../store/types'
+import { coachDayToPlanned } from '../../utils/coachUtils'
+import type { PlannedActivity, WorkoutType, WeekDayIndex, CoachPlan } from '../../store/types'
+
+interface ClothingItem {
+  icon: string
+  label: string
+}
+
+function getClothingRecommendation(feelsLike: number): ClothingItem[] {
+  if (feelsLike < 20) return [
+    { icon: '🧤', label: 'Mittens' },
+    { icon: '🦵', label: 'Long tights' },
+    { icon: '🧢', label: 'Winter hat' },
+  ]
+  if (feelsLike < 30) return [
+    { icon: '🧤', label: 'Winter gloves' },
+    { icon: '🦵', label: 'Long tights' },
+    { icon: '🧢', label: 'Winter hat' },
+  ]
+  if (feelsLike < 40) return [
+    { icon: '🧤', label: 'Light gloves' },
+    { icon: '👕', label: 'Long sleeve' },
+    { icon: '🩳', label: 'Shorts / tights' },
+  ]
+  if (feelsLike < 55) return [
+    { icon: '👕', label: 'Long sleeve' },
+    { icon: '🩳', label: 'Shorts' },
+  ]
+  return [
+    { icon: '👕', label: 'T-shirt' },
+    { icon: '🩳', label: 'Shorts' },
+  ]
+}
 
 const WORKOUT_TYPES: WorkoutType[] = [
   'Upper Body', 'Lower Body', 'Full Body', 'Core', 'Push', 'Pull', 'Legs',
@@ -28,8 +60,10 @@ export default function PlannedActivityPanel() {
   const dateStr = useAppStore((s) => s.selectedPlannedDate)
   const closePanel = useAppStore((s) => s.closePlannedPanel)
   const setDayOverride = useAppStore((s) => s.setDayOverride)
+  const clearDayOverride = useAppStore((s) => s.clearDayOverride)
   const weekTemplate = useAppStore((s) => s.weekTemplate)
   const weekOverrides = useAppStore((s) => s.weekOverrides)
+  const coachPlan = useAppStore((s) => s.coachPlan)
   const isMobile = useIsMobile()
   const weatherByDate = useWeather()
 
@@ -91,8 +125,10 @@ export default function PlannedActivityPanel() {
               isMobile={isMobile}
               closePanel={closePanel}
               setDayOverride={setDayOverride}
+              clearDayOverride={clearDayOverride}
               weekTemplate={weekTemplate}
               weekOverrides={weekOverrides}
+              coachPlan={coachPlan}
             />
           </motion.div>
         </>
@@ -110,8 +146,10 @@ function PanelContent({
   isMobile,
   closePanel,
   setDayOverride,
+  clearDayOverride,
   weekTemplate,
   weekOverrides,
+  coachPlan,
 }: {
   activity: PlannedActivity
   dateStr: string
@@ -119,11 +157,28 @@ function PanelContent({
   isMobile: boolean
   closePanel: () => void
   setDayOverride: (weekStart: Date, day: WeekDayIndex, activities: PlannedActivity[]) => void
+  clearDayOverride: (weekStart: Date, day: WeekDayIndex) => void
   weekTemplate: any
   weekOverrides: any[]
+  coachPlan: CoachPlan | null
 }) {
   const date = parseISO(dateStr)
   const colors = getActivityColor(activity.type as any)
+
+  // Detect if this date is covered by the coach plan
+  const coachDay = coachPlan
+    ? coachPlan.weeks.flatMap((w) => w.days).find((d) => d.date === dateStr)
+    : null
+  const isCoachOrigin = !!coachDay
+
+  // Check if there's a manual override on this coach-plan date
+  const dayIndex = date.getDay() as WeekDayIndex
+  const ws = startOfWeek(date, { weekStartsOn: 1 })
+  const wsStr = format(ws, 'yyyy-MM-dd')
+  const hasOverride = weekOverrides.some(
+    (o: any) => o.weekStart === wsStr && o.days[dayIndex] !== undefined
+  )
+  const isOverriddenCoachDay = isCoachOrigin && hasOverride
 
   // Editable form state, seeded from the activity
   const [type, setType] = useState<ActivityTypeChoice>(activity.type)
@@ -198,12 +253,13 @@ function PanelContent({
   }
 
   function getCurrentPlannedActivities(): PlannedActivity[] {
-    const dayIndex = date.getDay() as WeekDayIndex
-    const overrideWeekStart = startOfWeek(date, { weekStartsOn: 1 })
-    const weekStartStr = format(overrideWeekStart, 'yyyy-MM-dd')
-    const override = weekOverrides.find((o: any) => o.weekStart === weekStartStr)
+    // Three-tier: override → coach plan → template
+    const override = weekOverrides.find((o: any) => o.weekStart === wsStr)
     if (override && override.days[dayIndex] !== undefined) {
       return override.days[dayIndex]!
+    }
+    if (coachDay) {
+      return coachDayToPlanned(coachDay)
     }
     return weekTemplate.days[dayIndex] ?? []
   }
@@ -211,21 +267,22 @@ function PanelContent({
   function handleSave() {
     const updated = buildActivity()
     if (!updated) return
-    const dayIndex = date.getDay() as WeekDayIndex
-    const overrideWeekStart = startOfWeek(date, { weekStartsOn: 1 })
     const current = getCurrentPlannedActivities()
     const newList = current.map((a) => (a.id === updated.id ? updated : a))
-    setDayOverride(overrideWeekStart, dayIndex, newList)
+    setDayOverride(ws, dayIndex, newList)
     setSaved(true)
     setTimeout(() => setSaved(false), 1500)
   }
 
   function handleDelete() {
-    const dayIndex = date.getDay() as WeekDayIndex
-    const overrideWeekStart = startOfWeek(date, { weekStartsOn: 1 })
     const current = getCurrentPlannedActivities()
     const newList = current.filter((a) => a.id !== activity.id)
-    setDayOverride(overrideWeekStart, dayIndex, newList)
+    setDayOverride(ws, dayIndex, newList)
+    closePanel()
+  }
+
+  function handleResetToAiPlan() {
+    clearDayOverride(ws, dayIndex)
     closePanel()
   }
 
@@ -261,6 +318,26 @@ function PanelContent({
             display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap',
           }}>
             <span>{format(date, 'EEEE, MMMM d, yyyy')}</span>
+            {isCoachOrigin && !hasOverride && (
+              <span style={{
+                display: 'inline-flex', alignItems: 'center', gap: 3,
+                padding: '2px 8px', borderRadius: 'var(--radius-full)',
+                background: 'var(--color-accent-light)', border: '1px solid var(--color-accent-border)',
+                fontSize: 10, fontWeight: 600, color: 'var(--color-accent)',
+              }}>
+                🏅 From AI plan
+              </span>
+            )}
+            {isOverriddenCoachDay && (
+              <span style={{
+                display: 'inline-flex', alignItems: 'center', gap: 3,
+                padding: '2px 8px', borderRadius: 'var(--radius-full)',
+                background: 'var(--color-bg)', border: '1px solid var(--color-border)',
+                fontSize: 10, fontWeight: 600, color: 'var(--color-text-tertiary)',
+              }}>
+                Customized
+              </span>
+            )}
           </div>
         </div>
 
@@ -289,6 +366,50 @@ function PanelContent({
         {weather && (
           <WeatherCard weather={weather} />
         )}
+
+        {/* Clothing recommendation for run days */}
+        {activity.type === 'Run' && weather && (() => {
+          const feelsLike = weather.feelsLikeAt7am ?? weather.feelsLikeLow
+          const items = getClothingRecommendation(feelsLike)
+          return (
+            <div style={{
+              background: 'var(--color-bg)',
+              borderRadius: 'var(--radius-md)',
+              border: '1px solid var(--color-border)',
+              padding: '14px 16px',
+            }}>
+              <div style={{
+                fontSize: 9,
+                fontWeight: 600,
+                color: 'var(--color-text-tertiary)',
+                textTransform: 'uppercase',
+                letterSpacing: '0.08em',
+                marginBottom: 8,
+              }}>
+                What to wear
+              </div>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                {items.map((item) => (
+                  <span key={item.label} style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 4,
+                    padding: '4px 12px',
+                    borderRadius: 'var(--radius-full, 999px)',
+                    background: 'var(--color-surface)',
+                    border: '1px solid var(--color-border)',
+                    fontSize: 'var(--font-size-xs)',
+                    color: 'var(--color-text-secondary)',
+                    fontWeight: 500,
+                  }}>
+                    <span style={{ fontSize: 13, lineHeight: 1 }}>{item.icon}</span>
+                    {item.label}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )
+        })()}
 
         {/* Activity type selector */}
         <div>
@@ -385,6 +506,22 @@ function PanelContent({
             }}
           />
         </div>
+
+        {/* Reset to AI plan — only if overridden coach day */}
+        {isOverriddenCoachDay && (
+          <button
+            onClick={handleResetToAiPlan}
+            style={{
+              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+              width: '100%', padding: '9px 12px', borderRadius: 'var(--radius-sm)',
+              border: '1px dashed var(--color-accent-border)', background: 'var(--color-accent-light)',
+              color: 'var(--color-accent)', fontSize: 'var(--font-size-sm)',
+              fontWeight: 'var(--font-weight-medium)', cursor: 'pointer',
+            }}
+          >
+            <span>🏅</span> Reset to AI plan
+          </button>
+        )}
 
         {/* Actions */}
         <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
