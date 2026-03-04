@@ -1,11 +1,11 @@
 import { useState } from 'react'
-import { format, isToday, isSameMonth } from 'date-fns'
+import { format, isToday, isSameMonth, startOfDay } from 'date-fns'
 import ActivityBadge from './ActivityBadge'
 import PlannedBadge from './PlannedBadge'
 import WeatherInfo from './WeatherInfo'
 import { mapStravaType } from '../../utils/activityColors'
 import { useAppStore } from '../../store/useAppStore'
-import type { StravaActivity, PlannedActivity } from '../../store/types'
+import type { StravaActivity, PlannedActivity, KeyDate } from '../../store/types'
 import type { ActivityType } from '../../utils/activityColors'
 import type { DailyWeather } from '../../api/weather'
 
@@ -13,6 +13,7 @@ interface Props {
   date: Date
   activities: StravaActivity[]
   plannedActivities?: PlannedActivity[]
+  keyDates?: KeyDate[]
   weather?: DailyWeather
   monthRef?: Date // to detect out-of-month days
   compact?: boolean // for quarter/6month views
@@ -24,6 +25,7 @@ export default function DayCell({
   date,
   activities,
   plannedActivities,
+  keyDates,
   weather,
   monthRef,
   compact = false,
@@ -35,12 +37,16 @@ export default function DayCell({
   const openPlannedPanel = useAppStore((s) => s.openPlannedPanel)
   const showPlan = useAppStore((s) => s.showPlan)
   const movePlannedActivity = useAppStore((s) => s.movePlannedActivity)
+  const addNewPlannedActivity = useAppStore((s) => s.addNewPlannedActivity)
+  const openKeyDateModal = useAppStore((s) => s.openKeyDateModal)
 
   const [isDragOver, setIsDragOver] = useState(false)
+  const [isHovered, setIsHovered] = useState(false)
 
   const today = isToday(date)
   const outsideMonth = monthRef ? !isSameMonth(date, monthRef) : false
   const dateKey = format(date, 'yyyy-MM-dd')
+  const isFutureOrToday = startOfDay(date) >= startOfDay(new Date())
 
   // Filter actual activities to enabled types
   const filtered = activities.filter((a) =>
@@ -52,6 +58,8 @@ export default function DayCell({
     (p) => p.type !== 'Rest' && enabledTypes.includes(p.type as ActivityType)
   )
 
+  const dayKeyDates = keyDates ?? []
+
   const MAX_BADGES = compact ? 2 : 3
   const visible = filtered.slice(0, MAX_BADGES)
   const overflow = filtered.length - MAX_BADGES
@@ -62,6 +70,9 @@ export default function DayCell({
   const plannedOverflow = compact ? 0 : Math.max(0, filteredPlanned.length - plannedSlots)
 
   const hasPlanned = filteredPlanned.length > 0
+
+  // Show "+" button when plan is toggled on, hovering, and date is future
+  const showAddButton = showPlan && isHovered && isFutureOrToday && !compact && !outsideMonth
 
   function handleDragOver(e: React.DragEvent) {
     e.preventDefault()
@@ -122,6 +133,8 @@ export default function DayCell({
       onDragOver={handleDragOver}
       onDragLeave={handleDragLeave}
       onDrop={handleDrop}
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
       style={{
         padding: compact ? '4px 5px' : '6px 8px',
         background: today
@@ -139,9 +152,10 @@ export default function DayCell({
         overflow: 'hidden',
         outline: isDragOver ? '2px dashed var(--color-accent)' : 'none',
         outlineOffset: -2,
+        position: 'relative',
       }}
     >
-      {/* Date number + weather */}
+      {/* Date number + weather + add button */}
       <div style={{
         display: 'flex',
         alignItems: 'center',
@@ -174,10 +188,59 @@ export default function DayCell({
             format(date, 'd')
           )}
         </div>
-        {weather && hasPlanned && (
-          <WeatherInfo weather={weather} compact={compact} />
-        )}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+          {weather && hasPlanned && (
+            <WeatherInfo weather={weather} compact={compact} />
+          )}
+          {showAddButton && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation()
+                addNewPlannedActivity(dateKey)
+              }}
+              title="Add planned workout"
+              style={{
+                width: 18, height: 18, borderRadius: '50%',
+                background: 'var(--color-accent)', color: '#fff',
+                border: 'none', cursor: 'pointer',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                fontSize: 13, lineHeight: 1, fontWeight: 700,
+                opacity: 0.85,
+                transition: 'opacity var(--transition-fast)',
+              }}
+              onMouseEnter={(e) => { e.currentTarget.style.opacity = '1' }}
+              onMouseLeave={(e) => { e.currentTarget.style.opacity = '0.85' }}
+            >
+              +
+            </button>
+          )}
+        </div>
       </div>
+
+      {/* Race / event badges */}
+      {!compact && dayKeyDates.length > 0 && dayKeyDates.map((kd) => (
+        <button
+          key={kd.id}
+          onClick={(e) => { e.stopPropagation(); openKeyDateModal(kd) }}
+          style={{
+            display: 'inline-flex', alignItems: 'center', gap: 3,
+            padding: '2px 6px', borderRadius: 'var(--radius-full)',
+            fontSize: 10, fontWeight: 600, cursor: 'pointer',
+            background: kd.type === 'race' ? 'var(--color-tennis-light)' : 'var(--color-accent-light)',
+            color: kd.type === 'race' ? 'var(--color-tennis)' : 'var(--color-accent)',
+            border: `1px solid ${kd.type === 'race' ? 'var(--color-tennis-border)' : 'var(--color-accent-border)'}`,
+            whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+            maxWidth: '100%', flexShrink: 0,
+          }}
+        >
+          <span style={{ fontSize: 9, flexShrink: 0 }}>{kd.type === 'race' ? '🏁' : '📌'}</span>
+          <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>
+            {kd.name}
+            {kd.distance && ` · ${kd.distance}`}
+            {kd.goalTime && ` · ${kd.goalTime}`}
+          </span>
+        </button>
+      ))}
 
       {/* Activity badges (actual + planned) */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: 2, flex: 1 }}>

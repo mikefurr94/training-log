@@ -4,7 +4,10 @@ import Anthropic from '@anthropic-ai/sdk'
 import { randomUUID } from 'crypto'
 import { addDays, format, startOfWeek, differenceInWeeks, parseISO } from 'date-fns'
 
-const supabase = createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_SERVICE_KEY!)
+const supabase = createClient(
+  (process.env.SUPABASE_URL || '').trim(),
+  (process.env.SUPABASE_SERVICE_KEY || '').trim()
+)
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY! })
 
 const GENERATE_SYSTEM_PROMPT = `You are an expert marathon coach creating a personalized training plan. You understand periodization, progressive overload, recovery, tapering, and cross-training.
@@ -72,6 +75,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     case 'detail':  return handleDetail(req, res)
     case 'adjust':  return handleAdjust(req, res)
     case 'checkin': return handleCheckin(req, res)
+    case 'chat':    return handleChat(req, res)
+    case 'chat-history': return handleChatHistory(req, res)
     default:
       return res.status(400).json({ error: 'Missing or invalid action' })
   }
@@ -467,6 +472,185 @@ Return ONLY the JSON object.`
       error: err instanceof Error ? err.message : 'Failed to generate check-in',
     })
   }
+}
+
+// ── CHAT ──────────────────────────────────────────────────────────────────
+
+const CHAT_SYSTEM_PROMPT = `You are a friendly, knowledgeable marathon training coach. The athlete is chatting with you to discuss and optionally tweak their training plan.
+
+You can:
+1. Answer questions about their plan, training, nutrition, recovery, etc.
+2. Make modifications to the plan when requested (e.g., swap workouts, change distances, adjust paces).
+
+When the athlete asks you to modify the plan, return your response as JSON:
+{
+  "message": "Your conversational response explaining what you changed",
+  "updatedWeeks": [... the modified weeks in the same format as provided in the context]
+}
+
+When no plan modification is needed (just answering a question or chatting), return:
+{
+  "message": "Your conversational response"
+}
+
+Guidelines:
+- Be concise but helpful — aim for 2-4 sentences for simple questions, more for complex topics
+- When modifying the plan, explain WHY you made the change
+- Respect progressive overload and recovery principles
+- If a request would be unsafe (e.g., doubling mileage overnight), explain why and suggest alternatives
+- Keep the same JSON structure for weeks/days/activities when returning modifications
+- Only return the weeks that actually changed in updatedWeeks
+- Return ONLY the JSON object, no other text`
+
+async function handleChat(req: VercelRequest, res: VercelResponse) {
+  if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' })
+
+  const { plan_id, athlete_id, message, history, planContext } = req.body
+  if (!plan_id || !athlete_id || !message) {
+    return res.status(400).json({ error: 'Missing required fields' })
+  }
+
+  // Build conversation messages from history
+  const conversationMessages: { role: 'user' | 'assistant'; content: string }[] = []
+  if (history && Array.isArray(history)) {
+    for (const msg of history.slice(-20)) {
+      conversationMessages.push({ role: msg.role, content: msg.content })
+    }
+  }
+
+  // Add plan context as a system-level user message at the start if this is the first message
+  if (conversationMessages.length === 0 && planContext) {
+    conversationMessages.push({
+      role: 'user',
+      content: `[Context — my current training plan]\n${planContext}`,
+    })
+    conversationMessages.push({
+      role: 'assistant',
+      content: '{"message": "I have your training plan loaded. How can I help you today?"}',
+    })
+  }
+
+  // Add the new user message
+  conversationMessages.push({ role: 'user', content: message })
+
+  try {
+    const aiResponse = await anthropic.messages.create({
+      model: 'claude-sonnet-4-6',
+      max_tokens: 8000,
+      system: CHAT_SYSTEM_PROMPT + (planContext ? `\n\nCurrent plan context:\n${planContext}` : ''),
+      messages: conversationMessages,
+    })
+
+    const text = aiResponse.content[0].type === 'text' ? aiResponse.content[0].text : ''
+    let parsed: { message: string; updatedWeeks?: unknown[] }
+    try {
+      const jsonMatch = text.match(/\{[\s\S]*\}/)
+      parsed = jsonMatch ? JSON.parse(jsonMatch[0]) : { message: text }
+    } catch {
+      parsed = { message: text }
+    }
+
+    const planModified = !!(parsed.updatedWeeks && parsed.updatedWeeks.length > 0)
+
+    // Save user message to Supabase
+    try {
+      await supabase.from('coach_chat_messages').insert({
+        plan_id,
+        athlete_id: Number(athlete_id),
+        role: 'user',
+        content: message,
+        plan_modified: false,
+      })
+
+      // Save assistant message
+      await supabase.from('coach_chat_messages').insert({
+        plan_id,
+        athlete_id: Number(athlete_id),
+        role: 'assistant',
+        content: parsed.message,
+        plan_modified: planModified,
+      })
+    } catch (err) {
+      console.error('Failed to save chat messages:', err)
+    }
+
+    // If plan was modified, update the plan in Supabase
+    if (planModified && parsed.updatedWeeks) {
+      try {
+        const { data: planRow } = await supabase
+          .from('coach_plans')
+          .select('weekly_plan')
+          .eq('id', plan_id)
+          .single()
+
+        if (planRow?.weekly_plan?.weeks) {
+          const existingWeeks = planRow.weekly_plan.weeks as { weekNumber: number }[]
+          const mergedWeeks = existingWeeks.map((w) => {
+            const updated = (parsed.updatedWeeks as { weekNumber: number }[]).find(
+              (u) => u.weekNumber === w.weekNumber
+            )
+            return updated ?? w
+          })
+
+          await supabase
+            .from('coach_plans')
+            .update({ weekly_plan: { weeks: mergedWeeks }, updated_at: new Date().toISOString() })
+            .eq('id', plan_id)
+        }
+      } catch (err) {
+        console.error('Failed to update plan from chat:', err)
+      }
+    }
+
+    return res.status(200).json({
+      message: parsed.message,
+      updatedWeeks: parsed.updatedWeeks ?? null,
+      planModified,
+    })
+  } catch (err) {
+    console.error('Chat error:', err)
+    return res.status(500).json({
+      error: err instanceof Error ? err.message : 'Failed to process chat message',
+    })
+  }
+}
+
+// ── CHAT HISTORY ──────────────────────────────────────────────────────────
+
+async function handleChatHistory(req: VercelRequest, res: VercelResponse) {
+  if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' })
+
+  const { plan_id, athlete_id } = req.query
+  if (!plan_id || !athlete_id) {
+    return res.status(400).json({ error: 'Missing plan_id or athlete_id' })
+  }
+
+  const { data, error } = await supabase
+    .from('coach_chat_messages')
+    .select('*')
+    .eq('plan_id', plan_id)
+    .eq('athlete_id', Number(athlete_id))
+    .order('created_at', { ascending: true })
+
+  if (error) {
+    // Table might not exist yet — return empty
+    if (error.code === '42P01' || error.code === 'PGRST205') {
+      return res.status(200).json({ messages: [] })
+    }
+    return res.status(500).json({ error: error.message })
+  }
+
+  const messages = (data ?? []).map((row: Record<string, unknown>) => ({
+    id: row.id,
+    planId: row.plan_id,
+    athleteId: row.athlete_id,
+    role: row.role,
+    content: row.content,
+    planModified: row.plan_modified,
+    createdAt: row.created_at,
+  }))
+
+  return res.status(200).json({ messages })
 }
 
 // ── HELPERS ────────────────────────────────────────────────────────────────

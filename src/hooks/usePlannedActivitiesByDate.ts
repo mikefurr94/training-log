@@ -1,50 +1,61 @@
 import { useMemo } from 'react'
 import { startOfWeek, addDays, addWeeks, startOfDay, isAfter, format } from 'date-fns'
 import { useAppStore } from '../store/useAppStore'
-import type { PlannedActivity, WeekDayIndex } from '../store/types'
+import { coachDayToPlanned } from '../utils/coachUtils'
+import type { PlannedActivity, WeekDayIndex, CoachDay } from '../store/types'
 
 /**
  * Returns a map of 'YYYY-MM-DD' → PlannedActivity[] for every day in [start, end].
- * Merges weekTemplate with any weekOverrides per day.
  *
- * Returns planned activities for all days in range (past and future up to 4 weeks out).
+ * Two-tier priority:
+ *   1. WeekOverride  (highest — user manual edits on specific dates)
+ *   2. CoachPlan     (AI-generated, date-specific)
+ *
+ * Dates not covered by either source get empty arrays.
  */
 export function usePlannedActivitiesByDate(
   start: Date,
   end: Date
 ): Record<string, PlannedActivity[]> {
-  const weekTemplate = useAppStore((s) => s.weekTemplate)
   const weekOverrides = useAppStore((s) => s.weekOverrides)
+  const coachPlan = useAppStore((s) => s.coachPlan)
 
   return useMemo(() => {
-    const today = startOfDay(new Date())
-    const horizon = addWeeks(today, 4)
+    // Pre-build a lookup from coachPlan for O(1) per-date access
+    const coachDayMap: Record<string, CoachDay> = {}
+    if (coachPlan) {
+      for (const week of coachPlan.weeks) {
+        for (const day of week.days) {
+          coachDayMap[day.date] = day
+        }
+      }
+    }
 
     const map: Record<string, PlannedActivity[]> = {}
     let current = new Date(start)
     while (current <= end) {
       const dateStr = format(current, 'yyyy-MM-dd')
-      const currentDay = startOfDay(current)
-
-      // Only hide planned activities beyond 4 weeks in the future
-      if (isAfter(currentDay, horizon)) {
-        map[dateStr] = []
-        current = addDays(current, 1)
-        continue
-      }
 
       const ws = startOfWeek(current, { weekStartsOn: 1 })
       const wsStr = format(ws, 'yyyy-MM-dd')
       const dayIndex = current.getDay() as WeekDayIndex
 
+      // Priority 1: WeekOverride (user manual edits)
       const override = weekOverrides.find((o) => o.weekStart === wsStr)
       if (override && override.days[dayIndex] !== undefined) {
         map[dateStr] = override.days[dayIndex]!
-      } else {
-        map[dateStr] = weekTemplate.days[dayIndex] ?? []
       }
+      // Priority 2: CoachPlan (AI-generated, date-specific)
+      else if (dateStr in coachDayMap) {
+        map[dateStr] = coachDayToPlanned(coachDayMap[dateStr])
+      }
+      // No planned activities for this date
+      else {
+        map[dateStr] = []
+      }
+
       current = addDays(current, 1)
     }
     return map
-  }, [weekTemplate, weekOverrides, format(start, 'yyyy-MM-dd'), format(end, 'yyyy-MM-dd')])
+  }, [weekOverrides, coachPlan, format(start, 'yyyy-MM-dd'), format(end, 'yyyy-MM-dd')])
 }

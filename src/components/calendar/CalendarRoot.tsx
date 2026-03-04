@@ -27,7 +27,9 @@ export default function CalendarRoot() {
   const rawPlannedByDate = usePlannedActivitiesByDate(start, end)
   const plannedByDate = showPlan ? rawPlannedByDate : {}
 
-  const sharedProps = { anchor, activitiesByDate, plannedByDate, weatherByDate }
+  const keyDates = useAppStore((s) => s.keyDates)
+
+  const sharedProps = { anchor, activitiesByDate, plannedByDate, weatherByDate, keyDates }
 
   const viewMap: Record<string, React.ReactNode> = {
     week: <WeekView {...sharedProps} />,

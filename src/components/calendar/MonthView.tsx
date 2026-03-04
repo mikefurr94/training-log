@@ -1,7 +1,7 @@
 import { format } from 'date-fns'
 import DayCell from './DayCell'
 import { buildMonthGrid } from '../../utils/dateUtils'
-import type { StravaActivity, PlannedActivity } from '../../store/types'
+import type { StravaActivity, PlannedActivity, KeyDate } from '../../store/types'
 import type { DailyWeather } from '../../api/weather'
 
 const DAY_HEADERS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
@@ -11,6 +11,7 @@ interface Props {
   activitiesByDate: Record<string, StravaActivity[]>
   plannedByDate?: Record<string, PlannedActivity[]>
   weatherByDate?: Record<string, DailyWeather>
+  keyDates?: KeyDate[]
   compact?: boolean
   showHeader?: boolean
   showMonthLabel?: boolean
@@ -21,6 +22,7 @@ export default function MonthView({
   activitiesByDate,
   plannedByDate,
   weatherByDate,
+  keyDates,
   compact = false,
   showHeader = true,
   showMonthLabel = false,
@@ -82,6 +84,7 @@ export default function MonthView({
               const key = format(date, 'yyyy-MM-dd')
               const activities = activitiesByDate[key] ?? []
               const planned = plannedByDate?.[key]
+              const dayKeyDates = keyDates?.filter((kd) => kd.date === key)
               return (
                 <DayCell
                   key={key}
@@ -89,6 +92,7 @@ export default function MonthView({
                   activities={activities}
                   plannedActivities={planned}
                   weather={weatherByDate?.[key]}
+                  keyDates={dayKeyDates}
                   monthRef={anchor}
                   compact={compact}
                 />

@@ -1,4 +1,4 @@
-import type { StravaActivity, FitnessSummary } from '../store/types'
+import type { StravaActivity, FitnessSummary, CoachPlannedActivity, CoachDay, PlannedActivity, WorkoutType } from '../store/types'
 import { mapStravaType } from './activityColors'
 import { startOfWeek, subWeeks, format, parseISO } from 'date-fns'
 
@@ -126,4 +126,71 @@ export function parseGoalTime(str: string): number | undefined {
   if (parts.length === 3) return parts[0] * 3600 + parts[1] * 60 + parts[2]
   if (parts.length === 2) return parts[0] * 60 + parts[1]
   return undefined
+}
+
+// ── Coach → Training Calendar Conversion ──────────────────────────────────────
+
+const WORKOUT_TYPE_KEYWORDS: [string, WorkoutType][] = [
+  ['upper', 'Upper Body'],
+  ['lower', 'Lower Body'],
+  ['full body', 'Full Body'],
+  ['core', 'Core'],
+  ['push', 'Push'],
+  ['pull', 'Pull'],
+  ['leg', 'Legs'],
+]
+
+export function inferWorkoutType(label: string): WorkoutType {
+  const lower = label.toLowerCase()
+  for (const [keyword, type] of WORKOUT_TYPE_KEYWORDS) {
+    if (lower.includes(keyword)) return type
+  }
+  return 'Full Body'
+}
+
+function buildNotes(label: string, detail?: string): string | undefined {
+  const parts = [label, detail].filter(Boolean)
+  const result = parts.join(' — ')
+  return result || undefined
+}
+
+export function coachToPlanned(activity: CoachPlannedActivity): PlannedActivity | null {
+  if (activity.skipped) return null
+
+  switch (activity.type) {
+    case 'Run':
+      return {
+        id: activity.id,
+        type: 'Run',
+        targetDistance: activity.targetDistanceMiles ?? 0,
+        targetPace: activity.targetPace ?? '',
+        notes: buildNotes(activity.label, activity.detail),
+      }
+    case 'WeightTraining':
+      return {
+        id: activity.id,
+        type: 'WeightTraining',
+        workoutType: inferWorkoutType(activity.label),
+        notes: buildNotes(activity.label, activity.detail),
+      }
+    case 'Yoga':
+      return {
+        id: activity.id,
+        type: 'Yoga',
+        notes: buildNotes(activity.label, activity.detail),
+      }
+    case 'Rest':
+      return {
+        id: activity.id,
+        type: 'Rest',
+      }
+    default:
+      return null
+  }
+}
+
+export function coachDayToPlanned(day: CoachDay): PlannedActivity[] {
+  return day.activities
+    .map(coachToPlanned)
+    .filter((a): a is PlannedActivity => a !== null)
 }
