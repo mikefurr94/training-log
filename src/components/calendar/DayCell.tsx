@@ -71,8 +71,8 @@ export default function DayCell({
 
   const hasPlanned = filteredPlanned.length > 0
 
-  // Show "+" button when plan is toggled on, hovering, and date is future
-  const showAddButton = showPlan && isHovered && isFutureOrToday && !compact && !outsideMonth
+  // Whether this cell is eligible to show the "+" add button
+  const addButtonEligible = showPlan && isFutureOrToday && !compact && !outsideMonth
 
   function handleDragOver(e: React.DragEvent) {
     e.preventDefault()
@@ -192,7 +192,7 @@ export default function DayCell({
           {weather && hasPlanned && (
             <WeatherInfo weather={weather} compact={compact} />
           )}
-          {showAddButton && (
+          {addButtonEligible && (
             <button
               onClick={(e) => {
                 e.stopPropagation()
@@ -202,11 +202,12 @@ export default function DayCell({
               style={{
                 width: 18, height: 18, borderRadius: '50%',
                 background: 'var(--color-accent)', color: '#fff',
-                border: 'none', cursor: 'pointer',
+                border: 'none', cursor: isHovered ? 'pointer' : 'default',
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
                 fontSize: 13, lineHeight: 1, fontWeight: 700,
-                opacity: 0.85,
+                opacity: isHovered ? 0.85 : 0,
                 transition: 'opacity var(--transition-fast)',
+                pointerEvents: isHovered ? 'auto' : 'none',
               }}
               onMouseEnter={(e) => { e.currentTarget.style.opacity = '1' }}
               onMouseLeave={(e) => { e.currentTarget.style.opacity = '0.85' }}
