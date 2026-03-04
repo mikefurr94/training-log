@@ -64,6 +64,14 @@ export function getPlannedActivityLabel(planned: PlannedActivity): string {
       return 'Tennis'
     case 'Rest':
       return 'Rest'
+    case 'Race': {
+      const parts: string[] = [planned.name || 'Race']
+      if (planned.distance) parts.push(planned.distance)
+      if (planned.goalTime) parts.push(planned.goalTime)
+      return parts.join(' · ')
+    }
+    default:
+      return ''
   }
 }
 
@@ -74,6 +82,8 @@ export function getPlannedActivityEmoji(planned: PlannedActivity): string {
     case 'Yoga': return '🧘'
     case 'Tennis': return '🎾'
     case 'Rest': return '😴'
+    case 'Race': return '🏁'
+    default: return ''
   }
 }
 
@@ -136,6 +146,15 @@ export function getPlanStatus(
       actualActivityId: best.id,
       notes: notes.join(' · '),
     }
+  }
+
+  // Race — match any Run activity on race day
+  if (planned.type === 'Race') {
+    const runs = actuals.filter((a) => mapStravaType(a.sport_type || a.type) === 'Run')
+    if (runs.length > 0) {
+      return { planned, status: 'completed', actualActivityId: runs[0].id }
+    }
+    return { planned, status: 'missed' }
   }
 
   // WeightTraining, Yoga, Tennis — match by type
