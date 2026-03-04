@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
-import { format, parseISO, startOfWeek, startOfMonth, addMonths, subMonths } from 'date-fns'
+import { format, parseISO, startOfWeek } from 'date-fns'
 import { navigateAnchor } from '../utils/dateUtils'
 import type {
   AppStore,
@@ -19,12 +19,8 @@ import type {
   HabitView,
   ActiveApp,
   ThemeMode,
-  CoachPlan,
-  CoachPlannedActivity,
-  CoachChatMessage,
 } from './types'
 import type { CalendarView } from '../utils/dateUtils'
-import { coachDayToPlanned } from '../utils/coachUtils'
 
 const DEFAULT_ENABLED_TYPES: ActivityType[] = ['Run', 'WeightTraining', 'Yoga', 'Tennis']
 
@@ -304,8 +300,6 @@ export const useAppStore = create<AppStore>()(
       },
 
       movePlannedActivity: (fromDate: string, toDate: string, activityId: string) => {
-        const { coachPlan } = get()
-
         function getDayActs(dateStr: string): [PlannedActivity[], Date, WeekDayIndex] {
           const d = new Date(dateStr + 'T12:00:00')
           const ws = startOfWeek(d, { weekStartsOn: 1 })
@@ -313,11 +307,6 @@ export const useAppStore = create<AppStore>()(
           const idx = d.getDay() as WeekDayIndex
           const ov = get().weekOverrides.find((o) => o.weekStart === wsStr)
           if (ov?.days[idx] !== undefined) return [ov.days[idx]!, d, idx]
-          // Check coach plan
-          if (coachPlan) {
-            const coachDay = coachPlan.weeks.flatMap((w) => w.days).find((day) => day.date === dateStr)
-            if (coachDay) return [coachDayToPlanned(coachDay), d, idx]
-          }
           return [[], d, idx]
         }
 
@@ -343,7 +332,7 @@ export const useAppStore = create<AppStore>()(
       },
 
       getWeekPlan: (weekStart: Date): Record<WeekDayIndex, PlannedActivity[]> => {
-        const { weekOverrides, coachPlan } = get()
+        const { weekOverrides } = get()
         const weekStartStr = format(
           startOfWeek(weekStart, { weekStartsOn: 1 }),
           'yyyy-MM-dd'
@@ -352,21 +341,6 @@ export const useAppStore = create<AppStore>()(
 
         const merged: Record<WeekDayIndex, PlannedActivity[]> = { 0: [], 1: [], 2: [], 3: [], 4: [], 5: [], 6: [] }
 
-        // Fill from coach plan if available
-        if (coachPlan) {
-          for (const week of coachPlan.weeks) {
-            for (const day of week.days) {
-              const d = new Date(day.date + 'T12:00:00')
-              const ws = startOfWeek(d, { weekStartsOn: 1 })
-              if (format(ws, 'yyyy-MM-dd') === weekStartStr) {
-                const idx = d.getDay() as WeekDayIndex
-                merged[idx] = coachDayToPlanned(day)
-              }
-            }
-          }
-        }
-
-        // Override takes precedence
         if (override) {
           for (const dayStr of Object.keys(override.days)) {
             const dayIdx = Number(dayStr) as WeekDayIndex
@@ -456,114 +430,6 @@ export const useAppStore = create<AppStore>()(
           return { theme: newTheme }
         }),
 
-      // ── Marathon Coach ────────────────────────────────────────────────────
-      coachPlan: null,
-      coachLoading: false,
-      coachError: null,
-      coachWizardOpen: false,
-      coachSelectedWeek: null,
-      coachSelectedDate: null,
-      coachCalendarMonth: null,
-
-      setCoachPlan: (plan: CoachPlan | null) => set({ coachPlan: plan }),
-      setCoachLoading: (loading: boolean) => set({ coachLoading: loading }),
-      setCoachError: (error: string | null) => set({ coachError: error }),
-      setCoachWizardOpen: (open: boolean) => set({ coachWizardOpen: open }),
-      setCoachSelectedWeek: (weekNumber: number | null) => set({ coachSelectedWeek: weekNumber }),
-      setCoachSelectedDate: (date: string | null) => set({ coachSelectedDate: date }),
-      setCoachCalendarMonth: (month: string | null) => set({ coachCalendarMonth: month }),
-      navigateCoachCalendar: (direction: 'prev' | 'next') => {
-        const { coachCalendarMonth, coachPlan } = get()
-        if (!coachPlan) return
-        const planStart = startOfMonth(parseISO(coachPlan.planStartDate))
-        const planEnd = startOfMonth(parseISO(coachPlan.raceDate))
-        const current = coachCalendarMonth
-          ? startOfMonth(parseISO(coachCalendarMonth))
-          : (() => {
-              const today = startOfMonth(new Date())
-              if (today < planStart) return planStart
-              if (today > planEnd) return planEnd
-              return today
-            })()
-        const next = direction === 'next' ? addMonths(current, 1) : subMonths(current, 1)
-        if (next < planStart || next > planEnd) return
-        set({ coachCalendarMonth: format(next, 'yyyy-MM-dd') })
-      },
-
-      updateCoachDay: (date: string, activities: CoachPlannedActivity[]) => {
-        const { coachPlan } = get()
-        if (!coachPlan) return
-        set({
-          coachPlan: {
-            ...coachPlan,
-            weeks: coachPlan.weeks.map((week) => ({
-              ...week,
-              days: week.days.map((day) =>
-                day.date === date ? { ...day, activities } : day
-              ),
-            })),
-          },
-        })
-      },
-
-      markDayDetailGenerated: (date: string, detail: string, activityId: string) => {
-        const { coachPlan } = get()
-        if (!coachPlan) return
-        set({
-          coachPlan: {
-            ...coachPlan,
-            weeks: coachPlan.weeks.map((week) => ({
-              ...week,
-              days: week.days.map((day) =>
-                day.date === date
-                  ? {
-                      ...day,
-                      detailGenerated: true,
-                      activities: day.activities.map((a) =>
-                        a.id === activityId ? { ...a, detail } : a
-                      ),
-                    }
-                  : day
-              ),
-            })),
-          },
-        })
-      },
-
-      skipCoachActivity: (date: string, activityId: string) => {
-        const { coachPlan } = get()
-        if (!coachPlan) return
-        set({
-          coachPlan: {
-            ...coachPlan,
-            weeks: coachPlan.weeks.map((week) => ({
-              ...week,
-              days: week.days.map((day) =>
-                day.date === date
-                  ? {
-                      ...day,
-                      activities: day.activities.map((a) =>
-                        a.id === activityId ? { ...a, skipped: !a.skipped } : a
-                      ),
-                    }
-                  : day
-              ),
-            })),
-          },
-        })
-      },
-
-      // ── Coach Chat ──────────────────────────────────────────────────────────
-      coachChatOpen: false,
-      coachChatMessages: [] as CoachChatMessage[],
-      coachChatLoading: false,
-
-      openCoachChat: () => set({ coachChatOpen: true }),
-      closeCoachChat: () => set({ coachChatOpen: false }),
-      setCoachChatMessages: (messages: CoachChatMessage[]) => set({ coachChatMessages: messages }),
-      addCoachChatMessage: (message: CoachChatMessage) =>
-        set((s) => ({ coachChatMessages: [...s.coachChatMessages, message] })),
-      setCoachChatLoading: (loading: boolean) => set({ coachChatLoading: loading }),
     }),
     {
       name: 'training-log-store',

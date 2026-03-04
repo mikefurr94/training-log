@@ -103,6 +103,7 @@ export type PlannedActivity =
   | { id: string; type: 'Yoga'; notes?: string }
   | { id: string; type: 'Tennis'; notes?: string }
   | { id: string; type: 'Rest'; notes?: string }
+  | { id: string; type: 'Race'; name?: string; distance?: string; goalTime?: string; notes?: string }
 
 export interface WeekTemplate {
   days: Record<WeekDayIndex, PlannedActivity[]>
@@ -157,97 +158,6 @@ export type WeekScore = 'green' | 'yellow' | 'red'
 // ── Theme ────────────────────────────────────────────────────────────────────
 
 export type ThemeMode = 'light' | 'dark'
-
-// ── Marathon Coach Types ─────────────────────────────────────────────────────
-
-export type TrainingPhase = 'base' | 'build' | 'peak' | 'taper' | 'race'
-export type RaceDistance = 'marathon' | 'half_marathon' | '10k' | '5k'
-export type RaceGoal = 'time_target' | 'just_finish' | 'bq' | 'pr'
-export type CoachActivityIntensity = 'easy' | 'moderate' | 'hard' | 'recovery'
-
-export interface CoachPlannedActivity {
-  id: string
-  type: ActivityType
-  label: string
-  durationMinutes?: number
-  targetDistanceMiles?: number
-  targetPace?: string
-  intensity?: CoachActivityIntensity
-  detail?: string
-  userModified?: boolean
-  userNotes?: string
-  skipped?: boolean
-}
-
-export interface CoachDay {
-  date: string
-  dayOfWeek: number
-  activities: CoachPlannedActivity[]
-  detailGenerated: boolean
-}
-
-export interface CoachWeek {
-  weekNumber: number
-  weekStart: string
-  phase: TrainingPhase
-  totalMiles: number
-  summary: string
-  days: CoachDay[]
-}
-
-export interface CoachPlan {
-  id: string
-  athleteId: number
-  raceDate: string
-  raceDistance: RaceDistance
-  raceGoal: RaceGoal
-  goalTimeSeconds?: number
-  daysPerWeekRun: number
-  daysPerWeekStrength: number
-  strengthTypes: string[]
-  includeYoga: boolean
-  fitnessSummary: FitnessSummary | null
-  planStartDate: string
-  planWeeks: number
-  weeks: CoachWeek[]
-  status: 'active' | 'completed' | 'archived'
-  createdAt: string
-  updatedAt: string
-}
-
-export interface FitnessSummary {
-  recentWeeks: number
-  avgWeeklyMiles: number
-  avgRunsPerWeek: number
-  longestRecentRun: number
-  avgPace: string
-  avgWeeklyStrengthSessions: number
-  avgWeeklyYogaSessions: number
-  recentTrend: 'increasing' | 'steady' | 'decreasing'
-}
-
-export interface CoachChatMessage {
-  id: string
-  planId: string
-  athleteId: number
-  role: 'user' | 'assistant'
-  content: string
-  planModified: boolean
-  createdAt: string
-}
-
-export type CoachWizardStep = 'race' | 'goals' | 'schedule' | 'fitness' | 'review'
-
-export interface CoachWizardData {
-  raceDate: string
-  raceDistance: RaceDistance
-  raceGoal: RaceGoal
-  goalTimeSeconds?: number
-  daysPerWeekRun: number
-  daysPerWeekStrength: number
-  strengthTypes: string[]
-  includeYoga: boolean
-}
 
 // ── App Mode ────────────────────────────────────────────────────────────────
 
@@ -316,20 +226,6 @@ export interface AppState {
 
   // Theme
   theme: ThemeMode
-
-  // Marathon Coach
-  coachPlan: CoachPlan | null
-  coachLoading: boolean
-  coachError: string | null
-  coachWizardOpen: boolean
-  coachSelectedWeek: number | null
-  coachSelectedDate: string | null
-  coachCalendarMonth: string | null // 'YYYY-MM-DD' first of month, null = auto
-
-  // Coach Chat
-  coachChatOpen: boolean
-  coachChatMessages: CoachChatMessage[]
-  coachChatLoading: boolean
 }
 
 export interface AppActions {
@@ -407,26 +303,6 @@ export interface AppActions {
 
   // Theme
   toggleTheme: () => void
-
-  // Marathon Coach
-  setCoachPlan: (plan: CoachPlan | null) => void
-  setCoachLoading: (loading: boolean) => void
-  setCoachError: (error: string | null) => void
-  setCoachWizardOpen: (open: boolean) => void
-  setCoachSelectedWeek: (weekNumber: number | null) => void
-  setCoachSelectedDate: (date: string | null) => void
-  setCoachCalendarMonth: (month: string | null) => void
-  navigateCoachCalendar: (direction: 'prev' | 'next') => void
-  updateCoachDay: (date: string, activities: CoachPlannedActivity[]) => void
-  markDayDetailGenerated: (date: string, detail: string, activityId: string) => void
-  skipCoachActivity: (date: string, activityId: string) => void
-
-  // Coach Chat
-  openCoachChat: () => void
-  closeCoachChat: () => void
-  setCoachChatMessages: (messages: CoachChatMessage[]) => void
-  addCoachChatMessage: (message: CoachChatMessage) => void
-  setCoachChatLoading: (loading: boolean) => void
 }
 
 export type AppStore = AppState & AppActions

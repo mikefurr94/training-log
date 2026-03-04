@@ -7,8 +7,6 @@ import GridView from '../components/calendar/GridView'
 import ActivityPanel from '../components/activity/ActivityPanel'
 import PlannedActivityPanel from '../components/planning/PlannedActivityPanel'
 import KeyDateModal from '../components/planning/KeyDateModal'
-import CoachChatPanel from '../components/coach/CoachChatPanel'
-import CoachWizard from '../components/coach/CoachWizard'
 import DashboardPage from './DashboardPage'
 import WeekReviewPage from './WeekReviewPage'
 import HabitWeekView from '../components/habits/HabitWeekView'
@@ -36,13 +34,6 @@ export default function CalendarPage() {
   const habitView = useAppStore((s) => s.habitView)
   const isMobile = useIsMobile()
   const [sideNavOpen, setSideNavOpen] = useState(false)
-
-  // Coach state
-  const coachPlan = useAppStore((s) => s.coachPlan)
-  const coachWizardOpen = useAppStore((s) => s.coachWizardOpen)
-  const setCoachWizardOpen = useAppStore((s) => s.setCoachWizardOpen)
-  const coachChatOpen = useAppStore((s) => s.coachChatOpen)
-  const openCoachChat = useAppStore((s) => s.openCoachChat)
 
   // Key date modal state
   const editingKeyDate = useAppStore((s) => s.editingKeyDate)
@@ -171,75 +162,6 @@ export default function CalendarPage() {
         {/* Bottom tab bar on mobile */}
         {isMobile && <MobileTabBar />}
       </div>
-
-      {/* Coach Chat FAB — visible when plan exists and chat is closed */}
-      {isTraining && coachPlan && !coachChatOpen && (
-        <button
-          onClick={openCoachChat}
-          aria-label="Chat with coach"
-          style={{
-            position: 'fixed', right: 20, bottom: isMobile ? 80 : 24,
-            width: 52, height: 52, borderRadius: '50%',
-            background: 'var(--color-accent)', color: '#fff',
-            border: 'none', boxShadow: '0 4px 14px rgba(0,0,0,0.2)',
-            cursor: 'pointer', display: 'flex',
-            alignItems: 'center', justifyContent: 'center', zIndex: 140,
-            transition: 'transform var(--transition-fast), box-shadow var(--transition-fast)',
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.transform = 'scale(1.08)'
-            e.currentTarget.style.boxShadow = '0 6px 20px rgba(0,0,0,0.25)'
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.transform = 'scale(1)'
-            e.currentTarget.style.boxShadow = '0 4px 14px rgba(0,0,0,0.2)'
-          }}
-        >
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
-          </svg>
-        </button>
-      )}
-
-      {/* Create Plan FAB — visible when no plan exists */}
-      {isTraining && !coachPlan && !coachWizardOpen && (
-        <button
-          onClick={() => setCoachWizardOpen(true)}
-          aria-label="Create training plan"
-          style={{
-            position: 'fixed', right: 20, bottom: isMobile ? 80 : 24,
-            height: 44, borderRadius: 22,
-            padding: '0 18px',
-            background: 'var(--color-accent)', color: '#fff',
-            border: 'none', boxShadow: '0 4px 14px rgba(0,0,0,0.2)',
-            cursor: 'pointer', display: 'flex',
-            alignItems: 'center', justifyContent: 'center', gap: 8, zIndex: 140,
-            fontSize: 'var(--font-size-sm)', fontWeight: 600,
-            transition: 'transform var(--transition-fast), box-shadow var(--transition-fast)',
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.transform = 'scale(1.04)'
-            e.currentTarget.style.boxShadow = '0 6px 20px rgba(0,0,0,0.25)'
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.transform = 'scale(1)'
-            e.currentTarget.style.boxShadow = '0 4px 14px rgba(0,0,0,0.2)'
-          }}
-        >
-          <span style={{ fontSize: 16 }}>🏅</span>
-          Create Plan
-        </button>
-      )}
-
-      {/* Coach Chat Panel */}
-      <AnimatePresence>
-        {coachChatOpen && <CoachChatPanel key="chat" />}
-      </AnimatePresence>
-
-      {/* Coach Wizard Modal */}
-      {coachWizardOpen && (
-        <CoachWizard onClose={() => setCoachWizardOpen(false)} />
-      )}
 
       {/* Key Date Modal (for adding/editing races) */}
       {(editingKeyDate !== null || editingKeyDateDefault !== null) && (
