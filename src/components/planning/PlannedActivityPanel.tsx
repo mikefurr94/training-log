@@ -61,7 +61,6 @@ export default function PlannedActivityPanel() {
   const closePanel = useAppStore((s) => s.closePlannedPanel)
   const setDayOverride = useAppStore((s) => s.setDayOverride)
   const clearDayOverride = useAppStore((s) => s.clearDayOverride)
-  const weekTemplate = useAppStore((s) => s.weekTemplate)
   const weekOverrides = useAppStore((s) => s.weekOverrides)
   const coachPlan = useAppStore((s) => s.coachPlan)
   const isMobile = useIsMobile()
@@ -126,7 +125,6 @@ export default function PlannedActivityPanel() {
               closePanel={closePanel}
               setDayOverride={setDayOverride}
               clearDayOverride={clearDayOverride}
-              weekTemplate={weekTemplate}
               weekOverrides={weekOverrides}
               coachPlan={coachPlan}
             />
@@ -147,7 +145,6 @@ function PanelContent({
   closePanel,
   setDayOverride,
   clearDayOverride,
-  weekTemplate,
   weekOverrides,
   coachPlan,
 }: {
@@ -158,7 +155,6 @@ function PanelContent({
   closePanel: () => void
   setDayOverride: (weekStart: Date, day: WeekDayIndex, activities: PlannedActivity[]) => void
   clearDayOverride: (weekStart: Date, day: WeekDayIndex) => void
-  weekTemplate: any
   weekOverrides: any[]
   coachPlan: CoachPlan | null
 }) {
@@ -253,7 +249,7 @@ function PanelContent({
   }
 
   function getCurrentPlannedActivities(): PlannedActivity[] {
-    // Three-tier: override → coach plan → template
+    // Two-tier: override → coach plan
     const override = weekOverrides.find((o: any) => o.weekStart === wsStr)
     if (override && override.days[dayIndex] !== undefined) {
       return override.days[dayIndex]!
@@ -261,14 +257,18 @@ function PanelContent({
     if (coachDay) {
       return coachDayToPlanned(coachDay)
     }
-    return weekTemplate.days[dayIndex] ?? []
+    return []
   }
 
   function handleSave() {
     const updated = buildActivity()
     if (!updated) return
     const current = getCurrentPlannedActivities()
-    const newList = current.map((a) => (a.id === updated.id ? updated : a))
+    // If activity exists in current list, update it; otherwise add it (new activity from calendar)
+    const exists = current.some((a) => a.id === updated.id)
+    const newList = exists
+      ? current.map((a) => (a.id === updated.id ? updated : a))
+      : [...current, updated]
     setDayOverride(ws, dayIndex, newList)
     setSaved(true)
     setTimeout(() => setSaved(false), 1500)

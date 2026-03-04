@@ -18,16 +18,29 @@ const TYPE_OPTIONS: { type: KeyDateType; emoji: string; label: string }[] = [
   { type: 'event', emoji: '📌', label: 'Event' },
 ]
 
+const DISTANCE_PRESETS = ['Marathon', 'Half Marathon', '10K', '5K', 'Other']
+
 export default function KeyDateModal({ initial, defaultDate, onSave, onDelete, onClose }: Props) {
   const [name, setName] = useState(initial?.name ?? '')
   const [date, setDate] = useState(initial?.date ?? defaultDate ?? '')
   const [type, setType] = useState<KeyDateType>(initial?.type ?? 'race')
+  const [distance, setDistance] = useState(initial?.distance ?? '')
+  const [customDistance, setCustomDistance] = useState(
+    initial?.distance && !DISTANCE_PRESETS.slice(0, -1).includes(initial.distance) ? initial.distance : ''
+  )
+  const [goalTime, setGoalTime] = useState(initial?.goalTime ?? '')
   const [errors, setErrors] = useState<Record<string, string>>({})
+
+  const isCustomDistance = distance === 'Other' || (distance && !DISTANCE_PRESETS.slice(0, -1).includes(distance))
+  const effectiveDistance = isCustomDistance ? customDistance : distance
 
   function validate(): boolean {
     const newErrors: Record<string, string> = {}
     if (!name.trim()) newErrors.name = 'Enter a name'
     if (!date) newErrors.date = 'Select a date'
+    if (goalTime && !/^\d{1,2}:\d{2}(:\d{2})?$/.test(goalTime)) {
+      newErrors.goalTime = 'Use H:MM:SS or M:SS format'
+    }
     setErrors(newErrors)
     return Object.keys(newErrors).length === 0
   }
@@ -39,6 +52,8 @@ export default function KeyDateModal({ initial, defaultDate, onSave, onDelete, o
       name: name.trim(),
       date,
       type,
+      ...(type === 'race' && effectiveDistance ? { distance: effectiveDistance } : {}),
+      ...(type === 'race' && goalTime ? { goalTime } : {}),
     })
   }
 
@@ -50,8 +65,9 @@ export default function KeyDateModal({ initial, defaultDate, onSave, onDelete, o
         style={{
           position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%, -50%)',
           background: 'var(--color-surface)', border: '1px solid var(--color-border)',
-          borderRadius: 'var(--radius-lg)', padding: 24, width: 340, zIndex: 201,
+          borderRadius: 'var(--radius-lg)', padding: 24, width: 360, zIndex: 201,
           boxShadow: '0 20px 60px rgba(0,0,0,0.2)', display: 'flex', flexDirection: 'column', gap: 16,
+          maxHeight: '90vh', overflow: 'auto',
         }}
       >
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -107,6 +123,71 @@ export default function KeyDateModal({ initial, defaultDate, onSave, onDelete, o
           />
           {errors.date && <div style={errorStyle}>{errors.date}</div>}
         </div>
+
+        {/* Race-specific fields */}
+        {type === 'race' && (
+          <>
+            {/* Distance */}
+            <div>
+              <label style={labelStyle}>Distance</label>
+              <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap', marginTop: 4 }}>
+                {DISTANCE_PRESETS.map((d) => {
+                  const isActive = d === 'Other'
+                    ? isCustomDistance
+                    : distance === d
+                  return (
+                    <button
+                      key={d}
+                      onClick={() => {
+                        if (d === 'Other') {
+                          setDistance('Other')
+                        } else {
+                          setDistance(d)
+                          setCustomDistance('')
+                        }
+                      }}
+                      style={{
+                        padding: '4px 10px', borderRadius: 'var(--radius-full)',
+                        fontSize: 'var(--font-size-xs)', fontWeight: isActive ? 600 : 500,
+                        border: `1.5px solid ${isActive ? 'var(--color-accent)' : 'var(--color-border)'}`,
+                        background: isActive ? 'var(--color-accent-light)' : 'transparent',
+                        color: isActive ? 'var(--color-accent)' : 'var(--color-text-secondary)',
+                        cursor: 'pointer',
+                      }}
+                    >
+                      {d}
+                    </button>
+                  )
+                })}
+              </div>
+              {isCustomDistance && (
+                <input
+                  type="text"
+                  value={customDistance}
+                  onChange={(e) => setCustomDistance(e.target.value)}
+                  placeholder="e.g. 15K, 50 miler"
+                  style={{ ...inputStyle, marginTop: 6 }}
+                />
+              )}
+            </div>
+
+            {/* Goal Time */}
+            <div>
+              <label style={labelStyle}>Goal Time</label>
+              <input
+                type="text"
+                value={goalTime}
+                onChange={(e) => { setGoalTime(e.target.value); if (errors.goalTime) setErrors((p) => ({ ...p, goalTime: '' })) }}
+                placeholder="e.g. 1:45:00"
+                style={{ ...inputStyle, borderColor: errors.goalTime ? '#ef4444' : undefined }}
+              />
+              {errors.goalTime
+                ? <div style={errorStyle}>{errors.goalTime}</div>
+                : <div style={{ fontSize: 10, color: 'var(--color-text-tertiary)', marginTop: 3 }}>Optional — H:MM:SS or M:SS format</div>
+              }
+            </div>
+          </>
+        )}
 
         {/* Actions */}
         <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 4 }}>

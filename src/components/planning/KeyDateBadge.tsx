@@ -7,6 +7,12 @@ interface Props {
 
 export default function KeyDateBadge({ keyDate, onClick }: Props) {
   const isRace = keyDate.type === 'race'
+
+  const details: string[] = []
+  if (isRace && keyDate.distance) details.push(keyDate.distance)
+  if (isRace && keyDate.goalTime) details.push(keyDate.goalTime)
+  const detailStr = details.length > 0 ? ` · ${details.join(' · ')}` : ''
+
   return (
     <button
       onClick={onClick}
@@ -26,7 +32,7 @@ export default function KeyDateBadge({ keyDate, onClick }: Props) {
       }}
     >
       <span style={{ fontSize: 10 }}>{isRace ? '🏁' : '📌'}</span>
-      {keyDate.name}
+      {keyDate.name}{detailStr}
     </button>
   )
 }

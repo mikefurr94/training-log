@@ -131,6 +131,8 @@ export interface KeyDate {
   date: string // 'YYYY-MM-DD'
   name: string
   type: KeyDateType
+  distance?: string   // e.g. 'Marathon', 'Half Marathon', '10K', '5K', or custom
+  goalTime?: string   // e.g. '1:45:00' in HH:MM:SS format
 }
 
 // ── Habit Tracker Types ──────────────────────────────────────────────────────
@@ -249,7 +251,7 @@ export interface CoachWizardData {
 
 // ── App Mode ────────────────────────────────────────────────────────────────
 
-export type AppMode = 'calendar' | 'grid' | 'dashboard' | 'planner' | 'review'
+export type AppMode = 'calendar' | 'grid' | 'dashboard' | 'review'
 
 export type ActiveApp = 'training' | 'habits'
 
@@ -304,6 +306,8 @@ export interface AppState {
 
   // Key dates
   keyDates: KeyDate[]
+  editingKeyDate: KeyDate | null      // key date being edited, or null
+  editingKeyDateDefault: string | null // default date for new key date modal
 
   // Habits
   habits: HabitDefinition[]
@@ -386,6 +390,11 @@ export interface AppActions {
   addKeyDate: (keyDate: KeyDate) => void
   updateKeyDate: (id: string, updates: Partial<Omit<KeyDate, 'id'>>) => void
   deleteKeyDate: (id: string) => void
+  openKeyDateModal: (keyDate?: KeyDate, defaultDate?: string) => void
+  closeKeyDateModal: () => void
+
+  // Add new planned activity from calendar
+  addNewPlannedActivity: (dateStr: string) => void
 
   // Habits
   toggleHabitCompletion: (date: string, habitId: string) => void

@@ -6,7 +6,7 @@ import { buildWeekGrid } from '../../utils/dateUtils'
 import { mapStravaType } from '../../utils/activityColors'
 import { useAppStore } from '../../store/useAppStore'
 import { useIsMobile } from '../../hooks/useIsMobile'
-import type { StravaActivity, PlannedActivity } from '../../store/types'
+import type { StravaActivity, PlannedActivity, KeyDate } from '../../store/types'
 import type { ActivityType } from '../../utils/activityColors'
 import type { DailyWeather } from '../../api/weather'
 
@@ -17,15 +17,16 @@ interface Props {
   activitiesByDate: Record<string, StravaActivity[]>
   plannedByDate?: Record<string, PlannedActivity[]>
   weatherByDate?: Record<string, DailyWeather>
+  keyDates?: KeyDate[]
 }
 
-export default function WeekView({ anchor, activitiesByDate, plannedByDate, weatherByDate }: Props) {
+export default function WeekView({ anchor, activitiesByDate, plannedByDate, weatherByDate, keyDates }: Props) {
   const enabledTypes = useAppStore((s) => s.enabledTypes)
   const isMobile = useIsMobile()
   const days = buildWeekGrid(anchor)
 
   if (isMobile) {
-    return <MobileWeekView days={days} activitiesByDate={activitiesByDate} plannedByDate={plannedByDate} weatherByDate={weatherByDate} enabledTypes={enabledTypes} />
+    return <MobileWeekView days={days} activitiesByDate={activitiesByDate} plannedByDate={plannedByDate} weatherByDate={weatherByDate} enabledTypes={enabledTypes} keyDates={keyDates} />
   }
 
   return (
@@ -45,6 +46,7 @@ export default function WeekView({ anchor, activitiesByDate, plannedByDate, weat
           plannedByDate={plannedByDate}
           weatherByDate={weatherByDate}
           enabledTypes={enabledTypes}
+          keyDates={keyDates}
         />
       ))}
     </div>
@@ -60,6 +62,7 @@ function WeekDayColumn({
   plannedByDate,
   weatherByDate,
   enabledTypes,
+  keyDates,
 }: {
   date: Date
   dayLabel: string
@@ -67,8 +70,10 @@ function WeekDayColumn({
   plannedByDate?: Record<string, PlannedActivity[]>
   weatherByDate?: Record<string, DailyWeather>
   enabledTypes: ActivityType[]
+  keyDates?: KeyDate[]
 }) {
   const openPlannedPanel = useAppStore((s) => s.openPlannedPanel)
+  const openKeyDateModal = useAppStore((s) => s.openKeyDateModal)
 
   const key = format(date, 'yyyy-MM-dd')
   const allActivities = activitiesByDate[key] ?? []
@@ -78,6 +83,7 @@ function WeekDayColumn({
   const planned = (plannedByDate?.[key] ?? []).filter(
     (p) => p.type !== 'Rest' && enabledTypes.includes(p.type as ActivityType)
   )
+  const dayKeyDates = keyDates?.filter((kd) => kd.date === key) ?? []
   const today = isToday(date)
   const hasPlanned = planned.length > 0
 
@@ -114,6 +120,31 @@ function WeekDayColumn({
         </div>
       </div>
 
+      {/* Race / event badges */}
+      {dayKeyDates.length > 0 && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+          {dayKeyDates.map((kd) => (
+            <button
+              key={kd.id}
+              onClick={() => openKeyDateModal(kd)}
+              style={{
+                display: 'flex', alignItems: 'center', gap: 4,
+                padding: '4px 8px', borderRadius: 'var(--radius-sm)',
+                fontSize: 11, fontWeight: 600, cursor: 'pointer',
+                background: kd.type === 'race' ? 'var(--color-tennis-light)' : 'var(--color-accent-light)',
+                color: kd.type === 'race' ? 'var(--color-tennis)' : 'var(--color-accent)',
+                border: `1px solid ${kd.type === 'race' ? 'var(--color-tennis-border)' : 'var(--color-accent-border)'}`,
+                whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+              }}
+            >
+              <span style={{ fontSize: 10 }}>{kd.type === 'race' ? '🏁' : '📌'}</span>
+              <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{kd.name}</span>
+              {kd.goalTime && <span style={{ opacity: 0.7 }}>· {kd.goalTime}</span>}
+            </button>
+          ))}
+        </div>
+      )}
+
       <div style={{ height: 1, background: today ? 'var(--color-today-border)' : 'var(--color-border-light)', flexShrink: 0 }} />
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 6, flex: 1, overflow: 'auto' }}>
@@ -140,7 +171,7 @@ function WeekDayColumn({
         ))}
 
         {/* Rest day placeholder (only if no actual and no planned) */}
-        {activities.length === 0 && !hasPlanned && (
+        {activities.length === 0 && !hasPlanned && dayKeyDates.length === 0 && (
           <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--color-text-tertiary)', fontSize: 'var(--font-size-xs)' }}>
             Rest day
           </div>
@@ -153,13 +184,14 @@ function WeekDayColumn({
 // ── Mobile: vertical list layout ─────────────────────────────────────────────
 
 function MobileWeekView({
-  days, activitiesByDate, plannedByDate, weatherByDate, enabledTypes,
+  days, activitiesByDate, plannedByDate, weatherByDate, enabledTypes, keyDates,
 }: {
   days: Date[]
   activitiesByDate: Record<string, StravaActivity[]>
   plannedByDate?: Record<string, PlannedActivity[]>
   weatherByDate?: Record<string, DailyWeather>
   enabledTypes: ActivityType[]
+  keyDates?: KeyDate[]
 }) {
   return (
     <div style={{
@@ -175,6 +207,7 @@ function MobileWeekView({
           plannedByDate={plannedByDate}
           weatherByDate={weatherByDate}
           enabledTypes={enabledTypes}
+          keyDates={keyDates}
         />
       ))}
     </div>
@@ -184,7 +217,7 @@ function MobileWeekView({
 // ── Mobile day row ───────────────────────────────────────────────────────────
 
 function MobileDayRow({
-  date, dayLabel, activitiesByDate, plannedByDate, weatherByDate, enabledTypes,
+  date, dayLabel, activitiesByDate, plannedByDate, weatherByDate, enabledTypes, keyDates,
 }: {
   date: Date
   dayLabel: string
@@ -192,8 +225,10 @@ function MobileDayRow({
   plannedByDate?: Record<string, PlannedActivity[]>
   weatherByDate?: Record<string, DailyWeather>
   enabledTypes: ActivityType[]
+  keyDates?: KeyDate[]
 }) {
   const openPlannedPanel = useAppStore((s) => s.openPlannedPanel)
+  const openKeyDateModal = useAppStore((s) => s.openKeyDateModal)
 
   const key = format(date, 'yyyy-MM-dd')
   const allActivities = activitiesByDate[key] ?? []
@@ -203,6 +238,7 @@ function MobileDayRow({
   const planned = (plannedByDate?.[key] ?? []).filter(
     (p) => p.type !== 'Rest' && enabledTypes.includes(p.type as ActivityType)
   )
+  const dayKeyDates = keyDates?.filter((kd) => kd.date === key) ?? []
   const today = isToday(date)
 
   return (
@@ -230,7 +266,28 @@ function MobileDayRow({
       <div style={{ width: 1, alignSelf: 'stretch', background: today ? 'var(--color-today-border)' : 'var(--color-border-light)', flexShrink: 0 }} />
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 6, flex: 1, minWidth: 0 }}>
-        {activities.length === 0 && planned.length === 0 ? (
+        {/* Race / event badges */}
+        {dayKeyDates.map((kd) => (
+          <button
+            key={kd.id}
+            onClick={() => openKeyDateModal(kd)}
+            style={{
+              display: 'inline-flex', alignItems: 'center', gap: 4,
+              padding: '3px 10px', borderRadius: 'var(--radius-full)',
+              fontSize: 11, fontWeight: 600, cursor: 'pointer',
+              background: kd.type === 'race' ? 'var(--color-tennis-light)' : 'var(--color-accent-light)',
+              color: kd.type === 'race' ? 'var(--color-tennis)' : 'var(--color-accent)',
+              border: `1px solid ${kd.type === 'race' ? 'var(--color-tennis-border)' : 'var(--color-accent-border)'}`,
+              whiteSpace: 'nowrap',
+            }}
+          >
+            <span style={{ fontSize: 10 }}>{kd.type === 'race' ? '🏁' : '📌'}</span>
+            {kd.name}
+            {kd.goalTime && <span style={{ opacity: 0.7 }}>· {kd.goalTime}</span>}
+          </button>
+        ))}
+
+        {activities.length === 0 && planned.length === 0 && dayKeyDates.length === 0 ? (
           <div style={{ color: 'var(--color-text-tertiary)', fontSize: 'var(--font-size-xs)', padding: '4px 0' }}>
             Rest day
           </div>

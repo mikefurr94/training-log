@@ -24,6 +24,7 @@ import type {
   CoachChatMessage,
 } from './types'
 import type { CalendarView } from '../utils/dateUtils'
+import { coachDayToPlanned } from '../utils/coachUtils'
 
 const DEFAULT_ENABLED_TYPES: ActivityType[] = ['Run', 'WeightTraining', 'Yoga', 'Tennis']
 
@@ -303,7 +304,7 @@ export const useAppStore = create<AppStore>()(
       },
 
       movePlannedActivity: (fromDate: string, toDate: string, activityId: string) => {
-        const { weekTemplate, weekOverrides } = get()
+        const { coachPlan } = get()
 
         function getDayActs(dateStr: string): [PlannedActivity[], Date, WeekDayIndex] {
           const d = new Date(dateStr + 'T12:00:00')
@@ -311,8 +312,13 @@ export const useAppStore = create<AppStore>()(
           const wsStr = format(ws, 'yyyy-MM-dd')
           const idx = d.getDay() as WeekDayIndex
           const ov = get().weekOverrides.find((o) => o.weekStart === wsStr)
-          const acts = (ov?.days[idx] !== undefined ? ov.days[idx]! : weekTemplate.days[idx]) ?? []
-          return [acts, d, idx]
+          if (ov?.days[idx] !== undefined) return [ov.days[idx]!, d, idx]
+          // Check coach plan
+          if (coachPlan) {
+            const coachDay = coachPlan.weeks.flatMap((w) => w.days).find((day) => day.date === dateStr)
+            if (coachDay) return [coachDayToPlanned(coachDay), d, idx]
+          }
+          return [[], d, idx]
         }
 
         const [fromActs, fromD, fromIdx] = getDayActs(fromDate)
@@ -337,15 +343,30 @@ export const useAppStore = create<AppStore>()(
       },
 
       getWeekPlan: (weekStart: Date): Record<WeekDayIndex, PlannedActivity[]> => {
-        const { weekTemplate, weekOverrides } = get()
+        const { weekOverrides, coachPlan } = get()
         const weekStartStr = format(
           startOfWeek(weekStart, { weekStartsOn: 1 }),
           'yyyy-MM-dd'
         )
         const override = weekOverrides.find((o) => o.weekStart === weekStartStr)
 
-        // Merge: override.days takes precedence per-day over template.days
-        const merged = { ...weekTemplate.days } as Record<WeekDayIndex, PlannedActivity[]>
+        const merged: Record<WeekDayIndex, PlannedActivity[]> = { 0: [], 1: [], 2: [], 3: [], 4: [], 5: [], 6: [] }
+
+        // Fill from coach plan if available
+        if (coachPlan) {
+          for (const week of coachPlan.weeks) {
+            for (const day of week.days) {
+              const d = new Date(day.date + 'T12:00:00')
+              const ws = startOfWeek(d, { weekStartsOn: 1 })
+              if (format(ws, 'yyyy-MM-dd') === weekStartStr) {
+                const idx = d.getDay() as WeekDayIndex
+                merged[idx] = coachDayToPlanned(day)
+              }
+            }
+          }
+        }
+
+        // Override takes precedence
         if (override) {
           for (const dayStr of Object.keys(override.days)) {
             const dayIdx = Number(dayStr) as WeekDayIndex
@@ -360,6 +381,8 @@ export const useAppStore = create<AppStore>()(
 
       // ── Key dates ──────────────────────────────────────────────────────────
       keyDates: [],
+      editingKeyDate: null,
+      editingKeyDateDefault: null,
 
       addKeyDate: (keyDate: KeyDate) =>
         set((s) => ({ keyDates: [...s.keyDates, keyDate] })),
@@ -371,6 +394,23 @@ export const useAppStore = create<AppStore>()(
 
       deleteKeyDate: (id: string) =>
         set((s) => ({ keyDates: s.keyDates.filter((kd) => kd.id !== id) })),
+
+      openKeyDateModal: (keyDate?: KeyDate, defaultDate?: string) =>
+        set({ editingKeyDate: keyDate ?? null, editingKeyDateDefault: defaultDate ?? null }),
+
+      closeKeyDateModal: () =>
+        set({ editingKeyDate: null, editingKeyDateDefault: null }),
+
+      // ── Add new planned activity from calendar ───────────────────────────
+      addNewPlannedActivity: (dateStr: string) => {
+        const newActivity: PlannedActivity = {
+          id: 'pa-' + Math.random().toString(36).slice(2, 10),
+          type: 'Run',
+          targetDistance: 3,
+          targetPace: '0:00',
+        }
+        get().openPlannedPanel(newActivity, dateStr)
+      },
 
       // ── Habits ─────────────────────────────────────────────────────────────
       habits: DEFAULT_HABITS,
@@ -550,6 +590,10 @@ export const useAppStore = create<AppStore>()(
       onRehydrateStorage: () => (state) => {
         if (state?.theme) {
           document.documentElement.setAttribute('data-theme', state.theme)
+        }
+        // Migrate: 'planner' mode was removed, fall back to 'calendar'
+        if (state && (state as any).appMode === 'planner') {
+          state.appMode = 'calendar'
         }
       },
     }

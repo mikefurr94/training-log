@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { parseISO, format, startOfMonth, addMonths, subMonths } from 'date-fns'
+import { parseISO, format } from 'date-fns'
 import { useAppStore } from '../../store/useAppStore'
 import { useCalendarRange } from '../../hooks/useCalendarRange'
 import { getDateRange } from '../../utils/dateUtils'
@@ -52,17 +52,6 @@ function IconReview({ color }: { color: string }) {
   )
 }
 
-function IconTemplate({ color }: { color: string }) {
-  return (
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2" />
-      <rect x="9" y="3" width="6" height="4" rx="1" />
-      <line x1="9" y1="12" x2="15" y2="12" />
-      <line x1="9" y1="16" x2="13" y2="16" />
-    </svg>
-  )
-}
-
 function IconWeekly({ color }: { color: string }) {
   return (
     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
@@ -82,7 +71,6 @@ const TRAINING_TABS: { mode: AppMode; label: string; Icon: React.FC<{ color: str
   { mode: 'grid',      label: 'Grid',      Icon: IconGrid },
   { mode: 'dashboard', label: 'Dashboard', Icon: IconDashboard },
   { mode: 'review',    label: 'Review',    Icon: IconReview },
-  { mode: 'planner',   label: 'Plan',       Icon: IconTemplate },
 ]
 
 const HABIT_TABS: { mode: HabitView; label: string; Icon: React.FC<{ color: string }> }[] = [
@@ -136,42 +124,6 @@ function DesktopHeader() {
   const isViewingToday = isGridMode
     ? anchor.getFullYear() === today.getFullYear()
     : (() => { const { start, end } = getDateRange(currentView, anchor); return today >= start && today <= end })()
-
-  // Coach calendar nav
-  const coachPlan = useAppStore((s) => s.coachPlan)
-  const coachCalendarMonth = useAppStore((s) => s.coachCalendarMonth)
-  const navigateCoachCalendar = useAppStore((s) => s.navigateCoachCalendar)
-  const setCoachCalendarMonth = useAppStore((s) => s.setCoachCalendarMonth)
-
-  const coachCurrentMonth = coachPlan
-    ? (() => {
-        if (coachCalendarMonth) return startOfMonth(parseISO(coachCalendarMonth))
-        const planStart = startOfMonth(parseISO(coachPlan.planStartDate))
-        const planEnd = startOfMonth(parseISO(coachPlan.raceDate))
-        const todayM = startOfMonth(new Date())
-        if (todayM < planStart) return planStart
-        if (todayM > planEnd) return planEnd
-        return todayM
-      })()
-    : null
-  const coachPlanStart = coachPlan ? startOfMonth(parseISO(coachPlan.planStartDate)) : null
-  const coachPlanEnd = coachPlan ? startOfMonth(parseISO(coachPlan.raceDate)) : null
-  const coachCanPrev = coachCurrentMonth && coachPlanStart ? coachCurrentMonth > coachPlanStart : false
-  const coachCanNext = coachCurrentMonth && coachPlanEnd ? coachCurrentMonth < coachPlanEnd : false
-  const coachTodayMonth = startOfMonth(new Date())
-  const coachIsViewingToday = coachCurrentMonth
-    ? coachCurrentMonth.getTime() === coachTodayMonth.getTime()
-    : true
-  const coachNavLabel = coachCurrentMonth ? format(coachCurrentMonth, 'MMMM yyyy') : ''
-
-  function handleCoachGoToday() {
-    if (!coachPlan) return
-    const planStart = startOfMonth(parseISO(coachPlan.planStartDate))
-    const planEnd = startOfMonth(parseISO(coachPlan.raceDate))
-    const todayM = startOfMonth(new Date())
-    const clamped = todayM < planStart ? planStart : todayM > planEnd ? planEnd : todayM
-    setCoachCalendarMonth(format(clamped, 'yyyy-MM-dd'))
-  }
 
   return (
     <header style={{
@@ -234,28 +186,6 @@ function DesktopHeader() {
           </span>
           <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
           <NavButton onClick={() => navigate('next')} label="Next period">›</NavButton>
-        </div>
-      )}
-
-      {isTraining && appMode === 'planner' && coachPlan && (
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginLeft: 4 }}>
-          <NavButton onClick={() => navigateCoachCalendar('prev')} label="Previous month" disabled={!coachCanPrev}>‹</NavButton>
-          {!coachIsViewingToday && (
-            <button onClick={handleCoachGoToday} style={{
-              padding: '4px 10px', borderRadius: 'var(--radius-sm)',
-              fontSize: 'var(--font-size-sm)', fontWeight: 'var(--font-weight-medium)',
-              color: 'var(--color-text-secondary)', background: 'transparent',
-              border: '1px solid var(--color-border)', cursor: 'pointer', whiteSpace: 'nowrap',
-            }}>Today</button>
-          )}
-          <span style={{
-            fontSize: 'var(--font-size-sm)', fontWeight: 'var(--font-weight-semibold)',
-            color: 'var(--color-text-primary)', minWidth: 100, textAlign: 'center',
-            letterSpacing: '-0.2px', whiteSpace: 'nowrap',
-          }}>
-            {coachNavLabel}
-          </span>
-          <NavButton onClick={() => navigateCoachCalendar('next')} label="Next month" disabled={!coachCanNext}>›</NavButton>
         </div>
       )}
 
