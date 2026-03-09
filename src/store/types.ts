@@ -103,7 +103,7 @@ export type PlannedActivity =
   | { id: string; type: 'Yoga'; notes?: string }
   | { id: string; type: 'Tennis'; notes?: string }
   | { id: string; type: 'Rest'; notes?: string }
-  | { id: string; type: 'Race'; name?: string; distance?: string; goalTime?: string; notes?: string }
+  | { id: string; type: 'Race'; name?: string; distance?: string; goalTime?: string; targetPace?: string; notes?: string }
 
 export interface WeekTemplate {
   days: Record<WeekDayIndex, PlannedActivity[]>

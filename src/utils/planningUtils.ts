@@ -67,6 +67,7 @@ export function getPlannedActivityLabel(planned: PlannedActivity): string {
     case 'Race': {
       const parts: string[] = [planned.name || 'Race']
       if (planned.distance) parts.push(planned.distance)
+      if (planned.targetPace) parts.push(`${planned.targetPace}/mi`)
       if (planned.goalTime) parts.push(planned.goalTime)
       return parts.join(' · ')
     }

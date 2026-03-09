@@ -45,8 +45,11 @@ const WORKOUT_TYPES: WorkoutType[] = [
 
 type ActivityTypeChoice = PlannedActivity['type']
 
+const RACE_DISTANCE_PRESETS = ['5K', '10 Miler', 'Half Marathon', 'Marathon']
+
 const ACTIVITY_TYPE_OPTIONS: { type: ActivityTypeChoice; emoji: string; label: string }[] = [
   { type: 'Run',            emoji: '\u{1F3C3}', label: 'Run' },
+  { type: 'Race',           emoji: '\u{1F3C1}', label: 'Race' },
   { type: 'WeightTraining', emoji: '\u{1F3CB}\uFE0F', label: 'Weights' },
   { type: 'Yoga',           emoji: '\u{1F9D8}', label: 'Yoga' },
   { type: 'Tennis',         emoji: '\u{1F3BE}', label: 'Tennis' },
@@ -167,6 +170,11 @@ function PanelContent({
   const [workoutType, setWorkoutType] = useState<WorkoutType>(
     activity.type === 'WeightTraining' ? activity.workoutType : 'Upper Body'
   )
+  // Race-specific state
+  const [raceName, setRaceName] = useState(activity.type === 'Race' ? (activity.name ?? '') : '')
+  const [raceDistance, setRaceDistance] = useState(activity.type === 'Race' ? (activity.distance ?? '') : '')
+  const [raceGoalTime, setRaceGoalTime] = useState(activity.type === 'Race' ? (activity.goalTime ?? '') : '')
+  const [raceTargetPace, setRaceTargetPace] = useState(activity.type === 'Race' ? (activity.targetPace ?? '') : '')
   const [notes, setNotes] = useState(activity.notes ?? '')
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [saved, setSaved] = useState(false)
@@ -179,6 +187,10 @@ function PanelContent({
     setTargetDistance(activity.type === 'Run' ? String(activity.targetDistance) : '')
     setTargetPace(activity.type === 'Run' ? activity.targetPace : '')
     setWorkoutType(activity.type === 'WeightTraining' ? activity.workoutType : 'Upper Body')
+    setRaceName(activity.type === 'Race' ? (activity.name ?? '') : '')
+    setRaceDistance(activity.type === 'Race' ? (activity.distance ?? '') : '')
+    setRaceGoalTime(activity.type === 'Race' ? (activity.goalTime ?? '') : '')
+    setRaceTargetPace(activity.type === 'Race' ? (activity.targetPace ?? '') : '')
     setNotes(activity.notes ?? '')
     setErrors({})
     setSaved(false)
@@ -207,6 +219,14 @@ function PanelContent({
         newErrors.pace = 'Use MM:SS format (e.g. 8:30)'
       }
     }
+    if (type === 'Race') {
+      if (raceGoalTime && !/^\d{1,2}:\d{2}(:\d{2})?$/.test(raceGoalTime)) {
+        newErrors.raceGoalTime = 'Use H:MM:SS or M:SS format'
+      }
+      if (raceTargetPace && !/^\d+:\d{2}$/.test(raceTargetPace)) {
+        newErrors.raceTargetPace = 'Use MM:SS format (e.g. 7:30)'
+      }
+    }
     setErrors(newErrors)
     return Object.keys(newErrors).length === 0
   }
@@ -217,6 +237,15 @@ function PanelContent({
     const id = activity.id
     if (type === 'Run') {
       return { id, type: 'Run', targetDistance: parseFloat(targetDistance), targetPace: targetPace || '0:00', ...(notes ? { notes } : {}) }
+    } else if (type === 'Race') {
+      return {
+        id, type: 'Race',
+        ...(raceName ? { name: raceName } : {}),
+        ...(raceDistance ? { distance: raceDistance } : {}),
+        ...(raceGoalTime ? { goalTime: raceGoalTime } : {}),
+        ...(raceTargetPace ? { targetPace: raceTargetPace } : {}),
+        ...(notes ? { notes } : {}),
+      }
     } else if (type === 'WeightTraining') {
       return { id, type: 'WeightTraining', workoutType, ...(notes ? { notes } : {}) }
     } else if (type === 'Yoga') {
@@ -420,6 +449,72 @@ function PanelContent({
               {errors.pace
                 ? <div style={errorStyle}>{errors.pace}</div>
                 : <div style={{ fontSize: 10, color: 'var(--color-text-tertiary)', marginTop: 3 }}>Leave blank to skip pace matching</div>
+              }
+            </div>
+          </>
+        )}
+
+        {/* Race-specific fields */}
+        {type === 'Race' && (
+          <>
+            <div>
+              <label style={labelStyle}>Race name</label>
+              <input
+                type="text"
+                value={raceName}
+                onChange={(e) => setRaceName(e.target.value)}
+                placeholder="e.g. Brooklyn Half Marathon"
+                style={inputStyle}
+              />
+            </div>
+            <div>
+              <label style={labelStyle}>Distance</label>
+              <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap', marginTop: 4 }}>
+                {RACE_DISTANCE_PRESETS.map((d) => {
+                  const isActive = raceDistance === d
+                  return (
+                    <button
+                      key={d}
+                      onClick={() => setRaceDistance(d)}
+                      style={{
+                        padding: '4px 10px', borderRadius: 'var(--radius-full)',
+                        fontSize: 'var(--font-size-xs)', fontWeight: isActive ? 600 : 500,
+                        border: `1.5px solid ${isActive ? 'var(--color-accent)' : 'var(--color-border)'}`,
+                        background: isActive ? 'var(--color-accent-light)' : 'transparent',
+                        color: isActive ? 'var(--color-accent)' : 'var(--color-text-secondary)',
+                        cursor: 'pointer',
+                      }}
+                    >{d}</button>
+                  )
+                })}
+              </div>
+            </div>
+            <div>
+              <label style={labelStyle}>Target pace (MM:SS /mi) — optional</label>
+              <input
+                type="text"
+                value={raceTargetPace}
+                onChange={(e) => { setRaceTargetPace(e.target.value); if (errors.raceTargetPace) setErrors((p) => ({ ...p, raceTargetPace: '' })) }}
+                placeholder="e.g. 7:30"
+                style={{ ...inputStyle, borderColor: errors.raceTargetPace ? '#ef4444' : undefined }}
+              />
+              {errors.raceTargetPace
+                ? <div style={errorStyle}>{errors.raceTargetPace}</div>
+                : <div style={{ fontSize: 10, color: 'var(--color-text-tertiary)', marginTop: 3 }}>Leave blank to skip</div>
+              }
+            </div>
+            <div>
+              <label style={labelStyle}>Goal time — optional</label>
+              <input
+                type="text"
+                value={raceGoalTime}
+                onChange={(e) => { setRaceGoalTime(e.target.value); if (errors.raceGoalTime) setErrors((p) => ({ ...p, raceGoalTime: '' })) }}
+                placeholder="e.g. 1:45:00"
+                style={{ ...inputStyle, borderColor: errors.raceGoalTime ? '#ef4444' : undefined }}
+              />
+              {errors.raceGoalTime
+                ? <div style={errorStyle}>{errors.raceGoalTime}</div>
+                : <div style={{ fontSize: 10, color: 'var(--color-text-tertiary)', marginTop: 3 }}>H:MM:SS or M:SS format</div>
               }
             </div>
           </>

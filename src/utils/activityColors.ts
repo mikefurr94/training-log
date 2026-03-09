@@ -1,4 +1,4 @@
-export type ActivityType = 'Run' | 'WeightTraining' | 'Yoga' | 'Tennis' | 'Rest' | 'Other'
+export type ActivityType = 'Run' | 'WeightTraining' | 'Yoga' | 'Tennis' | 'Rest' | 'Race' | 'Other'
 
 export interface ActivityColor {
   bg: string
@@ -56,6 +56,15 @@ export const ACTIVITY_COLORS: Record<ActivityType, ActivityColor> = {
     emoji: '😴',
     hex: '#ec4899',
   },
+  Race: {
+    bg: 'var(--color-run)',
+    light: '#fff7ed',
+    border: '#fed7aa',
+    text: '#ffffff',
+    label: 'Race',
+    emoji: '🏁',
+    hex: '#f97316',
+  },
   Other: {
     bg: '#9ca3af',
     light: '#f9fafb',
@@ -95,4 +104,4 @@ export function getActivityColor(type: ActivityType): ActivityColor {
   return ACTIVITY_COLORS[type] ?? ACTIVITY_COLORS.Other
 }
 
-export const ALL_ACTIVITY_TYPES: ActivityType[] = ['Run', 'WeightTraining', 'Yoga', 'Tennis', 'Rest']
+export const ALL_ACTIVITY_TYPES: ActivityType[] = ['Run', 'WeightTraining', 'Yoga', 'Tennis', 'Rest', 'Race']

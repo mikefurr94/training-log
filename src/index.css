@@ -126,6 +126,17 @@
   --color-habit-partial: #d97706;
   --color-habit-partial-light: #fffbeb;
   --color-habit-none: #e5e7eb;
+
+  /* Race day */
+  --color-race-gradient-start: #E8795A;
+  --color-race-gradient-end: #F5A673;
+  --color-race-bg: rgba(232, 121, 90, 0.06);
+  --color-race-text: #9a3412;
+  --color-race-pill-bg: rgba(232, 121, 90, 0.12);
+  --color-race-pill-text: #c2410c;
+  --color-race-glow: rgba(232, 121, 90, 0.15);
+  --color-race-pace-bg: rgba(99, 102, 241, 0.10);
+  --color-race-pace-text: #4f46e5;
 }
 
 :root[data-theme="dark"] {
@@ -198,6 +209,17 @@
   --color-habit-partial: #fbbf24;
   --color-habit-partial-light: #2a2008;
   --color-habit-none: #2e3140;
+
+  /* Race day */
+  --color-race-gradient-start: #C45A3A;
+  --color-race-gradient-end: #E8795A;
+  --color-race-bg: rgba(232, 121, 90, 0.10);
+  --color-race-text: #fdba74;
+  --color-race-pill-bg: rgba(232, 121, 90, 0.20);
+  --color-race-pill-text: #fdba74;
+  --color-race-glow: rgba(232, 121, 90, 0.12);
+  --color-race-pace-bg: rgba(129, 140, 248, 0.15);
+  --color-race-pace-text: #a5b4fc;
 }
 
 html, body {

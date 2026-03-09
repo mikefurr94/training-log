@@ -64,12 +64,18 @@ export default function DayCell({
   const visible = filtered.slice(0, MAX_BADGES)
   const overflow = filtered.length - MAX_BADGES
 
-  // Planned badges get leftover slots after actual badges
-  const plannedSlots = Math.max(0, MAX_BADGES - Math.min(filtered.length, MAX_BADGES))
-  const plannedVisible = compact ? [] : filteredPlanned.slice(0, plannedSlots)
-  const plannedOverflow = compact ? 0 : Math.max(0, filteredPlanned.length - plannedSlots)
-
   const hasPlanned = filteredPlanned.length > 0
+
+  // Race day detection — from planned Race activity or key date
+  const plannedRace = showPlan && !compact ? filteredPlanned.find(p => p.type === 'Race') : undefined
+  const hasKeyDateRace = showPlan && !compact && dayKeyDates.some(kd => kd.type === 'race')
+  const isRaceDay = !!plannedRace || hasKeyDateRace
+
+  // For planned badges, filter out Race when we have the race day design (avoids duplication)
+  const nonRacePlanned = plannedRace ? filteredPlanned.filter(p => p.type !== 'Race') : filteredPlanned
+  const plannedSlotsFinal = Math.max(0, MAX_BADGES - Math.min(filtered.length, MAX_BADGES))
+  const nonRacePlannedVisible = compact ? [] : nonRacePlanned.slice(0, plannedSlotsFinal)
+  const nonRacePlannedOverflow = compact ? 0 : Math.max(0, nonRacePlanned.length - plannedSlotsFinal)
 
   // Whether this cell is eligible to show the "+" add button
   const addButtonEligible = showPlan && isFutureOrToday && !compact && !outsideMonth
@@ -128,6 +134,16 @@ export default function DayCell({
     )
   }
 
+  // Confetti dot positions for race day decoration
+  const confettiDots: { style: React.CSSProperties }[] = [
+    { style: { top: '12%', left: '6%', width: 4, height: 4, background: 'var(--color-race-gradient-start)', opacity: 0.35 } },
+    { style: { top: '22%', right: '10%', width: 3, height: 3, background: 'var(--color-accent)', opacity: 0.25 } },
+    { style: { bottom: '18%', left: '12%', width: 3, height: 3, background: 'var(--color-race-gradient-end)', opacity: 0.30 } },
+    { style: { bottom: '8%', right: '6%', width: 4, height: 4, background: 'var(--color-race-gradient-start)', opacity: 0.20 } },
+    { style: { top: '45%', right: '4%', width: 2.5, height: 2.5, background: '#22c55e', opacity: 0.22 } },
+    { style: { top: '6%', left: '40%', width: 3, height: 3, background: 'var(--color-race-gradient-end)', opacity: 0.22 } },
+  ]
+
   return (
     <div
       onDragOver={handleDragOver}
@@ -137,7 +153,9 @@ export default function DayCell({
       onMouseLeave={() => setIsHovered(false)}
       style={{
         padding: compact ? '4px 5px' : '6px 8px',
-        background: today
+        background: isRaceDay
+          ? 'var(--color-race-bg)'
+          : today
           ? 'var(--color-today-bg)'
           : outsideMonth
           ? 'var(--color-outside-month)'
@@ -153,8 +171,133 @@ export default function DayCell({
         outline: isDragOver ? '2px dashed var(--color-accent)' : 'none',
         outlineOffset: -2,
         position: 'relative',
+        boxShadow: isRaceDay
+          ? `inset 0 3px 0 0 var(--color-race-gradient-start), 0 0 0 1px var(--color-race-glow)`
+          : 'none',
       }}
     >
+      {/* Race day confetti dots */}
+      {isRaceDay && confettiDots.map((dot, i) => (
+        <div
+          key={i}
+          style={{
+            position: 'absolute',
+            borderRadius: '50%',
+            pointerEvents: 'none',
+            ...dot.style,
+          }}
+        />
+      ))}
+
+      {/* Race day banner — shown for planned Race activities */}
+      {plannedRace && (
+        <button
+          onClick={(e) => { e.stopPropagation(); openPlannedPanel(plannedRace, dateKey) }}
+          draggable
+          onDragStart={(e) => {
+            e.dataTransfer.setData('text/plain', JSON.stringify({ activityId: plannedRace.id, fromDate: dateKey }))
+            e.dataTransfer.effectAllowed = 'move'
+          }}
+          style={{
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 3,
+            padding: '4px 6px',
+            borderRadius: 6,
+            background: `linear-gradient(135deg, var(--color-race-gradient-start), var(--color-race-gradient-end))`,
+            border: 'none',
+            cursor: 'pointer',
+            width: '100%',
+            textAlign: 'left',
+            boxShadow: '0 2px 8px var(--color-race-glow)',
+            flexShrink: 0,
+            position: 'relative',
+            zIndex: 1,
+          }}
+        >
+          {/* RACE DAY label */}
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 3,
+            fontSize: 8,
+            fontWeight: 700,
+            color: 'rgba(255,255,255,0.92)',
+            letterSpacing: '0.1em',
+            textTransform: 'uppercase',
+            lineHeight: 1,
+          }}>
+            <span style={{ fontSize: 9 }}>🏁</span>
+            RACE DAY
+          </div>
+          {/* Race name */}
+          {plannedRace.type === 'Race' && plannedRace.name && (
+            <div style={{
+              fontSize: 10,
+              fontWeight: 600,
+              color: '#fff',
+              whiteSpace: 'nowrap',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              lineHeight: 1.2,
+            }}>
+              {plannedRace.name}
+            </div>
+          )}
+          {/* Distance + pace pills */}
+          <div style={{ display: 'flex', gap: 3, flexWrap: 'wrap' }}>
+            {plannedRace.type === 'Race' && plannedRace.distance && (
+              <span style={{
+                padding: '1px 5px',
+                borderRadius: 99,
+                background: 'rgba(255,255,255,0.22)',
+                color: '#fff',
+                fontSize: 8,
+                fontWeight: 600,
+                lineHeight: 1.4,
+              }}>
+                {plannedRace.distance}
+              </span>
+            )}
+            {plannedRace.type === 'Race' && plannedRace.targetPace && (
+              <span style={{
+                padding: '1px 5px',
+                borderRadius: 99,
+                background: 'rgba(255,255,255,0.22)',
+                color: '#fff',
+                fontSize: 8,
+                fontWeight: 600,
+                lineHeight: 1.4,
+              }}>
+                {plannedRace.targetPace}/mi
+              </span>
+            )}
+          </div>
+        </button>
+      )}
+
+      {/* Key date race banner (only shown when no planned Race activity) */}
+      {!plannedRace && hasKeyDateRace && (
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          gap: 3,
+          background: `linear-gradient(135deg, var(--color-race-gradient-start), var(--color-race-gradient-end))`,
+          borderRadius: 4,
+          padding: '2px 6px',
+          fontSize: 9,
+          fontWeight: 700,
+          color: '#fff',
+          letterSpacing: '0.07em',
+          textTransform: 'uppercase',
+          flexShrink: 0,
+          boxShadow: '0 1px 4px var(--color-race-glow)',
+        }}>
+          🏁 Race Day
+        </div>
+      )}
+
       {/* Date number + weather + add button */}
       <div style={{
         display: 'flex',
@@ -165,9 +308,17 @@ export default function DayCell({
         <div style={{
           fontSize: compact ? 'var(--font-size-xs)' : 'var(--font-size-sm)',
           fontWeight: today ? 'var(--font-weight-bold)' : 'var(--font-weight-medium)',
-          color: today ? 'var(--color-accent)' : outsideMonth ? 'var(--color-text-tertiary)' : 'var(--color-text-secondary)',
+          color: today
+            ? (isRaceDay ? 'var(--color-race-text)' : 'var(--color-accent)')
+            : outsideMonth
+            ? 'var(--color-text-tertiary)'
+            : isRaceDay
+            ? 'var(--color-race-text)'
+            : 'var(--color-text-secondary)',
           lineHeight: 1,
           letterSpacing: '-0.1px',
+          position: 'relative',
+          zIndex: 1,
         }}>
           {today && !compact ? (
             <span style={{
@@ -177,7 +328,7 @@ export default function DayCell({
               width: 22,
               height: 22,
               borderRadius: '50%',
-              background: 'var(--color-accent)',
+              background: isRaceDay ? 'var(--color-race-gradient-start)' : 'var(--color-accent)',
               color: '#fff',
               fontSize: 'var(--font-size-xs)',
               fontWeight: 'var(--font-weight-bold)',
@@ -188,7 +339,7 @@ export default function DayCell({
             format(date, 'd')
           )}
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 4, position: 'relative', zIndex: 1 }}>
           {weather && hasPlanned && (
             <WeatherInfo weather={weather} compact={compact} />
           )}
@@ -201,7 +352,8 @@ export default function DayCell({
               title="Add planned workout"
               style={{
                 width: 18, height: 18, borderRadius: '50%',
-                background: 'var(--color-accent)', color: '#fff',
+                background: isRaceDay ? 'var(--color-race-gradient-start)' : 'var(--color-accent)',
+                color: '#fff',
                 border: 'none', cursor: isHovered ? 'pointer' : 'default',
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
                 fontSize: 13, lineHeight: 1, fontWeight: 700,
@@ -218,8 +370,8 @@ export default function DayCell({
         </div>
       </div>
 
-      {/* Race / event badges */}
-      {!compact && dayKeyDates.length > 0 && dayKeyDates.map((kd) => (
+      {/* Key date event badges (non-race key dates shown normally) */}
+      {!compact && dayKeyDates.length > 0 && dayKeyDates.filter(kd => kd.type !== 'race').map((kd) => (
         <button
           key={kd.id}
           onClick={(e) => { e.stopPropagation(); openKeyDateModal(kd) }}
@@ -227,14 +379,15 @@ export default function DayCell({
             display: 'inline-flex', alignItems: 'center', gap: 3,
             padding: '2px 6px', borderRadius: 'var(--radius-full)',
             fontSize: 10, fontWeight: 600, cursor: 'pointer',
-            background: kd.type === 'race' ? 'var(--color-tennis-light)' : 'var(--color-accent-light)',
-            color: kd.type === 'race' ? 'var(--color-tennis)' : 'var(--color-accent)',
-            border: `1px solid ${kd.type === 'race' ? 'var(--color-tennis-border)' : 'var(--color-accent-border)'}`,
+            background: 'var(--color-accent-light)',
+            color: 'var(--color-accent)',
+            border: '1px solid var(--color-accent-border)',
             whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
             maxWidth: '100%', flexShrink: 0,
+            position: 'relative', zIndex: 1,
           }}
         >
-          <span style={{ fontSize: 9, flexShrink: 0 }}>{kd.type === 'race' ? '🏁' : '📌'}</span>
+          <span style={{ fontSize: 9, flexShrink: 0 }}>📌</span>
           <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>
             {kd.name}
             {kd.distance && ` · ${kd.distance}`}
@@ -243,8 +396,34 @@ export default function DayCell({
         </button>
       ))}
 
-      {/* Activity badges (actual + planned) */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 2, flex: 1 }}>
+      {/* Race key date badges (shown when no planned Race to avoid duplication) */}
+      {!compact && !plannedRace && dayKeyDates.filter(kd => kd.type === 'race').map((kd) => (
+        <button
+          key={kd.id}
+          onClick={(e) => { e.stopPropagation(); openKeyDateModal(kd) }}
+          style={{
+            display: 'inline-flex', alignItems: 'center', gap: 3,
+            padding: '2px 6px', borderRadius: 'var(--radius-full)',
+            fontSize: 10, fontWeight: 600, cursor: 'pointer',
+            background: 'var(--color-race-pill-bg)',
+            color: 'var(--color-race-pill-text)',
+            border: '1px solid var(--color-race-glow)',
+            whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+            maxWidth: '100%', flexShrink: 0,
+            position: 'relative', zIndex: 1,
+          }}
+        >
+          <span style={{ fontSize: 9, flexShrink: 0 }}>🏁</span>
+          <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>
+            {kd.name}
+            {kd.distance && ` · ${kd.distance}`}
+            {kd.goalTime && ` · ${kd.goalTime}`}
+          </span>
+        </button>
+      ))}
+
+      {/* Activity badges (actual + non-race planned) */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 2, flex: 1, position: 'relative', zIndex: 1 }}>
         {/* Actual activity badges */}
         {visible.map((activity) => (
           <ActivityBadge key={activity.id} activity={activity} compact={compact} />
@@ -267,8 +446,8 @@ export default function DayCell({
           </button>
         )}
 
-        {/* Planned activity badges (dashed style) */}
-        {plannedVisible.map((planned) => (
+        {/* Planned activity badges (dashed style) — excludes Race when race card is shown */}
+        {nonRacePlannedVisible.map((planned) => (
           <PlannedBadge
             key={planned.id}
             activity={planned}
@@ -281,7 +460,7 @@ export default function DayCell({
             onDragEnd={() => {}}
           />
         ))}
-        {plannedOverflow > 0 && (
+        {nonRacePlannedOverflow > 0 && (
           <div style={{
             fontSize: 10,
             color: 'var(--color-text-tertiary)',
@@ -289,7 +468,7 @@ export default function DayCell({
             fontWeight: 500,
             fontStyle: 'italic',
           }}>
-            +{plannedOverflow} planned
+            +{nonRacePlannedOverflow} planned
           </div>
         )}
       </div>
