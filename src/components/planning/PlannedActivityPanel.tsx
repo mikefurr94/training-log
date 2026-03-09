@@ -275,8 +275,14 @@ function PanelContent({
       ? current.map((a) => (a.id === updated.id ? updated : a))
       : [...current, updated]
     setDayOverride(ws, dayIndex, newList)
-    setSaved(true)
-    setTimeout(() => setSaved(false), 1500)
+    if (!exists) {
+      // New activity — close panel so user can immediately see it on the calendar
+      closePanel()
+    } else {
+      // Editing existing — stay open and show saved confirmation
+      setSaved(true)
+      setTimeout(() => setSaved(false), 1500)
+    }
   }
 
   function handleDelete() {

@@ -53,9 +53,14 @@ export default function DayCell({
     enabledTypes.includes(mapStravaType(a.sport_type || a.type) as ActivityType)
   )
 
-  // Filter planned activities to enabled types (skip Rest in calendar)
+  // Race detection from raw planned list — Race is always shown regardless of enabledTypes filter
+  const plannedRace = showPlan && !compact
+    ? (plannedActivities ?? []).find(p => p.type === 'Race')
+    : undefined
+
+  // Filter non-Race planned activities to enabled types (skip Rest in calendar)
   const filteredPlanned = (plannedActivities ?? []).filter(
-    (p) => p.type !== 'Rest' && enabledTypes.includes(p.type as ActivityType)
+    (p) => p.type !== 'Rest' && p.type !== 'Race' && enabledTypes.includes(p.type as ActivityType)
   )
 
   const dayKeyDates = keyDates ?? []
@@ -64,15 +69,14 @@ export default function DayCell({
   const visible = filtered.slice(0, MAX_BADGES)
   const overflow = filtered.length - MAX_BADGES
 
-  const hasPlanned = filteredPlanned.length > 0
+  const hasPlanned = !!plannedRace || filteredPlanned.length > 0
 
   // Race day detection — from planned Race activity or key date
-  const plannedRace = showPlan && !compact ? filteredPlanned.find(p => p.type === 'Race') : undefined
   const hasKeyDateRace = showPlan && !compact && dayKeyDates.some(kd => kd.type === 'race')
   const isRaceDay = !!plannedRace || hasKeyDateRace
 
-  // For planned badges, filter out Race when we have the race day design (avoids duplication)
-  const nonRacePlanned = plannedRace ? filteredPlanned.filter(p => p.type !== 'Race') : filteredPlanned
+  // nonRacePlanned is just the already-filtered list (Race already excluded above)
+  const nonRacePlanned = filteredPlanned
   const plannedSlotsFinal = Math.max(0, MAX_BADGES - Math.min(filtered.length, MAX_BADGES))
   const nonRacePlannedVisible = compact ? [] : nonRacePlanned.slice(0, plannedSlotsFinal)
   const nonRacePlannedOverflow = compact ? 0 : Math.max(0, nonRacePlanned.length - plannedSlotsFinal)
