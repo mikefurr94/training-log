@@ -26,6 +26,22 @@ export default defineConfig({
         changeOrigin: true,
         rewrite: (p) => p.replace(/^\/api\/strava/, ''),
       },
+      '/api/reflection': {
+        target: 'http://localhost:3001',
+        changeOrigin: true,
+      },
+      '/api/habits': {
+        target: 'http://localhost:3001',
+        changeOrigin: true,
+      },
+      '/api/plan': {
+        target: 'http://localhost:3001',
+        changeOrigin: true,
+      },
+      '/api/activities': {
+        target: 'http://localhost:3001',
+        changeOrigin: true,
+      },
     },
   },
 })

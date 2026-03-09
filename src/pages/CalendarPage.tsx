@@ -12,6 +12,7 @@ import WeekReviewPage from './WeekReviewPage'
 import HabitWeekView from '../components/habits/HabitWeekView'
 import HabitGridView from '../components/habits/HabitGridView'
 import HabitDashboard from '../components/habits/HabitDashboard'
+import ReflectionPage from './ReflectionPage'
 import { useAppStore } from '../store/useAppStore'
 import { useActivities } from '../hooks/useActivities'
 import { useCalendarRange } from '../hooks/useCalendarRange'
@@ -44,7 +45,7 @@ export default function CalendarPage() {
   const deleteKeyDate = useAppStore((s) => s.deleteKeyDate)
 
   const isTraining = activeApp === 'training'
-  const viewKey = isTraining ? appMode : activeApp
+  const viewKey = isTraining ? appMode : activeApp === 'habits' ? `habits-${habitView}` : activeApp
 
   const mobilePadding = isMobile ? '12px 12px 20px' : '24px 24px 40px'
 
@@ -150,6 +151,13 @@ export default function CalendarPage() {
               {activeApp === 'habits' && habitView === 'dashboard' && (
                 <div style={{ flex: 1, overflow: 'auto', padding: mobilePadding }}>
                   <HabitDashboard />
+                </div>
+              )}
+
+              {/* Reflection chat */}
+              {activeApp === 'reflection' && (
+                <div style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+                  <ReflectionPage />
                 </div>
               )}
             </motion.div>
