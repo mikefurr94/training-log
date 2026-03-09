@@ -74,18 +74,23 @@ function WeekDayColumn({
 }) {
   const openPlannedPanel = useAppStore((s) => s.openPlannedPanel)
   const openKeyDateModal = useAppStore((s) => s.openKeyDateModal)
+  const showPlan = useAppStore((s) => s.showPlan)
 
   const key = format(date, 'yyyy-MM-dd')
   const allActivities = activitiesByDate[key] ?? []
   const activities = allActivities.filter((a) =>
     enabledTypes.includes(mapStravaType(a.sport_type || a.type) as ActivityType)
   )
+  // Extract race from raw planned list before enabledTypes filter (Race is not in enabledTypes)
+  const plannedRace = showPlan
+    ? (plannedByDate?.[key] ?? []).find(p => p.type === 'Race')
+    : undefined
   const planned = (plannedByDate?.[key] ?? []).filter(
-    (p) => p.type !== 'Rest' && enabledTypes.includes(p.type as ActivityType)
+    (p) => p.type !== 'Rest' && p.type !== 'Race' && enabledTypes.includes(p.type as ActivityType)
   )
   const dayKeyDates = keyDates?.filter((kd) => kd.date === key) ?? []
   const today = isToday(date)
-  const hasPlanned = planned.length > 0
+  const hasPlanned = planned.length > 0 || !!plannedRace
 
   return (
     <div
@@ -120,7 +125,45 @@ function WeekDayColumn({
         </div>
       </div>
 
-      {/* Race / event badges */}
+      {/* Planned race card */}
+      {plannedRace && (
+        <button
+          onClick={() => openPlannedPanel(plannedRace, key)}
+          style={{
+            display: 'flex', flexDirection: 'column', gap: 3,
+            padding: '6px 8px', borderRadius: 7,
+            background: 'var(--color-race-gradient-start)',
+            border: 'none', cursor: 'pointer', textAlign: 'left',
+            flexShrink: 0,
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: 4, lineHeight: 1 }}>
+            <span style={{ fontSize: 12, flexShrink: 0 }}>🏁</span>
+            <span style={{
+              fontSize: 12, fontWeight: 700, color: '#fff',
+              whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+            }}>
+              {plannedRace.type === 'Race' && plannedRace.name ? plannedRace.name : 'Race Day'}
+            </span>
+          </div>
+          {plannedRace.type === 'Race' && (plannedRace.distance || plannedRace.goalTime || plannedRace.targetPace) && (
+            <div style={{ display: 'flex', gap: 3, flexWrap: 'wrap' }}>
+              {plannedRace.distance && (
+                <span style={{ padding: '1px 6px', borderRadius: 99, background: 'rgba(0,0,0,0.15)', color: '#fff', fontSize: 10, fontWeight: 600, lineHeight: 1.5 }}>
+                  {plannedRace.distance}
+                </span>
+              )}
+              {(plannedRace.goalTime || plannedRace.targetPace) && (
+                <span style={{ padding: '1px 6px', borderRadius: 99, background: 'rgba(0,0,0,0.15)', color: '#fff', fontSize: 10, fontWeight: 600, lineHeight: 1.5 }}>
+                  {plannedRace.goalTime ?? `${plannedRace.targetPace}/mi`}
+                </span>
+              )}
+            </div>
+          )}
+        </button>
+      )}
+
+      {/* Key date / event badges */}
       {dayKeyDates.length > 0 && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
           {dayKeyDates.map((kd) => (
@@ -171,7 +214,7 @@ function WeekDayColumn({
         ))}
 
         {/* Rest day placeholder (only if no actual and no planned) */}
-        {activities.length === 0 && !hasPlanned && dayKeyDates.length === 0 && (
+        {activities.length === 0 && !hasPlanned && !plannedRace && dayKeyDates.length === 0 && (
           <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--color-text-tertiary)', fontSize: 'var(--font-size-xs)' }}>
             Rest day
           </div>
@@ -229,14 +272,19 @@ function MobileDayRow({
 }) {
   const openPlannedPanel = useAppStore((s) => s.openPlannedPanel)
   const openKeyDateModal = useAppStore((s) => s.openKeyDateModal)
+  const showPlan = useAppStore((s) => s.showPlan)
 
   const key = format(date, 'yyyy-MM-dd')
   const allActivities = activitiesByDate[key] ?? []
   const activities = allActivities.filter((a) =>
     enabledTypes.includes(mapStravaType(a.sport_type || a.type) as ActivityType)
   )
+  // Extract race from raw planned list before enabledTypes filter (Race is not in enabledTypes)
+  const plannedRace = showPlan
+    ? (plannedByDate?.[key] ?? []).find(p => p.type === 'Race')
+    : undefined
   const planned = (plannedByDate?.[key] ?? []).filter(
-    (p) => p.type !== 'Rest' && enabledTypes.includes(p.type as ActivityType)
+    (p) => p.type !== 'Rest' && p.type !== 'Race' && enabledTypes.includes(p.type as ActivityType)
   )
   const dayKeyDates = keyDates?.filter((kd) => kd.date === key) ?? []
   const today = isToday(date)
@@ -256,7 +304,7 @@ function MobileDayRow({
         <div style={{ fontSize: 22, fontWeight: 800, color: today ? 'var(--color-accent)' : 'var(--color-text-primary)', lineHeight: 1, letterSpacing: '-0.5px' }}>
           {format(date, 'd')}
         </div>
-        {weatherByDate?.[key] && planned.length > 0 && (
+        {weatherByDate?.[key] && (planned.length > 0 || !!plannedRace) && (
           <div style={{ marginTop: 4 }}>
             <WeatherInfo weather={weatherByDate[key]} compact />
           </div>
@@ -266,7 +314,45 @@ function MobileDayRow({
       <div style={{ width: 1, alignSelf: 'stretch', background: today ? 'var(--color-today-border)' : 'var(--color-border-light)', flexShrink: 0 }} />
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 6, flex: 1, minWidth: 0 }}>
-        {/* Race / event badges */}
+        {/* Planned race card */}
+        {plannedRace && (
+          <button
+            onClick={() => openPlannedPanel(plannedRace, key)}
+            style={{
+              display: 'flex', flexDirection: 'column', gap: 3,
+              padding: '5px 8px', borderRadius: 7,
+              background: 'var(--color-race-gradient-start)',
+              border: 'none', cursor: 'pointer', textAlign: 'left',
+              flexShrink: 0,
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: 4, lineHeight: 1 }}>
+              <span style={{ fontSize: 12, flexShrink: 0 }}>🏁</span>
+              <span style={{
+                fontSize: 12, fontWeight: 700, color: '#fff',
+                whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+              }}>
+                {plannedRace.type === 'Race' && plannedRace.name ? plannedRace.name : 'Race Day'}
+              </span>
+            </div>
+            {plannedRace.type === 'Race' && (plannedRace.distance || plannedRace.goalTime || plannedRace.targetPace) && (
+              <div style={{ display: 'flex', gap: 3, flexWrap: 'wrap' }}>
+                {plannedRace.distance && (
+                  <span style={{ padding: '1px 6px', borderRadius: 99, background: 'rgba(0,0,0,0.15)', color: '#fff', fontSize: 10, fontWeight: 600, lineHeight: 1.5 }}>
+                    {plannedRace.distance}
+                  </span>
+                )}
+                {(plannedRace.goalTime || plannedRace.targetPace) && (
+                  <span style={{ padding: '1px 6px', borderRadius: 99, background: 'rgba(0,0,0,0.15)', color: '#fff', fontSize: 10, fontWeight: 600, lineHeight: 1.5 }}>
+                    {plannedRace.goalTime ?? `${plannedRace.targetPace}/mi`}
+                  </span>
+                )}
+              </div>
+            )}
+          </button>
+        )}
+
+        {/* Key date / event badges */}
         {dayKeyDates.map((kd) => (
           <button
             key={kd.id}
@@ -287,7 +373,7 @@ function MobileDayRow({
           </button>
         ))}
 
-        {activities.length === 0 && planned.length === 0 && dayKeyDates.length === 0 ? (
+        {activities.length === 0 && planned.length === 0 && !plannedRace && dayKeyDates.length === 0 ? (
           <div style={{ color: 'var(--color-text-tertiary)', fontSize: 'var(--font-size-xs)', padding: '4px 0' }}>
             Rest day
           </div>

@@ -54,7 +54,7 @@ export default function DayCell({
   )
 
   // Race detection from raw planned list — Race is always shown regardless of enabledTypes filter
-  const plannedRace = showPlan && !compact
+  const plannedRace = showPlan
     ? (plannedActivities ?? []).find(p => p.type === 'Race')
     : undefined
 
@@ -240,8 +240,8 @@ export default function DayCell({
         </div>
       </div>
 
-      {/* Race day banner — shown for planned Race activities */}
-      {plannedRace && (
+      {/* Race day banner — full card (month view) or compact pill (quarter view) */}
+      {plannedRace && !compact && (
         <button
           onClick={(e) => { e.stopPropagation(); openPlannedPanel(plannedRace, dateKey) }}
           draggable
@@ -317,9 +317,26 @@ export default function DayCell({
           )}
         </button>
       )}
+      {/* Compact race pill (quarter / 6-month views) */}
+      {plannedRace && compact && (
+        <button
+          onClick={(e) => { e.stopPropagation(); openPlannedPanel(plannedRace, dateKey) }}
+          style={{
+            display: 'flex', alignItems: 'center', gap: 2,
+            padding: '2px 5px', borderRadius: 99,
+            background: 'var(--color-race-gradient-start)',
+            border: 'none', cursor: 'pointer',
+            fontSize: 8, fontWeight: 700, color: '#fff',
+            whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+            maxWidth: '100%', flexShrink: 0,
+          }}
+        >
+          🏁 {plannedRace.type === 'Race' && plannedRace.name ? plannedRace.name : 'Race'}
+        </button>
+      )}
 
-      {/* Key date race banner (only shown when no planned Race activity) */}
-      {!plannedRace && hasKeyDateRace && (
+      {/* Key date race banner (only shown when no planned Race activity, non-compact only) */}
+      {!plannedRace && hasKeyDateRace && !compact && (
         <div style={{
           display: 'flex',
           alignItems: 'center',
