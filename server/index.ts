@@ -1,5 +1,5 @@
 import dotenv from 'dotenv'
-// Load .env then .env.production (overrides) for Supabase/Anthropic keys
+// Load .env first, then .env.production for Supabase/Anthropic keys
 dotenv.config({ path: '.env' })
 dotenv.config({ path: '.env.production', override: true })
 
@@ -33,6 +33,16 @@ app.all('/api/plan', async (req, res) => {
     await handler(req as any, res as any)
   } catch (err: any) {
     console.error('[api/plan] Error:', err.message)
+    res.status(500).json({ error: err.message })
+  }
+})
+
+app.all('/api/reflection', async (req, res) => {
+  try {
+    const { default: handler } = await import('../api/reflection.js')
+    await handler(req as any, res as any)
+  } catch (err: any) {
+    console.error('[api/reflection] Error:', err.message)
     res.status(500).json({ error: err.message })
   }
 })

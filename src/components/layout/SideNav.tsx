@@ -37,6 +37,17 @@ function IconHabits({ color }: { color: string }) {
   )
 }
 
+function IconReflection({ color }: { color: string }) {
+  return (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+      <path d="M8 10h.01" />
+      <path d="M12 10h.01" />
+      <path d="M16 10h.01" />
+    </svg>
+  )
+}
+
 function IconTheme({ isDark }: { isDark: boolean }) {
   return isDark ? (
     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
@@ -58,8 +69,9 @@ function IconTheme({ isDark }: { isDark: boolean }) {
 }
 
 const NAV_ITEMS: { app: ActiveApp; label: string; Icon: React.FC<{ color: string }> }[] = [
-  { app: 'training', label: 'Training', Icon: IconTraining },
-  { app: 'habits',   label: 'Habits',   Icon: IconHabits },
+  { app: 'training',   label: 'Training', Icon: IconTraining },
+  { app: 'habits',     label: 'Habits',   Icon: IconHabits },
+  { app: 'reflection', label: 'Reflect',  Icon: IconReflection },
 ]
 
 // ── Desktop: persistent slim sidebar ──────────────────────────────────────────

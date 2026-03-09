@@ -163,7 +163,34 @@ export type ThemeMode = 'light' | 'dark'
 
 export type AppMode = 'calendar' | 'grid' | 'dashboard' | 'review'
 
-export type ActiveApp = 'training' | 'habits'
+export type ActiveApp = 'training' | 'habits' | 'reflection'
+
+// ── Reflection Types ────────────────────────────────────────────────────────
+
+export interface ChartSpec {
+  type: 'bar' | 'line' | 'area'
+  title: string
+  data: Array<Record<string, string | number>>
+  xKey: string
+  series: Array<{ dataKey: string; label: string; color: string }>
+  xLabel?: string
+  yLabel?: string
+}
+
+export interface ReflectionConversation {
+  id: string
+  title: string
+  createdAt: string
+  updatedAt: string
+}
+
+export interface ReflectionMessage {
+  id: string
+  role: 'user' | 'assistant'
+  content: string
+  charts?: ChartSpec[]
+  createdAt: string
+}
 
 // ── Store ────────────────────────────────────────────────────────────────────
 

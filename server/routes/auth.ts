@@ -3,13 +3,12 @@ import axios from 'axios'
 
 export const authRouter = Router()
 
-const CLIENT_ID = process.env.STRAVA_CLIENT_ID!
-const CLIENT_SECRET = process.env.STRAVA_CLIENT_SECRET!
-const REDIRECT_URI = 'http://localhost:3000/callback'
 const TOKEN_URL = 'https://www.strava.com/api/v3/oauth/token'
 
 // Redirect to Strava OAuth authorization page
 authRouter.get('/strava', (_req: Request, res: Response) => {
+  const CLIENT_ID = process.env.STRAVA_CLIENT_ID!
+  const REDIRECT_URI = 'http://localhost:3000/callback'
   const params = new URLSearchParams({
     client_id: CLIENT_ID,
     redirect_uri: REDIRECT_URI,
@@ -22,6 +21,8 @@ authRouter.get('/strava', (_req: Request, res: Response) => {
 
 // Exchange authorization code for tokens (called from frontend with ?code=)
 authRouter.get('/callback', async (req: Request, res: Response) => {
+  const CLIENT_ID = process.env.STRAVA_CLIENT_ID!
+  const CLIENT_SECRET = process.env.STRAVA_CLIENT_SECRET!
   const { code } = req.query
   if (!code || typeof code !== 'string') {
     res.status(400).json({ error: 'Missing authorization code' })
@@ -46,6 +47,8 @@ authRouter.get('/callback', async (req: Request, res: Response) => {
 
 // Refresh an expired access token
 authRouter.post('/refresh', async (req: Request, res: Response) => {
+  const CLIENT_ID = process.env.STRAVA_CLIENT_ID!
+  const CLIENT_SECRET = process.env.STRAVA_CLIENT_SECRET!
   const { refresh_token } = req.body
   if (!refresh_token) {
     res.status(400).json({ error: 'Missing refresh_token' })

@@ -85,6 +85,9 @@ interface HeaderProps {
 
 export default function Header({ onOpenSideNav }: HeaderProps) {
   const isMobile = useIsMobile()
+  const activeApp = useAppStore((s) => s.activeApp)
+  // Reflection has its own header built into the page
+  if (activeApp === 'reflection' && !isMobile) return null
   if (isMobile) return <MobileHeader onOpenSideNav={onOpenSideNav} />
   return <DesktopHeader />
 }
@@ -254,8 +257,8 @@ function MobileHeader({ onOpenSideNav }: { onOpenSideNav?: () => void }) {
   const showFilters = isTraining && (appMode === 'calendar' || appMode === 'grid' || appMode === 'dashboard' || appMode === 'review')
   const [showMore, setShowMore] = useState(false)
 
-  const appLabel = activeApp === 'training' ? 'Training' : 'Habits'
-  const appEmoji = activeApp === 'training' ? '🏃' : '✅'
+  const appLabel = activeApp === 'training' ? 'Training' : activeApp === 'habits' ? 'Habits' : 'Reflect'
+  const appEmoji = activeApp === 'training' ? '🏃' : activeApp === 'habits' ? '✅' : '💬'
 
   return (
     <>
@@ -357,6 +360,7 @@ function MobileHeader({ onOpenSideNav }: { onOpenSideNav?: () => void }) {
 
 export function MobileTabBar() {
   const activeApp = useAppStore((s) => s.activeApp)
+  if (activeApp === 'reflection') return null
   const appMode = useAppStore((s) => s.appMode)
   const setAppMode = useAppStore((s) => s.setAppMode)
   const habitView = useAppStore((s) => s.habitView)
