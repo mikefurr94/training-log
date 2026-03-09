@@ -34,6 +34,46 @@ export function secondsToPaceString(seconds: number): string {
   return `${m}:${s.toString().padStart(2, '0')}`
 }
 
+// ── Race distance constants ───────────────────────────────────────────────────
+
+/** Distance in miles for each race preset */
+export const RACE_DISTANCE_MILES: Record<string, number> = {
+  '5K': 3.10686,
+  '10 Miler': 10,
+  'Half Marathon': 13.10937,
+  'Marathon': 26.21875,
+}
+
+/** Parse "H:MM:SS" or "M:SS" goal time string → total seconds */
+export function parseGoalTimeToSeconds(time: string): number {
+  const parts = time.split(':').map((p) => parseInt(p, 10) || 0)
+  if (parts.length === 3) return parts[0] * 3600 + parts[1] * 60 + parts[2]
+  if (parts.length === 2) return parts[0] * 60 + parts[1]
+  return 0
+}
+
+/** Format total seconds → "H:MM:SS" string */
+export function secondsToGoalTimeString(totalSeconds: number): string {
+  const h = Math.floor(totalSeconds / 3600)
+  const m = Math.floor((totalSeconds % 3600) / 60)
+  const s = Math.round(totalSeconds % 60)
+  return `${h}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`
+}
+
+/** Given a pace string ("MM:SS /mi") and distance in miles, return a goal time string ("H:MM:SS") */
+export function calcGoalTime(paceStr: string, distanceMiles: number): string {
+  const paceSec = paceStringToSeconds(paceStr)
+  if (paceSec <= 0 || distanceMiles <= 0) return ''
+  return secondsToGoalTimeString(Math.round(paceSec * distanceMiles))
+}
+
+/** Given a goal time string ("H:MM:SS") and distance in miles, return a pace string ("MM:SS") */
+export function calcPaceFromGoalTime(goalTimeStr: string, distanceMiles: number): string {
+  const totalSec = parseGoalTimeToSeconds(goalTimeStr)
+  if (totalSec <= 0 || distanceMiles <= 0) return ''
+  return secondsToPaceString(Math.round(totalSec / distanceMiles))
+}
+
 // ── Status display ────────────────────────────────────────────────────────────
 
 export const STATUS_ICONS: Record<PlanStatus, string> = {

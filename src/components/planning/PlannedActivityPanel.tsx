@@ -7,6 +7,13 @@ import { useWeather } from '../../hooks/useWeather'
 import { getActivityColor } from '../../utils/activityColors'
 import { getWeatherIcon, type DailyWeather } from '../../api/weather'
 import type { PlannedActivity, WorkoutType, WeekDayIndex } from '../../store/types'
+import {
+  RACE_DISTANCE_MILES,
+  calcGoalTime,
+  calcPaceFromGoalTime,
+  paceStringToSeconds,
+  parseGoalTimeToSeconds,
+} from '../../utils/planningUtils'
 
 interface ClothingItem {
   icon: string
@@ -44,6 +51,7 @@ const WORKOUT_TYPES: WorkoutType[] = [
 ]
 
 type ActivityTypeChoice = PlannedActivity['type']
+type PaceMode = 'pace' | 'time'
 
 const RACE_DISTANCE_PRESETS = ['5K', '10 Miler', 'Half Marathon', 'Marathon']
 
@@ -175,6 +183,14 @@ function PanelContent({
   const [raceDistance, setRaceDistance] = useState(activity.type === 'Race' ? (activity.distance ?? '') : '')
   const [raceGoalTime, setRaceGoalTime] = useState(activity.type === 'Race' ? (activity.goalTime ?? '') : '')
   const [raceTargetPace, setRaceTargetPace] = useState(activity.type === 'Race' ? (activity.targetPace ?? '') : '')
+  const [paceMode, setPaceMode] = useState<PaceMode>('pace')
+
+  // Computed values for pace↔time toggle
+  const distanceMiles = RACE_DISTANCE_MILES[raceDistance] ?? 0
+  const canAutoCalc = distanceMiles > 0
+  const calculatedGoalTime = canAutoCalc && paceMode === 'pace' ? calcGoalTime(raceTargetPace, distanceMiles) : ''
+  const calculatedPace = canAutoCalc && paceMode === 'time' ? calcPaceFromGoalTime(raceGoalTime, distanceMiles) : ''
+
   const [notes, setNotes] = useState(activity.notes ?? '')
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [saved, setSaved] = useState(false)
@@ -191,6 +207,7 @@ function PanelContent({
     setRaceDistance(activity.type === 'Race' ? (activity.distance ?? '') : '')
     setRaceGoalTime(activity.type === 'Race' ? (activity.goalTime ?? '') : '')
     setRaceTargetPace(activity.type === 'Race' ? (activity.targetPace ?? '') : '')
+    setPaceMode('pace')
     setNotes(activity.notes ?? '')
     setErrors({})
     setSaved(false)
@@ -220,10 +237,13 @@ function PanelContent({
       }
     }
     if (type === 'Race') {
-      if (raceGoalTime && !/^\d{1,2}:\d{2}(:\d{2})?$/.test(raceGoalTime)) {
+      // Only validate the field the user is manually editing
+      const validatePace = !canAutoCalc || paceMode === 'pace'
+      const validateTime = !canAutoCalc || paceMode === 'time'
+      if (validateTime && raceGoalTime && !/^\d{1,2}:\d{2}(:\d{2})?$/.test(raceGoalTime)) {
         newErrors.raceGoalTime = 'Use H:MM:SS or M:SS format'
       }
-      if (raceTargetPace && !/^\d+:\d{2}$/.test(raceTargetPace)) {
+      if (validatePace && raceTargetPace && !/^\d+:\d{2}$/.test(raceTargetPace)) {
         newErrors.raceTargetPace = 'Use MM:SS format (e.g. 7:30)'
       }
     }
@@ -238,12 +258,14 @@ function PanelContent({
     if (type === 'Run') {
       return { id, type: 'Run', targetDistance: parseFloat(targetDistance), targetPace: targetPace || '0:00', ...(notes ? { notes } : {}) }
     } else if (type === 'Race') {
+      const finalPace = canAutoCalc && paceMode === 'time' ? calculatedPace : raceTargetPace
+      const finalGoalTime = canAutoCalc && paceMode === 'pace' ? calculatedGoalTime : raceGoalTime
       return {
         id, type: 'Race',
         ...(raceName ? { name: raceName } : {}),
         ...(raceDistance ? { distance: raceDistance } : {}),
-        ...(raceGoalTime ? { goalTime: raceGoalTime } : {}),
-        ...(raceTargetPace ? { targetPace: raceTargetPace } : {}),
+        ...(finalGoalTime ? { goalTime: finalGoalTime } : {}),
+        ...(finalPace ? { targetPace: finalPace } : {}),
         ...(notes ? { notes } : {}),
       }
     } else if (type === 'WeightTraining') {
@@ -495,33 +517,101 @@ function PanelContent({
                 })}
               </div>
             </div>
+
+            {/* Pace ↔ Goal time toggle (only shown when a distance preset is selected) */}
+            {canAutoCalc && (
+              <div style={{
+                display: 'flex', alignItems: 'center', gap: 3,
+                padding: '3px 4px',
+                background: 'var(--color-bg)',
+                borderRadius: 'var(--radius-sm)',
+                border: '1px solid var(--color-border)',
+                alignSelf: 'flex-start',
+              }}>
+                {(['pace', 'time'] as PaceMode[]).map((mode) => (
+                  <button
+                    key={mode}
+                    onClick={() => setPaceMode(mode)}
+                    style={{
+                      padding: '4px 10px',
+                      borderRadius: 'calc(var(--radius-sm) - 2px)',
+                      fontSize: 'var(--font-size-xs)',
+                      fontWeight: 500,
+                      border: 'none',
+                      background: paceMode === mode ? 'var(--color-surface)' : 'transparent',
+                      color: paceMode === mode ? 'var(--color-text-primary)' : 'var(--color-text-tertiary)',
+                      boxShadow: paceMode === mode ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    {mode === 'pace' ? 'Enter pace' : 'Enter goal time'}
+                  </button>
+                ))}
+              </div>
+            )}
+
             <div>
-              <label style={labelStyle}>Target pace (MM:SS /mi) — optional</label>
-              <input
-                type="text"
-                value={raceTargetPace}
-                onChange={(e) => { setRaceTargetPace(e.target.value); if (errors.raceTargetPace) setErrors((p) => ({ ...p, raceTargetPace: '' })) }}
-                placeholder="e.g. 7:30"
-                style={{ ...inputStyle, borderColor: errors.raceTargetPace ? '#ef4444' : undefined }}
-              />
-              {errors.raceTargetPace
-                ? <div style={errorStyle}>{errors.raceTargetPace}</div>
-                : <div style={{ fontSize: 10, color: 'var(--color-text-tertiary)', marginTop: 3 }}>Leave blank to skip</div>
-              }
+              <label style={labelStyle}>
+                Target pace (MM:SS /mi){!canAutoCalc && ' — optional'}
+              </label>
+              {canAutoCalc && paceMode === 'time' ? (
+                <div style={{
+                  ...inputStyle,
+                  display: 'flex', alignItems: 'center',
+                  color: 'var(--color-text-tertiary)',
+                  opacity: 0.8,
+                  pointerEvents: 'none',
+                }}>
+                  {calculatedPace || '—'}
+                  <span style={{ marginLeft: 6, fontSize: 10 }}>calculated</span>
+                </div>
+              ) : (
+                <>
+                  <input
+                    type="text"
+                    value={raceTargetPace}
+                    onChange={(e) => { setRaceTargetPace(e.target.value); if (errors.raceTargetPace) setErrors((p) => ({ ...p, raceTargetPace: '' })) }}
+                    placeholder="e.g. 7:30"
+                    style={{ ...inputStyle, borderColor: errors.raceTargetPace ? '#ef4444' : undefined }}
+                  />
+                  {errors.raceTargetPace
+                    ? <div style={errorStyle}>{errors.raceTargetPace}</div>
+                    : !canAutoCalc && <div style={{ fontSize: 10, color: 'var(--color-text-tertiary)', marginTop: 3 }}>Leave blank to skip</div>
+                  }
+                </>
+              )}
             </div>
+
             <div>
-              <label style={labelStyle}>Goal time — optional</label>
-              <input
-                type="text"
-                value={raceGoalTime}
-                onChange={(e) => { setRaceGoalTime(e.target.value); if (errors.raceGoalTime) setErrors((p) => ({ ...p, raceGoalTime: '' })) }}
-                placeholder="e.g. 1:45:00"
-                style={{ ...inputStyle, borderColor: errors.raceGoalTime ? '#ef4444' : undefined }}
-              />
-              {errors.raceGoalTime
-                ? <div style={errorStyle}>{errors.raceGoalTime}</div>
-                : <div style={{ fontSize: 10, color: 'var(--color-text-tertiary)', marginTop: 3 }}>H:MM:SS or M:SS format</div>
-              }
+              <label style={labelStyle}>
+                Goal time{!canAutoCalc && ' — optional'}
+              </label>
+              {canAutoCalc && paceMode === 'pace' ? (
+                <div style={{
+                  ...inputStyle,
+                  display: 'flex', alignItems: 'center',
+                  color: 'var(--color-text-tertiary)',
+                  opacity: 0.8,
+                  pointerEvents: 'none',
+                }}>
+                  {calculatedGoalTime || '—'}
+                  <span style={{ marginLeft: 6, fontSize: 10 }}>calculated</span>
+                </div>
+              ) : (
+                <>
+                  <input
+                    type="text"
+                    value={raceGoalTime}
+                    onChange={(e) => { setRaceGoalTime(e.target.value); if (errors.raceGoalTime) setErrors((p) => ({ ...p, raceGoalTime: '' })) }}
+                    placeholder="e.g. 1:45:00"
+                    style={{ ...inputStyle, borderColor: errors.raceGoalTime ? '#ef4444' : undefined }}
+                  />
+                  {errors.raceGoalTime
+                    ? <div style={errorStyle}>{errors.raceGoalTime}</div>
+                    : !canAutoCalc && <div style={{ fontSize: 10, color: 'var(--color-text-tertiary)', marginTop: 3 }}>H:MM:SS or M:SS format</div>
+                  }
+                </>
+              )}
             </div>
           </>
         )}

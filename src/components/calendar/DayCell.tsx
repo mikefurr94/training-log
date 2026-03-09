@@ -138,16 +138,6 @@ export default function DayCell({
     )
   }
 
-  // Confetti dot positions for race day decoration
-  const confettiDots: { style: React.CSSProperties }[] = [
-    { style: { top: '12%', left: '6%', width: 4, height: 4, background: 'var(--color-race-gradient-start)', opacity: 0.35 } },
-    { style: { top: '22%', right: '10%', width: 3, height: 3, background: 'var(--color-accent)', opacity: 0.25 } },
-    { style: { bottom: '18%', left: '12%', width: 3, height: 3, background: 'var(--color-race-gradient-end)', opacity: 0.30 } },
-    { style: { bottom: '8%', right: '6%', width: 4, height: 4, background: 'var(--color-race-gradient-start)', opacity: 0.20 } },
-    { style: { top: '45%', right: '4%', width: 2.5, height: 2.5, background: '#22c55e', opacity: 0.22 } },
-    { style: { top: '6%', left: '40%', width: 3, height: 3, background: 'var(--color-race-gradient-end)', opacity: 0.22 } },
-  ]
-
   return (
     <div
       onDragOver={handleDragOver}
@@ -157,9 +147,7 @@ export default function DayCell({
       onMouseLeave={() => setIsHovered(false)}
       style={{
         padding: compact ? '4px 5px' : '6px 8px',
-        background: isRaceDay
-          ? 'var(--color-race-bg)'
-          : today
+        background: today
           ? 'var(--color-today-bg)'
           : outsideMonth
           ? 'var(--color-outside-month)'
@@ -176,132 +164,10 @@ export default function DayCell({
         outlineOffset: -2,
         position: 'relative',
         boxShadow: isRaceDay
-          ? `inset 0 3px 0 0 var(--color-race-gradient-start), 0 0 0 1px var(--color-race-glow)`
+          ? `0 0 0 2px var(--color-race-gradient-start) inset`
           : 'none',
       }}
     >
-      {/* Race day confetti dots */}
-      {isRaceDay && confettiDots.map((dot, i) => (
-        <div
-          key={i}
-          style={{
-            position: 'absolute',
-            borderRadius: '50%',
-            pointerEvents: 'none',
-            ...dot.style,
-          }}
-        />
-      ))}
-
-      {/* Race day banner — shown for planned Race activities */}
-      {plannedRace && (
-        <button
-          onClick={(e) => { e.stopPropagation(); openPlannedPanel(plannedRace, dateKey) }}
-          draggable
-          onDragStart={(e) => {
-            e.dataTransfer.setData('text/plain', JSON.stringify({ activityId: plannedRace.id, fromDate: dateKey }))
-            e.dataTransfer.effectAllowed = 'move'
-          }}
-          style={{
-            display: 'flex',
-            flexDirection: 'column',
-            gap: 3,
-            padding: '4px 6px',
-            borderRadius: 6,
-            background: `linear-gradient(135deg, var(--color-race-gradient-start), var(--color-race-gradient-end))`,
-            border: 'none',
-            cursor: 'pointer',
-            width: '100%',
-            textAlign: 'left',
-            boxShadow: '0 2px 8px var(--color-race-glow)',
-            flexShrink: 0,
-            position: 'relative',
-            zIndex: 1,
-          }}
-        >
-          {/* RACE DAY label */}
-          <div style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 3,
-            fontSize: 8,
-            fontWeight: 700,
-            color: 'rgba(255,255,255,0.92)',
-            letterSpacing: '0.1em',
-            textTransform: 'uppercase',
-            lineHeight: 1,
-          }}>
-            <span style={{ fontSize: 9 }}>🏁</span>
-            RACE DAY
-          </div>
-          {/* Race name */}
-          {plannedRace.type === 'Race' && plannedRace.name && (
-            <div style={{
-              fontSize: 10,
-              fontWeight: 600,
-              color: '#fff',
-              whiteSpace: 'nowrap',
-              overflow: 'hidden',
-              textOverflow: 'ellipsis',
-              lineHeight: 1.2,
-            }}>
-              {plannedRace.name}
-            </div>
-          )}
-          {/* Distance + pace pills */}
-          <div style={{ display: 'flex', gap: 3, flexWrap: 'wrap' }}>
-            {plannedRace.type === 'Race' && plannedRace.distance && (
-              <span style={{
-                padding: '1px 5px',
-                borderRadius: 99,
-                background: 'rgba(255,255,255,0.22)',
-                color: '#fff',
-                fontSize: 8,
-                fontWeight: 600,
-                lineHeight: 1.4,
-              }}>
-                {plannedRace.distance}
-              </span>
-            )}
-            {plannedRace.type === 'Race' && plannedRace.targetPace && (
-              <span style={{
-                padding: '1px 5px',
-                borderRadius: 99,
-                background: 'rgba(255,255,255,0.22)',
-                color: '#fff',
-                fontSize: 8,
-                fontWeight: 600,
-                lineHeight: 1.4,
-              }}>
-                {plannedRace.targetPace}/mi
-              </span>
-            )}
-          </div>
-        </button>
-      )}
-
-      {/* Key date race banner (only shown when no planned Race activity) */}
-      {!plannedRace && hasKeyDateRace && (
-        <div style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          gap: 3,
-          background: `linear-gradient(135deg, var(--color-race-gradient-start), var(--color-race-gradient-end))`,
-          borderRadius: 4,
-          padding: '2px 6px',
-          fontSize: 9,
-          fontWeight: 700,
-          color: '#fff',
-          letterSpacing: '0.07em',
-          textTransform: 'uppercase',
-          flexShrink: 0,
-          boxShadow: '0 1px 4px var(--color-race-glow)',
-        }}>
-          🏁 Race Day
-        </div>
-      )}
-
       {/* Date number + weather + add button */}
       <div style={{
         display: 'flex',
@@ -373,6 +239,104 @@ export default function DayCell({
           )}
         </div>
       </div>
+
+      {/* Race day banner — shown for planned Race activities */}
+      {plannedRace && (
+        <button
+          onClick={(e) => { e.stopPropagation(); openPlannedPanel(plannedRace, dateKey) }}
+          draggable
+          onDragStart={(e) => {
+            e.dataTransfer.setData('text/plain', JSON.stringify({ activityId: plannedRace.id, fromDate: dateKey }))
+            e.dataTransfer.effectAllowed = 'move'
+          }}
+          style={{
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 4,
+            padding: '5px 7px',
+            borderRadius: 7,
+            background: 'var(--color-race-gradient-start)',
+            border: 'none',
+            cursor: 'pointer',
+            width: '100%',
+            textAlign: 'left',
+            flexShrink: 0,
+            position: 'relative',
+            zIndex: 1,
+          }}
+        >
+          {/* Race name (or "Race Day" fallback) */}
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 3,
+            lineHeight: 1,
+          }}>
+            <span style={{ fontSize: 11, flexShrink: 0 }}>🏁</span>
+            <span style={{
+              fontSize: 11,
+              fontWeight: 700,
+              color: '#fff',
+              whiteSpace: 'nowrap',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+            }}>
+              {plannedRace.type === 'Race' && plannedRace.name ? plannedRace.name : 'Race Day'}
+            </span>
+          </div>
+          {/* Distance + goal time chips */}
+          {plannedRace.type === 'Race' && (plannedRace.distance || plannedRace.goalTime || plannedRace.targetPace) && (
+            <div style={{ display: 'flex', gap: 3, flexWrap: 'wrap' }}>
+              {plannedRace.distance && (
+                <span style={{
+                  padding: '1px 5px',
+                  borderRadius: 99,
+                  background: 'rgba(0,0,0,0.15)',
+                  color: '#fff',
+                  fontSize: 8,
+                  fontWeight: 600,
+                  lineHeight: 1.4,
+                }}>
+                  {plannedRace.distance}
+                </span>
+              )}
+              {(plannedRace.goalTime || plannedRace.targetPace) && (
+                <span style={{
+                  padding: '1px 5px',
+                  borderRadius: 99,
+                  background: 'rgba(0,0,0,0.15)',
+                  color: '#fff',
+                  fontSize: 8,
+                  fontWeight: 600,
+                  lineHeight: 1.4,
+                }}>
+                  {plannedRace.goalTime ?? `${plannedRace.targetPace}/mi`}
+                </span>
+              )}
+            </div>
+          )}
+        </button>
+      )}
+
+      {/* Key date race banner (only shown when no planned Race activity) */}
+      {!plannedRace && hasKeyDateRace && (
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          gap: 3,
+          background: 'var(--color-race-gradient-start)',
+          borderRadius: 5,
+          padding: '3px 7px',
+          fontSize: 10,
+          fontWeight: 700,
+          color: '#fff',
+          letterSpacing: '0.04em',
+          flexShrink: 0,
+        }}>
+          🏁 Race Day
+        </div>
+      )}
 
       {/* Key date event badges (non-race key dates shown normally) */}
       {!compact && dayKeyDates.length > 0 && dayKeyDates.filter(kd => kd.type !== 'race').map((kd) => (
