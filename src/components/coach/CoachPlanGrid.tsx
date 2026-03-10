@@ -5,7 +5,15 @@ import type { CoachPlan, CoachPlanWeek, WeekDayIndex, PlannedActivity } from '..
 import { getPlannedActivityEmoji } from '../../utils/planningUtils'
 import { parseISO, startOfWeek, format, isWithinInterval, addDays } from 'date-fns'
 
-const DAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
+// Monday-first display order: Mon=1, Tue=2, Wed=3, Thu=4, Fri=5, Sat=6, Sun=0
+const MONDAY_FIRST_ORDER: WeekDayIndex[] = [1, 2, 3, 4, 5, 6, 0]
+const DAY_LABELS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
+
+type SelectedActivity = {
+  week: CoachPlanWeek
+  dayIndex: WeekDayIndex
+  activity: PlannedActivity
+}
 
 interface Props {
   plan: CoachPlan
@@ -18,6 +26,7 @@ export default function CoachPlanGrid({ plan }: Props) {
   const clearWeekOverride = useAppStore((s) => s.clearWeekOverride)
   const weekOverrides = useAppStore((s) => s.weekOverrides)
   const [expandedWeek, setExpandedWeek] = useState<number | null>(null)
+  const [selectedActivity, setSelectedActivity] = useState<SelectedActivity | null>(null)
 
   // Determine current week
   const today = new Date()
@@ -57,16 +66,24 @@ export default function CoachPlanGrid({ plan }: Props) {
 
   if (isMobile) {
     return (
-      <MobileGrid
-        plan={plan}
-        expandedWeek={expandedWeek}
-        setExpandedWeek={setExpandedWeek}
-        isCurrentWeek={isCurrentWeek}
-        isWeekOnCalendar={isWeekOnCalendar}
-        addWeekToCalendar={addWeekToCalendar}
-        removeWeekFromCalendar={removeWeekFromCalendar}
-        addDayToCalendar={addDayToCalendar}
-      />
+      <>
+        <MobileGrid
+          plan={plan}
+          expandedWeek={expandedWeek}
+          setExpandedWeek={setExpandedWeek}
+          isCurrentWeek={isCurrentWeek}
+          isWeekOnCalendar={isWeekOnCalendar}
+          addWeekToCalendar={addWeekToCalendar}
+          removeWeekFromCalendar={removeWeekFromCalendar}
+          addDayToCalendar={addDayToCalendar}
+          onActivityClick={setSelectedActivity}
+        />
+        <WorkoutDetailPanel
+          data={selectedActivity}
+          onClose={() => setSelectedActivity(null)}
+          isMobile={true}
+        />
+      </>
     )
   }
 
@@ -126,14 +143,16 @@ export default function CoachPlanGrid({ plan }: Props) {
                 }}>{formatWeekDate(week.weekStart)}</div>
               </div>
 
-              {/* Day cells */}
-              {[0, 1, 2, 3, 4, 5, 6].map((d) => {
-                const activities = week.days[d as WeekDayIndex] ?? []
+              {/* Day cells - Monday first */}
+              {MONDAY_FIRST_ORDER.map((dayIdx, i) => {
+                const activities = week.days[dayIdx] ?? []
                 return (
                   <DayCell
-                    key={d}
+                    key={dayIdx}
                     activities={activities}
-                    onAddDay={() => addDayToCalendar(week, d as WeekDayIndex)}
+                    onAddDay={() => addDayToCalendar(week, dayIdx)}
+                    onActivityClick={(activity) => setSelectedActivity({ week, dayIndex: dayIdx, activity })}
+                    isLast={i === 6}
                   />
                 )
               })}
@@ -176,6 +195,13 @@ export default function CoachPlanGrid({ plan }: Props) {
           )
         })}
       </div>
+
+      {/* Workout detail panel */}
+      <WorkoutDetailPanel
+        data={selectedActivity}
+        onClose={() => setSelectedActivity(null)}
+        isMobile={false}
+      />
     </div>
   )
 }
@@ -226,9 +252,13 @@ function InfoChip({ label, value }: { label: string; value: string }) {
 function DayCell({
   activities,
   onAddDay,
+  onActivityClick,
+  isLast,
 }: {
   activities: PlannedActivity[]
   onAddDay: () => void
+  onActivityClick: (activity: PlannedActivity) => void
+  isLast?: boolean
 }) {
   const [hovered, setHovered] = useState(false)
 
@@ -238,7 +268,7 @@ function DayCell({
       onMouseLeave={() => setHovered(false)}
       style={{
         padding: '6px 4px', minHeight: 56,
-        borderRight: '1px solid var(--color-border)',
+        borderRight: isLast ? undefined : '1px solid var(--color-border)',
         position: 'relative',
         display: 'flex', flexDirection: 'column', gap: 2,
       }}
@@ -247,7 +277,7 @@ function DayCell({
         <span style={{ fontSize: 10, color: 'var(--color-text-tertiary)', textAlign: 'center', marginTop: 8 }}>—</span>
       ) : (
         activities.map((a) => (
-          <ActivityPill key={a.id} activity={a} />
+          <ActivityPill key={a.id} activity={a} onClick={() => onActivityClick(a)} />
         ))
       )}
       {hovered && activities.length > 0 && (
@@ -268,7 +298,7 @@ function DayCell({
   )
 }
 
-function ActivityPill({ activity }: { activity: PlannedActivity }) {
+function ActivityPill({ activity, onClick }: { activity: PlannedActivity; onClick?: () => void }) {
   const emoji = getPlannedActivityEmoji(activity)
   let label: string = activity.type
   let detail = ''
@@ -285,12 +315,19 @@ function ActivityPill({ activity }: { activity: PlannedActivity }) {
   const isRest = activity.type === 'Rest'
 
   return (
-    <div style={{
-      display: 'flex', alignItems: 'center', gap: 3,
-      padding: '2px 5px', borderRadius: 4,
-      background: isRest ? 'transparent' : 'var(--color-bg)',
-      fontSize: 10,
-    }}>
+    <div
+      onClick={onClick}
+      style={{
+        display: 'flex', alignItems: 'center', gap: 3,
+        padding: '2px 5px', borderRadius: 4,
+        background: isRest ? 'transparent' : 'var(--color-bg)',
+        fontSize: 10,
+        cursor: onClick && !isRest ? 'pointer' : 'default',
+        transition: 'opacity 120ms',
+      }}
+      onMouseEnter={(e) => { if (onClick && !isRest) (e.currentTarget as HTMLElement).style.opacity = '0.75' }}
+      onMouseLeave={(e) => { if (onClick && !isRest) (e.currentTarget as HTMLElement).style.opacity = '1' }}
+    >
       <span style={{ fontSize: 10 }}>{emoji}</span>
       <span style={{
         fontWeight: 600,
@@ -304,6 +341,163 @@ function ActivityPill({ activity }: { activity: PlannedActivity }) {
   )
 }
 
+// ── Workout Detail Panel ─────────────────────────────────────────────────────
+
+function WorkoutDetailPanel({
+  data,
+  onClose,
+  isMobile,
+}: {
+  data: SelectedActivity | null
+  onClose: () => void
+  isMobile: boolean
+}) {
+  if (!data) return null
+
+  const { week, dayIndex, activity } = data
+  const emoji = getPlannedActivityEmoji(activity)
+  const dayName = DAY_LABELS[MONDAY_FIRST_ORDER.indexOf(dayIndex)]
+
+  const panelStyle: React.CSSProperties = isMobile ? {
+    position: 'fixed', left: 0, right: 0, bottom: 0,
+    background: 'var(--color-surface)',
+    borderTop: '1px solid var(--color-border)',
+    borderRadius: 'var(--radius-md) var(--radius-md) 0 0',
+    boxShadow: '0 -4px 24px rgba(0,0,0,0.15)',
+    zIndex: 200,
+    padding: '20px 16px 32px',
+    maxHeight: '70vh',
+    overflowY: 'auto',
+  } : {
+    position: 'fixed', top: 0, right: 0, bottom: 0,
+    width: 320,
+    background: 'var(--color-surface)',
+    borderLeft: '1px solid var(--color-border)',
+    boxShadow: '-4px 0 24px rgba(0,0,0,0.10)',
+    zIndex: 200,
+    padding: '20px 20px 32px',
+    overflowY: 'auto',
+  }
+
+  return (
+    <>
+      {/* Backdrop */}
+      <div
+        onClick={onClose}
+        style={{
+          position: 'fixed', inset: 0, zIndex: 199,
+          background: 'rgba(0,0,0,0.15)',
+        }}
+      />
+      <div style={panelStyle}>
+        {/* Header */}
+        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 20 }}>
+          <div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+              <span style={{ fontSize: 24 }}>{emoji}</span>
+              <span style={{ fontSize: 18, fontWeight: 700, color: 'var(--color-text-primary)' }}>
+                {getActivityTitle(activity)}
+              </span>
+            </div>
+            <div style={{ fontSize: 12, color: 'var(--color-text-tertiary)' }}>
+              {dayName} · Week {week.weekNumber} — {week.label}
+            </div>
+          </div>
+          <button
+            onClick={onClose}
+            style={{
+              width: 28, height: 28, borderRadius: '50%',
+              border: '1px solid var(--color-border)',
+              background: 'transparent', cursor: 'pointer',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              color: 'var(--color-text-secondary)', flexShrink: 0,
+            }}
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <line x1="18" y1="6" x2="6" y2="18" />
+              <line x1="6" y1="6" x2="18" y2="18" />
+            </svg>
+          </button>
+        </div>
+
+        {/* Details */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+          {activity.type === 'Run' && (
+            <>
+              <DetailRow label="Distance" value={`${activity.targetDistance} miles`} />
+              {activity.targetPace && activity.targetPace !== '0:00' && (
+                <DetailRow label="Target Pace" value={`${activity.targetPace} /mi`} />
+              )}
+            </>
+          )}
+
+          {activity.type === 'WeightTraining' && (
+            <DetailRow label="Workout Type" value={activity.workoutType} />
+          )}
+
+          {activity.type === 'Race' && (
+            <>
+              {activity.name && <DetailRow label="Race Name" value={activity.name} />}
+              {(activity as { type: 'Race'; name?: string; distance?: string; goalTime?: string; notes?: string }).distance && (
+                <DetailRow label="Distance" value={(activity as { type: 'Race'; name?: string; distance?: string; goalTime?: string; notes?: string }).distance!} />
+              )}
+              {(activity as { type: 'Race'; name?: string; distance?: string; goalTime?: string; notes?: string }).goalTime && (
+                <DetailRow label="Goal Time" value={(activity as { type: 'Race'; name?: string; distance?: string; goalTime?: string; notes?: string }).goalTime!} />
+              )}
+            </>
+          )}
+
+          {activity.notes && (
+            <div style={{
+              padding: '10px 12px',
+              background: 'var(--color-bg)',
+              borderRadius: 'var(--radius-sm)',
+              border: '1px solid var(--color-border)',
+            }}>
+              <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--color-text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6 }}>
+                Notes
+              </div>
+              <div style={{ fontSize: 13, color: 'var(--color-text-primary)', lineHeight: 1.5 }}>
+                {activity.notes}
+              </div>
+            </div>
+          )}
+
+          {activity.type === 'Rest' && (
+            <div style={{ fontSize: 13, color: 'var(--color-text-tertiary)', textAlign: 'center', padding: '16px 0' }}>
+              Recovery day — no structured workout planned.
+            </div>
+          )}
+        </div>
+      </div>
+    </>
+  )
+}
+
+function DetailRow({ label, value }: { label: string; value: string }) {
+  return (
+    <div style={{
+      display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+      padding: '8px 0', borderBottom: '1px solid var(--color-border-light, rgba(0,0,0,0.06))',
+    }}>
+      <span style={{ fontSize: 12, color: 'var(--color-text-tertiary)', fontWeight: 600 }}>{label}</span>
+      <span style={{ fontSize: 13, color: 'var(--color-text-primary)', fontWeight: 500 }}>{value}</span>
+    </div>
+  )
+}
+
+function getActivityTitle(activity: PlannedActivity): string {
+  switch (activity.type) {
+    case 'Run': return 'Run'
+    case 'WeightTraining': return 'Weight Training'
+    case 'Yoga': return 'Yoga'
+    case 'Tennis': return 'Tennis'
+    case 'Race': return activity.name || 'Race'
+    case 'Rest': return 'Rest Day'
+    default: return (activity as PlannedActivity).type
+  }
+}
+
 // ── Mobile Grid ─────────────────────────────────────────────────────────────
 
 function MobileGrid({
@@ -315,6 +509,7 @@ function MobileGrid({
   addWeekToCalendar,
   removeWeekFromCalendar,
   addDayToCalendar,
+  onActivityClick,
 }: {
   plan: CoachPlan
   expandedWeek: number | null
@@ -324,6 +519,7 @@ function MobileGrid({
   addWeekToCalendar: (w: CoachPlanWeek) => void
   removeWeekFromCalendar: (w: CoachPlanWeek) => void
   addDayToCalendar: (w: CoachPlanWeek, d: WeekDayIndex) => void
+  onActivityClick: (data: SelectedActivity) => void
 }) {
   return (
     <div style={{ flex: 1, overflow: 'auto', padding: '12px' }}>
@@ -378,28 +574,34 @@ function MobileGrid({
                 <div style={{
                   borderTop: '1px solid var(--color-border)', padding: '8px 12px 12px',
                 }}>
-                  {[0, 1, 2, 3, 4, 5, 6].map((d) => {
-                    const activities = week.days[d as WeekDayIndex] ?? []
+                  {MONDAY_FIRST_ORDER.map((dayIdx, i) => {
+                    const activities = week.days[dayIdx] ?? []
                     return (
-                      <div key={d} style={{
+                      <div key={dayIdx} style={{
                         display: 'flex', alignItems: 'center', gap: 8,
                         padding: '6px 0',
-                        borderBottom: d < 6 ? '1px solid var(--color-border-light, rgba(0,0,0,0.06))' : undefined,
+                        borderBottom: i < 6 ? '1px solid var(--color-border-light, rgba(0,0,0,0.06))' : undefined,
                       }}>
                         <span style={{
                           width: 28, fontSize: 10, fontWeight: 600,
                           color: 'var(--color-text-tertiary)', flexShrink: 0,
-                        }}>{DAY_LABELS[d]}</span>
+                        }}>{DAY_LABELS[i]}</span>
                         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 2 }}>
                           {activities.length === 0 ? (
                             <span style={{ fontSize: 11, color: 'var(--color-text-tertiary)' }}>—</span>
                           ) : (
-                            activities.map((a) => <ActivityPill key={a.id} activity={a} />)
+                            activities.map((a) => (
+                              <ActivityPill
+                                key={a.id}
+                                activity={a}
+                                onClick={a.type !== 'Rest' ? () => onActivityClick({ week, dayIndex: dayIdx, activity: a }) : undefined}
+                              />
+                            ))
                           )}
                         </div>
                         {activities.length > 0 && (
                           <button
-                            onClick={() => addDayToCalendar(week, d as WeekDayIndex)}
+                            onClick={() => addDayToCalendar(week, dayIdx)}
                             style={{
                               padding: '3px 6px', borderRadius: 4,
                               fontSize: 9, fontWeight: 600,
@@ -460,11 +662,11 @@ function MobileGrid({
 function MiniWeekPreview({ week }: { week: CoachPlanWeek }) {
   return (
     <div style={{ display: 'flex', gap: 2 }}>
-      {[0, 1, 2, 3, 4, 5, 6].map((d) => {
-        const activities = week.days[d as WeekDayIndex] ?? []
+      {MONDAY_FIRST_ORDER.map((dayIdx) => {
+        const activities = week.days[dayIdx] ?? []
         const hasActivity = activities.length > 0 && activities[0].type !== 'Rest'
         return (
-          <div key={d} style={{
+          <div key={dayIdx} style={{
             width: 6, height: 6, borderRadius: '50%',
             background: hasActivity ? 'var(--color-accent)' : 'var(--color-border)',
           }} />
