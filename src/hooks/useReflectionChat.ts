@@ -181,6 +181,7 @@ export function useReflectionChat(athleteId: number | null) {
                 case 'plan_updated':
                   if (event.plan) {
                     useAppStore.getState().setCoachPlan(toCoachPlan(event.plan))
+                    useAppStore.getState().setCoachView('plan')
                   }
                   break
                 case 'error':

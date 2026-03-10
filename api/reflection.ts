@@ -672,7 +672,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       while (continueLoop) {
         const stream = anthropic.messages.stream({
           model: 'claude-sonnet-4-6',
-          max_tokens: 4096,
+          max_tokens: 16384,
           system: buildSystemPrompt(),
           tools: TOOLS,
           messages: claudeMessages,
