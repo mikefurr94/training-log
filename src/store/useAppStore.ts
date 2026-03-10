@@ -19,6 +19,8 @@ import type {
   HabitView,
   ActiveApp,
   ThemeMode,
+  CoachView,
+  CoachPlan,
 } from './types'
 import type { CalendarView } from '../utils/dateUtils'
 
@@ -84,6 +86,30 @@ export const useAppStore = create<AppStore>()(
 
       appMode: 'calendar' as AppMode,
       setAppMode: (mode: AppMode) => set({ appMode: mode }),
+
+      coachView: 'chat' as CoachView,
+      setCoachView: (view: CoachView) => set({ coachView: view }),
+
+      // ── Coach plan ─────────────────────────────────────────────────
+      coachPlan: null as CoachPlan | null,
+
+      setCoachPlan: (plan: CoachPlan | null) => set({ coachPlan: plan }),
+
+      updateCoachPlanWeek: (weekNumber: number, days: Partial<Record<WeekDayIndex, PlannedActivity[]>>, label?: string) => {
+        const { coachPlan } = get()
+        if (!coachPlan) return
+        set({
+          coachPlan: {
+            ...coachPlan,
+            weeks: coachPlan.weeks.map((w) =>
+              w.weekNumber === weekNumber
+                ? { ...w, days: { ...w.days, ...days }, ...(label ? { label } : {}) }
+                : w
+            ),
+            updatedAt: new Date().toISOString(),
+          },
+        })
+      },
 
       // ── Calendar navigation ───────────────────────────────────────────
       currentView: 'month',
@@ -442,6 +468,8 @@ export const useAppStore = create<AppStore>()(
         currentView: state.currentView,
         activeApp: state.activeApp,
         appMode: state.appMode,
+        coachView: state.coachView,
+        coachPlan: state.coachPlan,
         distanceUnit: state.distanceUnit,
         enabledTypes: state.enabledTypes,
         showPlan: state.showPlan,
@@ -460,6 +488,10 @@ export const useAppStore = create<AppStore>()(
         // Migrate: 'planner' mode was removed, fall back to 'calendar'
         if (state && (state as any).appMode === 'planner') {
           state.appMode = 'calendar'
+        }
+        // Migrate: 'reflection' renamed to 'coach'
+        if (state && (state as any).activeApp === 'reflection') {
+          state.activeApp = 'coach'
         }
       },
     }

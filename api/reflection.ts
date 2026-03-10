@@ -46,6 +46,83 @@ const TOOLS: Anthropic.Tool[] = [
     },
   },
   {
+    name: 'get_training_plan',
+    description: 'Get the athlete\'s current active training plan. Returns the full plan including race details, preferences, and all weeks with daily activities. Returns null if no active plan exists.',
+    input_schema: {
+      type: 'object' as const,
+      properties: {},
+      required: [],
+    },
+  },
+  {
+    name: 'save_training_plan',
+    description: 'Save a structured multi-week training plan. Archives any existing active plan and creates a new one. Each week should have activities for each day using the PlannedActivity types: Run (with targetDistance in miles, targetPace as "MM:SS"), WeightTraining (with workoutType: Upper Body/Lower Body/Full Body/Core/Push/Pull/Legs), Yoga, Tennis, Rest, or Race.',
+    input_schema: {
+      type: 'object' as const,
+      properties: {
+        name: { type: 'string', description: 'Plan name, e.g. "Brooklyn Half Marathon Plan"' },
+        raceName: { type: 'string', description: 'Race name' },
+        raceDate: { type: 'string', description: 'Race date in YYYY-MM-DD format' },
+        raceDistance: { type: 'string', description: 'Race distance (5K, 10 Miler, Half Marathon, Marathon)' },
+        goalTime: { type: 'string', description: 'Goal time in H:MM:SS format' },
+        preferences: {
+          type: 'object',
+          description: 'Training preferences',
+          properties: {
+            runDaysPerWeek: { type: 'number' },
+            liftDaysPerWeek: { type: 'number' },
+            planWeeks: { type: 'number' },
+            currentWeeklyMileage: { type: 'number' },
+            experienceLevel: { type: 'string', enum: ['beginner', 'intermediate', 'advanced'] },
+            notes: { type: 'string' },
+          },
+          required: ['runDaysPerWeek', 'liftDaysPerWeek', 'planWeeks'],
+        },
+        weeks: {
+          type: 'array',
+          description: 'Array of week objects, each with weekNumber, weekStart (YYYY-MM-DD), label (phase name), and days (Record of day index 0-6 → PlannedActivity[]). Day 0 = Sunday.',
+          items: {
+            type: 'object',
+            properties: {
+              weekNumber: { type: 'number' },
+              weekStart: { type: 'string', description: 'YYYY-MM-DD of the Sunday starting this week' },
+              label: { type: 'string', description: 'Phase label like "Base Building", "Speed Work", "Taper"' },
+              days: {
+                type: 'object',
+                description: 'Record mapping day index (0=Sun, 1=Mon, ..., 6=Sat) to arrays of PlannedActivity objects. Each activity needs an id (8-char random string), type, and type-specific fields.',
+              },
+            },
+            required: ['weekNumber', 'weekStart', 'label', 'days'],
+          },
+        },
+      },
+      required: ['name', 'weeks'],
+    },
+  },
+  {
+    name: 'update_training_plan',
+    description: 'Update specific weeks in the athlete\'s active training plan. Merges the provided week updates into the existing plan.',
+    input_schema: {
+      type: 'object' as const,
+      properties: {
+        updates: {
+          type: 'array',
+          description: 'Array of week updates to merge into the plan',
+          items: {
+            type: 'object',
+            properties: {
+              weekNumber: { type: 'number', description: 'Which week to update (1-based)' },
+              days: { type: 'object', description: 'Partial or full days record to merge' },
+              label: { type: 'string', description: 'Optional new label for this week' },
+            },
+            required: ['weekNumber'],
+          },
+        },
+      },
+      required: ['updates'],
+    },
+  },
+  {
     name: 'render_chart',
     description: 'Render an inline chart in the chat. Use this to create visual data representations. The chart will be displayed directly in the conversation. Always prefer charts when the user asks to "plot", "show", "graph", or "visualize" data.',
     input_schema: {
@@ -265,10 +342,155 @@ async function executeGetHabitData(athleteId: number, input: ToolInput): Promise
   })
 }
 
+// ── Training Plan Tool Execution ────────────────────────────────────────────
+
+async function executeGetTrainingPlan(athleteId: number): Promise<string> {
+  const { data, error } = await supabase
+    .from('coach_plans')
+    .select('*')
+    .eq('athlete_id', athleteId)
+    .eq('status', 'active')
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle()
+
+  if (error) return JSON.stringify({ error: error.message })
+  if (!data) return JSON.stringify({ plan: null, message: 'No active training plan found.' })
+
+  return JSON.stringify({
+    plan: {
+      id: data.id,
+      name: data.name,
+      raceName: data.race_name,
+      raceDate: data.race_date,
+      raceDistance: data.race_distance,
+      goalTime: data.goal_time,
+      preferences: data.preferences,
+      weeks: data.weeks,
+      status: data.status,
+      conversationId: data.conversation_id,
+      createdAt: data.created_at,
+      updatedAt: data.updated_at,
+    },
+  })
+}
+
+async function executeSaveTrainingPlan(
+  athleteId: number,
+  input: ToolInput,
+  conversationId: string | null,
+): Promise<{ result: string; plan: ToolInput | null }> {
+  // Archive any existing active plan
+  await supabase
+    .from('coach_plans')
+    .update({ status: 'archived' })
+    .eq('athlete_id', athleteId)
+    .eq('status', 'active')
+
+  // Insert new plan
+  const { data, error } = await supabase
+    .from('coach_plans')
+    .insert({
+      athlete_id: athleteId,
+      name: input.name,
+      race_name: input.raceName ?? null,
+      race_date: input.raceDate ?? null,
+      race_distance: input.raceDistance ?? null,
+      goal_time: input.goalTime ?? null,
+      preferences: input.preferences ?? {},
+      weeks: input.weeks ?? [],
+      status: 'active',
+      conversation_id: conversationId,
+    })
+    .select()
+    .single()
+
+  if (error) return { result: JSON.stringify({ error: error.message }), plan: null }
+
+  const plan = {
+    id: data.id,
+    athleteId: data.athlete_id,
+    name: data.name,
+    raceName: data.race_name,
+    raceDate: data.race_date,
+    raceDistance: data.race_distance,
+    goalTime: data.goal_time,
+    preferences: data.preferences,
+    weeks: data.weeks,
+    status: data.status,
+    conversationId: data.conversation_id,
+    createdAt: data.created_at,
+    updatedAt: data.updated_at,
+  }
+
+  return {
+    result: JSON.stringify({ success: true, planId: data.id, message: 'Training plan saved successfully.' }),
+    plan,
+  }
+}
+
+async function executeUpdateTrainingPlan(
+  athleteId: number,
+  input: ToolInput,
+): Promise<{ result: string; plan: ToolInput | null }> {
+  // Load current plan
+  const { data: current, error: loadErr } = await supabase
+    .from('coach_plans')
+    .select('*')
+    .eq('athlete_id', athleteId)
+    .eq('status', 'active')
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle()
+
+  if (loadErr) return { result: JSON.stringify({ error: loadErr.message }), plan: null }
+  if (!current) return { result: JSON.stringify({ error: 'No active plan to update.' }), plan: null }
+
+  // Merge updates into weeks
+  const weeks = [...(current.weeks ?? [])]
+  for (const update of input.updates ?? []) {
+    const idx = weeks.findIndex((w: ToolInput) => w.weekNumber === update.weekNumber)
+    if (idx >= 0) {
+      if (update.days) weeks[idx].days = { ...weeks[idx].days, ...update.days }
+      if (update.label) weeks[idx].label = update.label
+    }
+  }
+
+  const { data, error } = await supabase
+    .from('coach_plans')
+    .update({ weeks, updated_at: new Date().toISOString() })
+    .eq('id', current.id)
+    .select()
+    .single()
+
+  if (error) return { result: JSON.stringify({ error: error.message }), plan: null }
+
+  const plan = {
+    id: data.id,
+    athleteId: data.athlete_id,
+    name: data.name,
+    raceName: data.race_name,
+    raceDate: data.race_date,
+    raceDistance: data.race_distance,
+    goalTime: data.goal_time,
+    preferences: data.preferences,
+    weeks: data.weeks,
+    status: data.status,
+    conversationId: data.conversation_id,
+    createdAt: data.created_at,
+    updatedAt: data.updated_at,
+  }
+
+  return {
+    result: JSON.stringify({ success: true, message: 'Training plan updated successfully.' }),
+    plan,
+  }
+}
+
 // ── System Prompt ───────────────────────────────────────────────────────────
 
 function buildSystemPrompt(): string {
-  return `You are a training analyst helping an athlete reflect on their workout data. You have access to their Strava activity data, habit tracking data, and can create charts.
+  return `You are a training coach helping an athlete with their workouts and training plans. You have access to their Strava activity data, habit tracking data, training plan tools, and can create charts.
 
 Key guidelines:
 - Be concise and insightful. Focus on actionable observations.
@@ -281,7 +503,26 @@ Key guidelines:
 - When the user says "this year" use Jan 1 of the current year to today.
 - When the user says "last N weeks" calculate the date range from today.
 - If no date range is specified, default to the last 8 weeks.
-- Pick good chart colors: use #6366f1 (indigo) for primary metrics, #f59e0b (amber) for secondary, #10b981 (green) for positive indicators, #ef4444 (red) for intensity/HR.`
+- Pick good chart colors: use #6366f1 (indigo) for primary metrics, #f59e0b (amber) for secondary, #10b981 (green) for positive indicators, #ef4444 (red) for intensity/HR.
+
+Training Plan guidelines:
+- The athlete may have an active training plan. Use get_training_plan to check.
+- When asked to create a training plan, generate a week-by-week schedule using save_training_plan.
+- Each day should have PlannedActivity objects matching the app's type system:
+  - Run: { id: "8-char", type: "Run", targetDistance: number (miles), targetPace: "MM:SS" }
+  - WeightTraining: { id: "8-char", type: "WeightTraining", workoutType: "Upper Body"|"Lower Body"|"Full Body"|"Core"|"Push"|"Pull"|"Legs" }
+  - Yoga: { id: "8-char", type: "Yoga" }
+  - Tennis: { id: "8-char", type: "Tennis" }
+  - Rest: { id: "8-char", type: "Rest" }
+  - Race: { id: "8-char", type: "Race", name: "...", distance: "Half Marathon", goalTime: "H:MM:SS", targetPace: "MM:SS" }
+- Each activity needs a unique 8-character alphanumeric id.
+- Day indices: 0=Sunday, 1=Monday, 2=Tuesday, 3=Wednesday, 4=Thursday, 5=Friday, 6=Saturday.
+- weekStart should be the Sunday starting each week, in YYYY-MM-DD format.
+- For plan generation, work backwards from the race date to determine week starts.
+- Use progressive overload: gradually increase mileage, add intensity in middle weeks, taper before race.
+- Include rest days, easy runs, tempo runs, long runs, and speed work as appropriate for the experience level.
+- When asked about progress against the plan, use get_training_plan + get_activities to compare actual vs planned.
+- When asked to adjust the plan, use update_training_plan to modify specific weeks.`
 }
 
 // ── SSE Helpers ──────────────────────────────────────────────────────────────
@@ -457,6 +698,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 get_activities: 'Loading activities...',
                 get_habit_data: 'Checking habit data...',
                 render_chart: 'Creating chart...',
+                get_training_plan: 'Loading training plan...',
+                save_training_plan: 'Saving training plan...',
+                update_training_plan: 'Updating training plan...',
               }
               sseWrite(res, {
                 type: 'tool_status',
@@ -489,6 +733,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 toolResult = await executeGetActivities(athleteId, parsedInput)
               } else if (currentToolUse.name === 'get_habit_data') {
                 toolResult = await executeGetHabitData(athleteId, parsedInput)
+              } else if (currentToolUse.name === 'get_training_plan') {
+                toolResult = await executeGetTrainingPlan(athleteId)
+              } else if (currentToolUse.name === 'save_training_plan') {
+                const { result, plan } = await executeSaveTrainingPlan(athleteId, parsedInput, convId)
+                toolResult = result
+                if (plan) sseWrite(res, { type: 'plan_saved', plan })
+              } else if (currentToolUse.name === 'update_training_plan') {
+                const { result, plan } = await executeUpdateTrainingPlan(athleteId, parsedInput)
+                toolResult = result
+                if (plan) sseWrite(res, { type: 'plan_updated', plan })
               } else {
                 toolResult = JSON.stringify({ error: 'Unknown tool' })
               }

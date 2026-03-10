@@ -1,11 +1,32 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
-import type { ReflectionMessage, ReflectionConversation, ChartSpec } from '../store/types'
+import type { ReflectionMessage, ReflectionConversation, ChartSpec, CoachPlan } from '../store/types'
+import { useAppStore } from '../store/useAppStore'
 import {
   fetchConversations,
   fetchMessages,
   sendReflectionMessage,
   deleteConversationApi,
 } from '../api/reflection'
+
+// Map snake_case DB row → camelCase CoachPlan
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function toCoachPlan(raw: any): CoachPlan {
+  return {
+    id: raw.id,
+    athleteId: raw.athleteId ?? raw.athlete_id,
+    name: raw.name,
+    raceName: raw.raceName ?? raw.race_name ?? undefined,
+    raceDate: raw.raceDate ?? raw.race_date ?? undefined,
+    raceDistance: raw.raceDistance ?? raw.race_distance ?? undefined,
+    goalTime: raw.goalTime ?? raw.goal_time ?? undefined,
+    preferences: raw.preferences ?? {},
+    weeks: raw.weeks ?? [],
+    status: raw.status ?? 'active',
+    conversationId: raw.conversationId ?? raw.conversation_id ?? undefined,
+    createdAt: raw.createdAt ?? raw.created_at ?? new Date().toISOString(),
+    updatedAt: raw.updatedAt ?? raw.updated_at ?? new Date().toISOString(),
+  }
+}
 
 export function useReflectionChat(athleteId: number | null) {
   const [conversations, setConversations] = useState<ReflectionConversation[]>([])
@@ -156,6 +177,12 @@ export function useReflectionChat(athleteId: number | null) {
                   }
                   break
                 }
+                case 'plan_saved':
+                case 'plan_updated':
+                  if (event.plan) {
+                    useAppStore.getState().setCoachPlan(toCoachPlan(event.plan))
+                  }
+                  break
                 case 'error':
                   console.error('Stream error:', event.message)
                   break

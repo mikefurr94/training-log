@@ -5,7 +5,46 @@ import { useAppStore } from '../store/useAppStore'
 import { useIsMobile } from '../hooks/useIsMobile'
 import { useReflectionChat } from '../hooks/useReflectionChat'
 import InlineChart from '../components/reflection/InlineChart'
-import type { ReflectionMessage, ReflectionConversation, ChartSpec } from '../store/types'
+import PlanBuilderForm from '../components/coach/PlanBuilderForm'
+import CoachPlanGrid from '../components/coach/CoachPlanGrid'
+import type { ReflectionMessage, ReflectionConversation, CoachView } from '../store/types'
+
+// ── View Tab Bar ────────────────────────────────────────────────────────────
+
+function ViewTabBar({ view, onChangeView, hasPlan }: {
+  view: CoachView
+  onChangeView: (v: CoachView) => void
+  hasPlan: boolean
+}) {
+  const tabs: { key: CoachView; label: string; show: boolean }[] = [
+    { key: 'chat', label: 'Chat', show: true },
+    { key: 'plan', label: 'Plan', show: hasPlan },
+    { key: 'intake', label: 'New Plan', show: true },
+  ]
+
+  return (
+    <div style={{
+      display: 'flex', gap: 2, padding: '6px 12px',
+      borderBottom: '1px solid var(--color-border)',
+      background: 'var(--color-surface)', flexShrink: 0,
+    }}>
+      {tabs.filter((t) => t.show).map((t) => (
+        <button
+          key={t.key}
+          onClick={() => onChangeView(t.key)}
+          style={{
+            padding: '5px 12px', borderRadius: 'var(--radius-full)',
+            fontSize: 'var(--font-size-sm)', fontWeight: view === t.key ? 600 : 500,
+            border: 'none', cursor: 'pointer',
+            background: view === t.key ? 'var(--color-accent-light)' : 'transparent',
+            color: view === t.key ? 'var(--color-accent)' : 'var(--color-text-secondary)',
+            transition: 'all 150ms ease',
+          }}
+        >{t.label}</button>
+      ))}
+    </div>
+  )
+}
 
 // ── Empty State ──────────────────────────────────────────────────────────────
 
@@ -13,10 +52,14 @@ const SUGGESTIONS = [
   'How has my weekly mileage trended this year?',
   'What was my best running week?',
   'Compare this month vs last month',
-  'How consistent have I been with my habits?',
+  'How am I doing against my plan this week?',
 ]
 
-function EmptyState({ onSend }: { onSend: (text: string) => void }) {
+function EmptyState({ onSend, onCreatePlan, hasPlan }: {
+  onSend: (text: string) => void
+  onCreatePlan: () => void
+  hasPlan: boolean
+}) {
   return (
     <div style={{
       flex: 1, display: 'flex', flexDirection: 'column',
@@ -27,14 +70,29 @@ function EmptyState({ onSend }: { onSend: (text: string) => void }) {
         <h2 style={{
           fontSize: 'var(--font-size-lg)', fontWeight: 700,
           color: 'var(--color-text-primary)', margin: 0, marginBottom: 4,
-        }}>Reflect on your training</h2>
+        }}>Your Training Coach</h2>
         <p style={{
           fontSize: 'var(--font-size-sm)', color: 'var(--color-text-secondary)',
           margin: 0, maxWidth: 400,
         }}>
-          Ask questions about your workouts, habits, and progress. Get insights with charts and analysis.
+          Ask questions about your training, create race plans, and get personalized coaching insights.
         </p>
       </div>
+
+      {!hasPlan && (
+        <button
+          onClick={onCreatePlan}
+          style={{
+            padding: '10px 20px', borderRadius: 'var(--radius-md)',
+            background: 'var(--color-accent)', color: 'var(--color-text-inverse)',
+            border: 'none', fontSize: 'var(--font-size-sm)', fontWeight: 600,
+            cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6,
+          }}
+        >
+          + Create Training Plan
+        </button>
+      )}
+
       <div style={{
         display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
         gap: 8, width: '100%', maxWidth: 500,
@@ -212,7 +270,6 @@ function ChatInput({ onSend, disabled }: { onSend: (text: string) => void; disab
     }
   }
 
-  // Auto-resize textarea
   useEffect(() => {
     if (textareaRef.current) {
       textareaRef.current.style.height = 'auto'
@@ -289,7 +346,6 @@ function ConversationSidebar({
       borderRight: '1px solid var(--color-border)', background: 'var(--color-bg)',
       height: '100%', overflow: 'hidden',
     }}>
-      {/* New chat button */}
       <div style={{ padding: '12px 12px 8px' }}>
         <button
           onClick={onNew}
@@ -306,7 +362,6 @@ function ConversationSidebar({
         </button>
       </div>
 
-      {/* Conversation list */}
       <div style={{ flex: 1, overflow: 'auto', padding: '0 8px 8px' }}>
         {conversations.map((conv) => {
           const isActive = conv.id === activeId
@@ -368,11 +423,85 @@ function formatRelativeDate(iso: string): string {
   return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
 }
 
+// ── Chat Panel (reusable for both full and side panel) ──────────────────────
+
+function ChatPanel({
+  messages,
+  isStreaming,
+  streamingContent,
+  streamingCharts,
+  toolStatus,
+  sendMessage,
+  hasMessages,
+  onCreatePlan,
+  hasPlan,
+  compact,
+}: {
+  messages: ReflectionMessage[]
+  isStreaming: boolean
+  streamingContent: string
+  streamingCharts: import('../store/types').ChartSpec[]
+  toolStatus: string | null
+  sendMessage: (text: string) => void
+  hasMessages: boolean
+  onCreatePlan: () => void
+  hasPlan: boolean
+  compact?: boolean
+}) {
+  const scrollRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (scrollRef.current) {
+      scrollRef.current.scrollTop = scrollRef.current.scrollHeight
+    }
+  }, [messages, streamingContent])
+
+  return (
+    <div style={{
+      flex: 1, display: 'flex', flexDirection: 'column',
+      minWidth: 0, height: '100%', overflow: 'hidden',
+    }}>
+      {hasMessages ? (
+        <div ref={scrollRef} style={{
+          flex: 1, overflow: 'auto', padding: compact ? '12px' : '16px',
+          display: 'flex', flexDirection: 'column', gap: 4,
+        }}>
+          <div style={{ maxWidth: compact ? undefined : 760, width: '100%', margin: compact ? undefined : '0 auto', display: 'flex', flexDirection: 'column', gap: 4 }}>
+            {messages.map((msg) => (
+              <ChatBubble key={msg.id} message={msg} />
+            ))}
+            {isStreaming && streamingContent && (
+              <ChatBubble message={{
+                id: 'streaming',
+                role: 'assistant',
+                content: streamingContent,
+                charts: streamingCharts.length > 0 ? streamingCharts : undefined,
+                createdAt: new Date().toISOString(),
+              }} />
+            )}
+            {isStreaming && !streamingContent && (
+              <StreamingIndicator toolStatus={toolStatus ?? undefined} />
+            )}
+          </div>
+        </div>
+      ) : (
+        <EmptyState onSend={sendMessage} onCreatePlan={onCreatePlan} hasPlan={hasPlan} />
+      )}
+
+      <ChatInput onSend={sendMessage} disabled={isStreaming} />
+    </div>
+  )
+}
+
 // ── Main Page ────────────────────────────────────────────────────────────────
 
-export default function ReflectionPage() {
+export default function CoachPage() {
   const isMobile = useIsMobile()
   const athleteId = useAppStore((s) => s.athlete?.id)
+  const coachView = useAppStore((s) => s.coachView)
+  const setCoachView = useAppStore((s) => s.setCoachView)
+  const coachPlan = useAppStore((s) => s.coachPlan)
+
   const {
     conversations,
     activeConversationId,
@@ -387,119 +516,212 @@ export default function ReflectionPage() {
     deleteConversation,
   } = useReflectionChat(athleteId ?? null)
 
-  const scrollRef = useRef<HTMLDivElement>(null)
   const [showSidebar, setShowSidebar] = useState(false)
 
-  // Auto-scroll on new messages or streaming content
-  useEffect(() => {
-    if (scrollRef.current) {
-      scrollRef.current.scrollTop = scrollRef.current.scrollHeight
-    }
-  }, [messages, streamingContent])
-
   const hasMessages = messages.length > 0 || isStreaming
+  const hasPlan = !!coachPlan
+
+  // Auto-switch to plan view when a plan is saved
+  const prevPlanRef = useRef(coachPlan)
+  useEffect(() => {
+    if (coachPlan && !prevPlanRef.current) {
+      setCoachView('plan')
+    }
+    prevPlanRef.current = coachPlan
+  }, [coachPlan, setCoachView])
+
+  // If on plan view but no plan exists, redirect to chat
+  useEffect(() => {
+    if (coachView === 'plan' && !hasPlan) {
+      setCoachView('chat')
+    }
+  }, [coachView, hasPlan, setCoachView])
+
+  function handleIntakeSubmit(data: {
+    raceName: string
+    raceDate: string
+    raceDistance: string
+    goalTime: string
+    targetPace: string
+    planWeeks: number
+    runDaysPerWeek: number
+    liftDaysPerWeek: number
+    currentWeeklyMileage: string
+    experienceLevel: string
+    notes: string
+  }) {
+    // Build a structured prompt from the form data
+    const parts: string[] = [
+      `Please create a ${data.planWeeks}-week training plan for my upcoming race.`,
+      '',
+      `Race: ${data.raceName}`,
+      `Date: ${data.raceDate}`,
+      `Distance: ${data.raceDistance}`,
+    ]
+    if (data.goalTime) parts.push(`Goal time: ${data.goalTime}`)
+    if (data.targetPace) parts.push(`Target pace: ${data.targetPace}/mi`)
+    parts.push('')
+    parts.push(`Preferences:`)
+    parts.push(`- ${data.runDaysPerWeek} run days per week`)
+    parts.push(`- ${data.liftDaysPerWeek} lift days per week`)
+    if (data.currentWeeklyMileage) parts.push(`- Current weekly mileage: ${data.currentWeeklyMileage} miles`)
+    parts.push(`- Experience level: ${data.experienceLevel}`)
+    if (data.notes) parts.push(`- Notes: ${data.notes}`)
+    parts.push('')
+    parts.push('Please generate the full week-by-week plan using the save_training_plan tool. Include progressive overload, appropriate rest days, and a taper period before the race.')
+
+    // Switch to chat and send
+    setCoachView('chat')
+    startNewConversation()
+    // Small delay to let the new conversation initialize
+    setTimeout(() => sendMessage(parts.join('\n')), 100)
+  }
+
+  // ── Intake View ────────────────────────────────────────────────────────────
+
+  if (coachView === 'intake') {
+    return (
+      <div style={{ display: 'flex', flex: 1, height: '100%', overflow: 'hidden', flexDirection: 'column' }}>
+        <ViewTabBar view={coachView} onChangeView={setCoachView} hasPlan={hasPlan} />
+        <PlanBuilderForm
+          onSubmit={handleIntakeSubmit}
+          onCancel={() => setCoachView('chat')}
+        />
+      </div>
+    )
+  }
+
+  // ── Plan View ──────────────────────────────────────────────────────────────
+
+  if (coachView === 'plan' && coachPlan) {
+    if (isMobile) {
+      return (
+        <div style={{ display: 'flex', flex: 1, height: '100%', overflow: 'hidden', flexDirection: 'column' }}>
+          <ViewTabBar view={coachView} onChangeView={setCoachView} hasPlan={hasPlan} />
+          <CoachPlanGrid plan={coachPlan} />
+        </div>
+      )
+    }
+
+    return (
+      <div style={{ display: 'flex', flex: 1, height: '100%', overflow: 'hidden', flexDirection: 'column' }}>
+        <ViewTabBar view={coachView} onChangeView={setCoachView} hasPlan={hasPlan} />
+        <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
+          {/* Grid (main area) */}
+          <div style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+            <CoachPlanGrid plan={coachPlan} />
+          </div>
+          {/* Chat side panel */}
+          <div style={{
+            width: 340, flexShrink: 0, borderLeft: '1px solid var(--color-border)',
+            display: 'flex', flexDirection: 'column', overflow: 'hidden',
+          }}>
+            <ChatPanel
+              messages={messages}
+              isStreaming={isStreaming}
+              streamingContent={streamingContent}
+              streamingCharts={streamingCharts}
+              toolStatus={toolStatus}
+              sendMessage={sendMessage}
+              hasMessages={hasMessages}
+              onCreatePlan={() => setCoachView('intake')}
+              hasPlan={hasPlan}
+              compact
+            />
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  // ── Chat View (default) ────────────────────────────────────────────────────
 
   return (
     <div style={{
-      display: 'flex', flex: 1, height: '100%', overflow: 'hidden',
+      display: 'flex', flex: 1, height: '100%', overflow: 'hidden', flexDirection: 'column',
     }}>
-      {/* Desktop sidebar */}
-      {!isMobile && (
-        <ConversationSidebar
-          conversations={conversations}
-          activeId={activeConversationId}
-          onSelect={selectConversation}
-          onNew={startNewConversation}
-          onDelete={deleteConversation}
-        />
-      )}
+      <ViewTabBar view={coachView} onChangeView={setCoachView} hasPlan={hasPlan} />
 
-      {/* Mobile sidebar overlay */}
-      {isMobile && showSidebar && (
-        <>
-          <div onClick={() => setShowSidebar(false)} style={{
-            position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.35)', zIndex: 50,
-          }} />
-          <div style={{
-            position: 'fixed', top: 0, left: 0, bottom: 0, width: 280, zIndex: 51,
-            background: 'var(--color-bg)',
-          }}>
-            <div style={{ padding: '12px', borderBottom: '1px solid var(--color-border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span style={{ fontWeight: 700, fontSize: 'var(--font-size-sm)', color: 'var(--color-text-primary)' }}>Conversations</span>
-              <button onClick={() => setShowSidebar(false)} style={{ width: 28, height: 28, borderRadius: 6, border: '1px solid var(--color-border)', background: 'transparent', cursor: 'pointer', color: 'var(--color-text-secondary)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>✕</button>
-            </div>
-            <ConversationSidebar
-              conversations={conversations}
-              activeId={activeConversationId}
-              onSelect={(id) => { selectConversation(id); setShowSidebar(false) }}
-              onNew={() => { startNewConversation(); setShowSidebar(false) }}
-              onDelete={deleteConversation}
-            />
-          </div>
-        </>
-      )}
-
-      {/* Chat area */}
-      <div style={{
-        flex: 1, display: 'flex', flexDirection: 'column',
-        minWidth: 0, height: '100%', overflow: 'hidden',
-      }}>
-        {/* Mobile chat header */}
-        {isMobile && (
-          <div style={{
-            padding: '8px 12px', borderBottom: '1px solid var(--color-border)',
-            display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0,
-            background: 'var(--color-surface)',
-          }}>
-            <button onClick={() => setShowSidebar(true)} style={{
-              width: 28, height: 28, borderRadius: 'var(--radius-sm)',
-              border: '1px solid var(--color-border)', background: 'transparent',
-              cursor: 'pointer', color: 'var(--color-text-secondary)',
-              display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12,
-            }}>☰</button>
-            <span style={{ fontSize: 'var(--font-size-sm)', fontWeight: 600, color: 'var(--color-text-primary)' }}>
-              {activeConversationId ? conversations.find(c => c.id === activeConversationId)?.title ?? 'Chat' : 'New chat'}
-            </span>
-            <div style={{ flex: 1 }} />
-            <button onClick={startNewConversation} style={{
-              padding: '4px 10px', borderRadius: 'var(--radius-sm)',
-              border: '1px solid var(--color-border)', background: 'transparent',
-              cursor: 'pointer', color: 'var(--color-text-secondary)',
-              fontSize: 'var(--font-size-sm)',
-            }}>+ New</button>
-          </div>
+      <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
+        {/* Desktop sidebar */}
+        {!isMobile && (
+          <ConversationSidebar
+            conversations={conversations}
+            activeId={activeConversationId}
+            onSelect={selectConversation}
+            onNew={startNewConversation}
+            onDelete={deleteConversation}
+          />
         )}
 
-        {/* Messages */}
-        {hasMessages ? (
-          <div ref={scrollRef} style={{
-            flex: 1, overflow: 'auto', padding: '16px',
-            display: 'flex', flexDirection: 'column', gap: 4,
-          }}>
-            <div style={{ maxWidth: 760, width: '100%', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: 4 }}>
-              {messages.map((msg) => (
-                <ChatBubble key={msg.id} message={msg} />
-              ))}
-              {isStreaming && streamingContent && (
-                <ChatBubble message={{
-                  id: 'streaming',
-                  role: 'assistant',
-                  content: streamingContent,
-                  charts: streamingCharts.length > 0 ? streamingCharts : undefined,
-                  createdAt: new Date().toISOString(),
-                }} />
-              )}
-              {isStreaming && !streamingContent && (
-                <StreamingIndicator toolStatus={toolStatus ?? undefined} />
-              )}
+        {/* Mobile sidebar overlay */}
+        {isMobile && showSidebar && (
+          <>
+            <div onClick={() => setShowSidebar(false)} style={{
+              position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.35)', zIndex: 50,
+            }} />
+            <div style={{
+              position: 'fixed', top: 0, left: 0, bottom: 0, width: 280, zIndex: 51,
+              background: 'var(--color-bg)',
+            }}>
+              <div style={{ padding: '12px', borderBottom: '1px solid var(--color-border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span style={{ fontWeight: 700, fontSize: 'var(--font-size-sm)', color: 'var(--color-text-primary)' }}>Conversations</span>
+                <button onClick={() => setShowSidebar(false)} style={{ width: 28, height: 28, borderRadius: 6, border: '1px solid var(--color-border)', background: 'transparent', cursor: 'pointer', color: 'var(--color-text-secondary)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>✕</button>
+              </div>
+              <ConversationSidebar
+                conversations={conversations}
+                activeId={activeConversationId}
+                onSelect={(id) => { selectConversation(id); setShowSidebar(false) }}
+                onNew={() => { startNewConversation(); setShowSidebar(false) }}
+                onDelete={deleteConversation}
+              />
             </div>
-          </div>
-        ) : (
-          <EmptyState onSend={sendMessage} />
+          </>
         )}
 
-        {/* Input */}
-        <ChatInput onSend={sendMessage} disabled={isStreaming} />
+        {/* Chat area */}
+        <div style={{
+          flex: 1, display: 'flex', flexDirection: 'column',
+          minWidth: 0, height: '100%', overflow: 'hidden',
+        }}>
+          {/* Mobile chat header */}
+          {isMobile && (
+            <div style={{
+              padding: '8px 12px', borderBottom: '1px solid var(--color-border)',
+              display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0,
+              background: 'var(--color-surface)',
+            }}>
+              <button onClick={() => setShowSidebar(true)} style={{
+                width: 28, height: 28, borderRadius: 'var(--radius-sm)',
+                border: '1px solid var(--color-border)', background: 'transparent',
+                cursor: 'pointer', color: 'var(--color-text-secondary)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12,
+              }}>☰</button>
+              <span style={{ fontSize: 'var(--font-size-sm)', fontWeight: 600, color: 'var(--color-text-primary)' }}>
+                {activeConversationId ? conversations.find(c => c.id === activeConversationId)?.title ?? 'Chat' : 'New chat'}
+              </span>
+              <div style={{ flex: 1 }} />
+              <button onClick={startNewConversation} style={{
+                padding: '4px 10px', borderRadius: 'var(--radius-sm)',
+                border: '1px solid var(--color-border)', background: 'transparent',
+                cursor: 'pointer', color: 'var(--color-text-secondary)',
+                fontSize: 'var(--font-size-sm)',
+              }}>+ New</button>
+            </div>
+          )}
+
+          <ChatPanel
+            messages={messages}
+            isStreaming={isStreaming}
+            streamingContent={streamingContent}
+            streamingCharts={streamingCharts}
+            toolStatus={toolStatus}
+            sendMessage={sendMessage}
+            hasMessages={hasMessages}
+            onCreatePlan={() => setCoachView('intake')}
+            hasPlan={hasPlan}
+          />
+        </div>
       </div>
     </div>
   )

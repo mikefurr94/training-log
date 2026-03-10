@@ -12,7 +12,7 @@ import WeekReviewPage from './WeekReviewPage'
 import HabitWeekView from '../components/habits/HabitWeekView'
 import HabitGridView from '../components/habits/HabitGridView'
 import HabitDashboard from '../components/habits/HabitDashboard'
-import ReflectionPage from './ReflectionPage'
+import CoachPage from './CoachPage'
 import { useAppStore } from '../store/useAppStore'
 import { useActivities } from '../hooks/useActivities'
 import { useCalendarRange } from '../hooks/useCalendarRange'
@@ -154,10 +154,10 @@ export default function CalendarPage() {
                 </div>
               )}
 
-              {/* Reflection chat */}
-              {activeApp === 'reflection' && (
+              {/* Coach */}
+              {activeApp === 'coach' && (
                 <div style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
-                  <ReflectionPage />
+                  <CoachPage />
                 </div>
               )}
             </motion.div>

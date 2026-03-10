@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react'
 import { useAppStore } from '../store/useAppStore'
-import { loadHabits, saveHabitDay, loadPlan, savePlan } from '../api/db'
+import { loadHabits, saveHabitDay, loadPlan, savePlan, loadCoachPlan } from '../api/db'
+import type { CoachPlan } from '../store/types'
 
 // Debounce helper
 function debounce<T extends (...args: unknown[]) => void>(fn: T, ms: number): T {
@@ -41,6 +42,31 @@ export function useSupabaseSync() {
       .then((data) => {
         if (data && Object.keys(data).length > 0) {
           useAppStore.getState().loadPlanFromDb(data)
+        }
+      })
+      .catch(console.error)
+
+    loadCoachPlan(athleteId)
+      .then((data) => {
+        if (data && typeof data === 'object' && 'id' in data) {
+          // Map snake_case DB response to camelCase CoachPlan
+          const raw = data as Record<string, unknown>
+          const plan: CoachPlan = {
+            id: raw.id as string,
+            athleteId: (raw.athlete_id ?? raw.athleteId) as number,
+            name: raw.name as string,
+            raceName: (raw.race_name ?? raw.raceName) as string | undefined,
+            raceDate: (raw.race_date ?? raw.raceDate) as string | undefined,
+            raceDistance: (raw.race_distance ?? raw.raceDistance) as string | undefined,
+            goalTime: (raw.goal_time ?? raw.goalTime) as string | undefined,
+            preferences: (raw.preferences ?? {}) as CoachPlan['preferences'],
+            weeks: (raw.weeks ?? []) as CoachPlan['weeks'],
+            status: (raw.status ?? 'active') as CoachPlan['status'],
+            conversationId: (raw.conversation_id ?? raw.conversationId) as string | undefined,
+            createdAt: (raw.created_at ?? raw.createdAt ?? new Date().toISOString()) as string,
+            updatedAt: (raw.updated_at ?? raw.updatedAt ?? new Date().toISOString()) as string,
+          }
+          useAppStore.getState().setCoachPlan(plan)
         }
       })
       .catch(console.error)

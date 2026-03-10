@@ -163,7 +163,43 @@ export type ThemeMode = 'light' | 'dark'
 
 export type AppMode = 'calendar' | 'grid' | 'dashboard' | 'review'
 
-export type ActiveApp = 'training' | 'habits' | 'reflection'
+export type ActiveApp = 'training' | 'habits' | 'coach'
+
+export type CoachView = 'chat' | 'plan' | 'intake'
+
+// ── Coach Plan Types ────────────────────────────────────────────────────────
+
+export interface CoachPlanPreferences {
+  runDaysPerWeek: number
+  liftDaysPerWeek: number
+  planWeeks: number
+  currentWeeklyMileage?: number
+  experienceLevel?: 'beginner' | 'intermediate' | 'advanced'
+  notes?: string
+}
+
+export interface CoachPlanWeek {
+  weekNumber: number
+  weekStart: string          // 'YYYY-MM-DD'
+  label: string              // 'Base Building', 'Speed Work', 'Taper', etc.
+  days: Record<WeekDayIndex, PlannedActivity[]>
+}
+
+export interface CoachPlan {
+  id: string
+  athleteId: number
+  name: string
+  raceName?: string
+  raceDate?: string
+  raceDistance?: string
+  goalTime?: string
+  preferences: CoachPlanPreferences
+  weeks: CoachPlanWeek[]
+  status: 'active' | 'archived'
+  conversationId?: string
+  createdAt: string
+  updatedAt: string
+}
 
 // ── Reflection Types ────────────────────────────────────────────────────────
 
@@ -204,6 +240,7 @@ export interface AppState {
   // App mode
   activeApp: ActiveApp
   appMode: AppMode
+  coachView: CoachView
 
   // Calendar navigation
   currentView: CalendarView
@@ -251,6 +288,9 @@ export interface AppState {
   habitCompletions: HabitCompletions
   habitView: HabitView
 
+  // Coach plan
+  coachPlan: CoachPlan | null
+
   // Theme
   theme: ThemeMode
 }
@@ -294,6 +334,11 @@ export interface AppActions {
   // App mode
   setActiveApp: (app: ActiveApp) => void
   setAppMode: (mode: AppMode) => void
+  setCoachView: (view: CoachView) => void
+
+  // Coach plan
+  setCoachPlan: (plan: CoachPlan | null) => void
+  updateCoachPlanWeek: (weekNumber: number, days: Partial<Record<WeekDayIndex, PlannedActivity[]>>, label?: string) => void
 
   // Settings
   setDistanceUnit: (unit: 'mi' | 'km') => void

@@ -29,3 +29,47 @@ export async function savePlan(athleteId: number, data: Record<string, unknown>)
   })
   if (!res.ok) throw new Error('Failed to save plan')
 }
+
+// ── Coach Plan ──────────────────────────────────────────────────────────────
+
+export async function loadCoachPlan(athleteId: number): Promise<Record<string, unknown> | null> {
+  const res = await fetch(`/api/coach-plan?athlete_id=${athleteId}`)
+  if (!res.ok) throw new Error('Failed to load coach plan')
+  return res.json()
+}
+
+export async function saveCoachPlan(
+  athleteId: number,
+  plan: {
+    name: string
+    raceName?: string
+    raceDate?: string
+    raceDistance?: string
+    goalTime?: string
+    preferences?: Record<string, unknown>
+    weeks?: unknown[]
+    conversationId?: string
+  },
+): Promise<Record<string, unknown>> {
+  const res = await fetch(`/api/coach-plan?athlete_id=${athleteId}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(plan),
+  })
+  if (!res.ok) throw new Error('Failed to save coach plan')
+  return res.json()
+}
+
+export async function updateCoachPlan(
+  athleteId: number,
+  planId: string,
+  updates: Record<string, unknown>,
+): Promise<Record<string, unknown>> {
+  const res = await fetch(`/api/coach-plan?athlete_id=${athleteId}&plan_id=${planId}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(updates),
+  })
+  if (!res.ok) throw new Error('Failed to update coach plan')
+  return res.json()
+}

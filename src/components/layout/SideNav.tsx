@@ -37,7 +37,7 @@ function IconHabits({ color }: { color: string }) {
   )
 }
 
-function IconReflection({ color }: { color: string }) {
+function IconCoach({ color }: { color: string }) {
   return (
     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
       <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
@@ -71,7 +71,7 @@ function IconTheme({ isDark }: { isDark: boolean }) {
 const NAV_ITEMS: { app: ActiveApp; label: string; Icon: React.FC<{ color: string }> }[] = [
   { app: 'training',   label: 'Training', Icon: IconTraining },
   { app: 'habits',     label: 'Habits',   Icon: IconHabits },
-  { app: 'reflection', label: 'Reflect',  Icon: IconReflection },
+  { app: 'coach',      label: 'Coach',    Icon: IconCoach },
 ]
 
 // ── Desktop: persistent slim sidebar ──────────────────────────────────────────
