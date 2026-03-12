@@ -52,7 +52,7 @@ export default function HabitGridView() {
   }, [today, weeksToShow])
 
   const sortedHabits = useMemo(
-    () => [...habits].sort((a, b) => a.order - b.order),
+    () => [...habits].filter((h) => !h.archived).sort((a, b) => a.order - b.order),
     [habits]
   )
 
@@ -117,7 +117,66 @@ export default function HabitGridView() {
 
       {/* Per-habit grids */}
       {sortedHabits.map((habit) => {
-        // Count completions in range
+        const isWeekly = habit.frequency === 'weekly'
+
+        if (isWeekly) {
+          // Weekly habits: one square per week
+          let completedCount = 0
+          for (const week of grid) {
+            const weekStartStr = format(week[0].date, 'yyyy-MM-dd')
+            if (week[0].inRange && (habitCompletions[weekStartStr] ?? []).includes(habit.id)) completedCount++
+          }
+
+          return (
+            <div key={habit.id}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8, marginLeft: DAY_LABEL_WIDTH }}>
+                <span style={{ fontSize: 16 }}>{habit.emoji}</span>
+                <span style={{ fontSize: 'var(--font-size-sm)', fontWeight: 700, color: 'var(--color-text-primary)' }}>
+                  {habit.name}
+                </span>
+                <span style={{ fontSize: 11, color: 'var(--color-text-tertiary)', marginLeft: 2 }}>
+                  {completedCount} weeks
+                </span>
+              </div>
+
+              {/* Month labels */}
+              <div style={{ marginLeft: DAY_LABEL_WIDTH, marginBottom: 4, position: 'relative', height: 14 }}>
+                {monthPositions.map(({ month, col }) => (
+                  <span key={`${month}-${col}`} style={{
+                    position: 'absolute', left: `calc(${(col / totalWeeks) * 100}%)`,
+                    fontSize: 10, color: 'var(--color-text-tertiary)', fontWeight: 600,
+                    whiteSpace: 'nowrap', letterSpacing: '0.04em',
+                  }}>
+                    {MONTH_LABELS[month]}
+                  </span>
+                ))}
+              </div>
+
+              {/* Single row of weekly squares */}
+              <div style={{ display: 'flex', alignItems: 'stretch', width: '100%', marginLeft: DAY_LABEL_WIDTH }}>
+                <div style={{ display: 'flex', flex: 1, gap: 3 }}>
+                  {grid.map((week, wi) => {
+                    const weekStartStr = format(week[0].date, 'yyyy-MM-dd')
+                    const completed = week[0].inRange && (habitCompletions[weekStartStr] ?? []).includes(habit.id)
+                    const isThisWeek = week[0].date.getTime() === currentWeekStart
+                    return (
+                      <div key={wi} title={`${habit.name} — Week of ${format(week[0].date, 'MMM d')}${completed ? ' (done)' : ''}`} style={{
+                        flex: 1, aspectRatio: '1', borderRadius: 3,
+                        background: !week[0].inRange ? 'transparent' : completed
+                          ? 'var(--color-habit-done)'
+                          : isThisWeek ? 'var(--color-today-bg, var(--color-border-light, #e5e7eb))' : 'var(--color-border-light, #e5e7eb)',
+                        opacity: !week[0].inRange ? 0 : completed ? 1 : 0.4,
+                        minWidth: 0,
+                      }} />
+                    )
+                  })}
+                </div>
+              </div>
+            </div>
+          )
+        }
+
+        // Daily habits: original grid
         let completedCount = 0
         for (const week of grid) {
           for (const day of week) {

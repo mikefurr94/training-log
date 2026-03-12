@@ -17,7 +17,7 @@ export default function HabitDashboard() {
   const isMobile = useIsMobile()
 
   const sortedHabits = useMemo(
-    () => [...habits].sort((a, b) => a.order - b.order),
+    () => [...habits].filter((h) => !h.archived).sort((a, b) => a.order - b.order),
     [habits]
   )
 
@@ -116,7 +116,7 @@ function CustomTooltip({ active, payload, label, habits }: any) {
 // ── Weekly Review ─────────────────────────────────────────────────────────────
 
 function WeeklyReview({ habits, completions, isMobile }: {
-  habits: { id: string; name: string; emoji: string; order: number }[]
+  habits: { id: string; name: string; emoji: string; order: number; frequency?: string }[]
   completions: Record<string, string[]>
   isMobile: boolean
 }) {
@@ -128,12 +128,18 @@ function WeeklyReview({ habits, completions, isMobile }: {
       const ws = startOfWeek(subWeeks(today, w), { weekStartsOn: 1 })
       const counts: Record<string, number> = {}
       for (const h of habits) {
-        let done = 0
-        for (let d = 0; d < 7; d++) {
-          const key = format(addDays(ws, d), 'yyyy-MM-dd')
-          if ((completions[key] ?? []).includes(h.id)) done++
+        if (h.frequency === 'weekly') {
+          // Weekly habits: check the week-start date only
+          const key = format(ws, 'yyyy-MM-dd')
+          counts[h.id] = (completions[key] ?? []).includes(h.id) ? 1 : 0
+        } else {
+          let done = 0
+          for (let d = 0; d < 7; d++) {
+            const key = format(addDays(ws, d), 'yyyy-MM-dd')
+            if ((completions[key] ?? []).includes(h.id)) done++
+          }
+          counts[h.id] = done
         }
-        counts[h.id] = done
       }
       rows.push({ label: format(ws, 'MMM d'), counts })
     }
@@ -188,21 +194,23 @@ function WeeklyReview({ habits, completions, isMobile }: {
           </div>
           {habits.map((h, hi) => {
             const count = week.counts[h.id] ?? 0
-            const ratio = count / 7
+            const isWeekly = h.frequency === 'weekly'
+            const max = isWeekly ? 1 : 7
+            const ratio = count / max
             return (
               <div key={h.id} style={{
                 flex: 1, textAlign: 'center',
                 fontSize: isMobile ? 13 : 14,
                 fontWeight: 700,
                 fontVariantNumeric: 'tabular-nums',
-                color: count === 7
+                color: count === max
                   ? HABIT_COLORS[hi % HABIT_COLORS.length]
                   : count === 0
                     ? 'var(--color-text-tertiary)'
                     : 'var(--color-text-primary)',
                 opacity: count === 0 ? 0.5 : 0.4 + ratio * 0.6,
               }}>
-                {count}/7
+                {isWeekly ? (count ? '✓' : '—') : `${count}/7`}
               </div>
             )
           })}

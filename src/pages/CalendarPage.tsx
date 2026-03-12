@@ -12,6 +12,7 @@ import WeekReviewPage from './WeekReviewPage'
 import HabitWeekView from '../components/habits/HabitWeekView'
 import HabitGridView from '../components/habits/HabitGridView'
 import HabitDashboard from '../components/habits/HabitDashboard'
+import HabitDetailPanel from '../components/habits/HabitDetailPanel'
 import CoachPage from './CoachPage'
 import { useAppStore } from '../store/useAppStore'
 import { useActivities } from '../hooks/useActivities'
@@ -165,6 +166,7 @@ export default function CalendarPage() {
 
           <ActivityPanel />
           <PlannedActivityPanel />
+          {activeApp === 'habits' && <HabitDetailPanel />}
         </div>
 
         {/* Bottom tab bar on mobile */}

@@ -416,6 +416,7 @@ export const useAppStore = create<AppStore>()(
       habits: DEFAULT_HABITS,
       habitCompletions: {},
       habitView: 'week' as HabitView,
+      selectedHabitId: null as string | null,
 
       toggleHabitCompletion: (date: string, habitId: string) =>
         set((s) => {
@@ -445,6 +446,27 @@ export const useAppStore = create<AppStore>()(
       reorderHabits: (habits: HabitDefinition[]) => set({ habits }),
 
       setHabitView: (view: HabitView) => set({ habitView: view }),
+
+      setSelectedHabitId: (id: string | null) => set({ selectedHabitId: id }),
+
+      updateHabit: (id: string, updates: Partial<HabitDefinition>) =>
+        set((s) => ({
+          habits: s.habits.map((h) => (h.id === id ? { ...h, ...updates } : h)),
+        })),
+
+      moveHabit: (id: string, direction: 'up' | 'down') =>
+        set((s) => {
+          const sorted = [...s.habits].sort((a, b) => a.order - b.order)
+          const idx = sorted.findIndex((h) => h.id === id)
+          if (idx < 0) return s
+          const swapIdx = direction === 'up' ? idx - 1 : idx + 1
+          if (swapIdx < 0 || swapIdx >= sorted.length) return s
+          const newHabits = [...sorted]
+          const tmpOrder = newHabits[idx].order
+          newHabits[idx] = { ...newHabits[idx], order: newHabits[swapIdx].order }
+          newHabits[swapIdx] = { ...newHabits[swapIdx], order: tmpOrder }
+          return { habits: newHabits }
+        }),
 
       // ── Theme ──────────────────────────────────────────────────────────────
       theme: 'light' as ThemeMode,

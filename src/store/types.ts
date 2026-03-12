@@ -138,11 +138,17 @@ export interface KeyDate {
 
 // ── Habit Tracker Types ──────────────────────────────────────────────────────
 
+export type HabitFrequency = 'daily' | 'weekly'
+
 export interface HabitDefinition {
   id: string
   name: string
   emoji: string
   order: number
+  notes?: string
+  archived?: boolean
+  weeklyGoal?: number        // completions per week to consider goal met (1-7 for daily, 1 for weekly)
+  frequency?: HabitFrequency // defaults to 'daily'
 }
 
 /** Maps 'YYYY-MM-DD' → array of completed habit IDs */
@@ -287,6 +293,7 @@ export interface AppState {
   habits: HabitDefinition[]
   habitCompletions: HabitCompletions
   habitView: HabitView
+  selectedHabitId: string | null
 
   // Coach plan
   coachPlan: CoachPlan | null
@@ -372,6 +379,9 @@ export interface AppActions {
   removeHabit: (id: string) => void
   reorderHabits: (habits: HabitDefinition[]) => void
   setHabitView: (view: HabitView) => void
+  setSelectedHabitId: (id: string | null) => void
+  updateHabit: (id: string, updates: Partial<HabitDefinition>) => void
+  moveHabit: (id: string, direction: 'up' | 'down') => void
 
   // Theme
   toggleTheme: () => void

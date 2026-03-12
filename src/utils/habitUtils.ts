@@ -32,8 +32,14 @@ export function calculateStreak(
 export function weeklyCompletionRate(
   habitId: string,
   completions: HabitCompletions,
-  weekStart: Date
+  weekStart: Date,
+  frequency?: 'daily' | 'weekly'
 ): number {
+  if (frequency === 'weekly') {
+    // Weekly habits: 0 or 1 based on the week-start date
+    const key = format(weekStart, 'yyyy-MM-dd')
+    return (completions[key] ?? []).includes(habitId) ? 1 : 0
+  }
   let completed = 0
   for (let i = 0; i < 7; i++) {
     const d = format(addDays(weekStart, i), 'yyyy-MM-dd')
@@ -63,7 +69,7 @@ export function buildHabitWeekStats(
     const rates: Record<string, number> = {}
 
     for (const habit of habits) {
-      rates[habit.id] = weeklyCompletionRate(habit.id, completions, ws)
+      rates[habit.id] = weeklyCompletionRate(habit.id, completions, ws, habit.frequency)
     }
 
     const values = Object.values(rates)

@@ -3,6 +3,7 @@ import { startOfWeek, addWeeks, subWeeks, addDays, format, isToday } from 'date-
 import { useAppStore } from '../../store/useAppStore'
 import { useIsMobile } from '../../hooks/useIsMobile'
 import HabitCheckbox from './HabitCheckbox'
+import type { HabitDefinition } from '../../store/types'
 
 const ACCENT_COLORS = ['#6366f1', '#10b981', '#8b5cf6', '#f59e0b', '#06b6d4', '#ec4899', '#ef4444', '#f97316']
 
@@ -10,8 +11,12 @@ export default function HabitWeekView() {
   const habits = useAppStore((s) => s.habits)
   const habitCompletions = useAppStore((s) => s.habitCompletions)
   const toggleHabitCompletion = useAppStore((s) => s.toggleHabitCompletion)
+  const setSelectedHabitId = useAppStore((s) => s.setSelectedHabitId)
+  const addHabit = useAppStore((s) => s.addHabit)
   const isMobile = useIsMobile()
   const [anchor, setAnchor] = useState(() => new Date())
+  const [showArchived, setShowArchived] = useState(false)
+  const [showAddForm, setShowAddForm] = useState(false)
 
   const weekStart = startOfWeek(anchor, { weekStartsOn: 1 })
   const days = useMemo(() =>
@@ -24,10 +29,63 @@ export default function HabitWeekView() {
 
   const weekLabel = `${format(weekStart, 'MMM d')} – ${format(addWeeks(weekStart, 1), 'MMM d, yyyy')}`
 
-  const sortedHabits = useMemo(
+  const weekStartStr = format(weekStart, 'yyyy-MM-dd')
+
+  // Split habits into active daily, active weekly, and archived
+  const allSorted = useMemo(
     () => [...habits].sort((a, b) => a.order - b.order),
     [habits]
   )
+  const dailyHabits = useMemo(
+    () => allSorted.filter((h) => !h.archived && (h.frequency ?? 'daily') === 'daily'),
+    [allSorted]
+  )
+  const weeklyHabits = useMemo(
+    () => allSorted.filter((h) => !h.archived && h.frequency === 'weekly'),
+    [allSorted]
+  )
+  const archivedHabits = useMemo(
+    () => allSorted.filter((h) => h.archived),
+    [allSorted]
+  )
+
+  // Compute weekly completion counts for goal highlighting
+  const weeklyCompletions = useMemo(() => {
+    const counts: Record<string, number> = {}
+    for (const habit of [...dailyHabits, ...weeklyHabits]) {
+      if (habit.frequency === 'weekly') {
+        // Weekly habits: check if the week-start date has this habit
+        counts[habit.id] = (habitCompletions[weekStartStr] ?? []).includes(habit.id) ? 1 : 0
+      } else {
+        // Daily habits: count completions across the 7 days
+        let count = 0
+        for (const day of days) {
+          const dateStr = format(day, 'yyyy-MM-dd')
+          if ((habitCompletions[dateStr] ?? []).includes(habit.id)) count++
+        }
+        counts[habit.id] = count
+      }
+    }
+    return counts
+  }, [dailyHabits, weeklyHabits, habitCompletions, days, weekStartStr])
+
+  const isGoalMet = (habit: HabitDefinition) => {
+    const goal = habit.frequency === 'weekly' ? 1 : habit.weeklyGoal
+    if (!goal) return false
+    return (weeklyCompletions[habit.id] ?? 0) >= goal
+  }
+
+  const handleAddHabit = (name: string, emoji: string, frequency: 'daily' | 'weekly') => {
+    const maxOrder = habits.reduce((max, h) => Math.max(max, h.order), -1)
+    addHabit({
+      id: `habit-${Date.now()}`,
+      name,
+      emoji,
+      order: maxOrder + 1,
+      frequency,
+    })
+    setShowAddForm(false)
+  }
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
@@ -78,10 +136,144 @@ export default function HabitWeekView() {
         </div>
       )}
 
-      {isMobile ? (
-        <MobileHabitGrid days={days} habits={sortedHabits} habitCompletions={habitCompletions} toggleHabitCompletion={toggleHabitCompletion} />
-      ) : (
-        <DesktopHabitGrid days={days} habits={sortedHabits} habitCompletions={habitCompletions} toggleHabitCompletion={toggleHabitCompletion} />
+      {/* Daily habits grid */}
+      {dailyHabits.length > 0 && (
+        isMobile ? (
+          <MobileHabitGrid
+            days={days}
+            habits={dailyHabits}
+            habitCompletions={habitCompletions}
+            toggleHabitCompletion={toggleHabitCompletion}
+            onHabitClick={setSelectedHabitId}
+            isGoalMet={isGoalMet}
+          />
+        ) : (
+          <DesktopHabitGrid
+            days={days}
+            habits={dailyHabits}
+            habitCompletions={habitCompletions}
+            toggleHabitCompletion={toggleHabitCompletion}
+            onHabitClick={setSelectedHabitId}
+            isGoalMet={isGoalMet}
+          />
+        )
+      )}
+
+      {/* Weekly habits section */}
+      {weeklyHabits.length > 0 && (
+        <div>
+          <div style={{
+            fontSize: 11, fontWeight: 700, textTransform: 'uppercase',
+            letterSpacing: '0.06em', color: 'var(--color-text-tertiary)',
+            marginBottom: 8,
+          }}>
+            Weekly
+          </div>
+          <div style={{
+            background: 'var(--color-surface)',
+            border: '1px solid var(--color-border)',
+            borderRadius: 'var(--radius-lg)',
+            overflow: 'hidden',
+          }}>
+            {weeklyHabits.map((habit, hi) => {
+              const completed = (habitCompletions[weekStartStr] ?? []).includes(habit.id)
+              const goalMet = isGoalMet(habit)
+              return (
+                <div key={habit.id} style={{
+                  display: 'flex', alignItems: 'center', gap: 12,
+                  padding: '12px 16px',
+                  borderBottom: hi < weeklyHabits.length - 1 ? '1px solid var(--color-border)' : 'none',
+                  background: goalMet ? 'rgba(16, 185, 129, 0.06)' : 'transparent',
+                }}>
+                  <HabitCheckbox
+                    checked={completed}
+                    onToggle={() => toggleHabitCompletion(weekStartStr, habit.id)}
+                    color={ACCENT_COLORS[(dailyHabits.length + hi) % ACCENT_COLORS.length]}
+                  />
+                  <button
+                    onClick={() => setSelectedHabitId(habit.id)}
+                    style={{
+                      background: 'none', border: 'none', cursor: 'pointer',
+                      display: 'flex', alignItems: 'center', gap: 8, padding: 0, flex: 1,
+                    }}
+                  >
+                    <span style={{ fontSize: 18 }}>{habit.emoji}</span>
+                    <span style={{
+                      fontSize: 'var(--font-size-sm)', fontWeight: 500,
+                      color: 'var(--color-text-primary)',
+                      textDecoration: completed ? 'line-through' : 'none',
+                      opacity: completed ? 0.7 : 1,
+                    }}>
+                      {habit.name}
+                    </span>
+                    {goalMet && <GoalBadge />}
+                  </button>
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* Add habit button + modal */}
+      <button
+        onClick={() => setShowAddForm(true)}
+        style={{
+          display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+          padding: '10px 16px', borderRadius: 'var(--radius-md)',
+          border: '1px dashed var(--color-border)',
+          background: 'transparent', color: 'var(--color-text-tertiary)',
+          fontSize: 'var(--font-size-sm)', fontWeight: 600, cursor: 'pointer',
+        }}
+      >
+        + Add habit
+      </button>
+      {showAddForm && (
+        <AddHabitModal onAdd={handleAddHabit} onCancel={() => setShowAddForm(false)} />
+      )}
+
+      {/* Archived habits toggle */}
+      {archivedHabits.length > 0 && (
+        <div>
+          <button
+            onClick={() => setShowArchived(!showArchived)}
+            style={{
+              background: 'none', border: 'none', cursor: 'pointer',
+              fontSize: 'var(--font-size-xs)', fontWeight: 600,
+              color: 'var(--color-text-tertiary)', padding: '4px 0',
+            }}
+          >
+            {showArchived ? 'Hide' : 'Show'} archived ({archivedHabits.length})
+          </button>
+          {showArchived && (
+            <div style={{
+              marginTop: 8, background: 'var(--color-surface)',
+              border: '1px solid var(--color-border)', borderRadius: 'var(--radius-lg)',
+              overflow: 'hidden', opacity: 0.6,
+            }}>
+              {archivedHabits.map((habit, hi) => (
+                <div key={habit.id} style={{
+                  display: 'flex', alignItems: 'center', gap: 12,
+                  padding: '10px 16px',
+                  borderBottom: hi < archivedHabits.length - 1 ? '1px solid var(--color-border)' : 'none',
+                }}>
+                  <span style={{ fontSize: 18 }}>{habit.emoji}</span>
+                  <button
+                    onClick={() => setSelectedHabitId(habit.id)}
+                    style={{
+                      background: 'none', border: 'none', cursor: 'pointer',
+                      fontSize: 'var(--font-size-sm)', fontWeight: 500,
+                      color: 'var(--color-text-secondary)', padding: 0,
+                      textDecoration: 'line-through',
+                    }}
+                  >
+                    {habit.name}
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
       )}
     </div>
   )
@@ -89,11 +281,13 @@ export default function HabitWeekView() {
 
 // ── Desktop: original grid layout ────────────────────────────────────────────
 
-function DesktopHabitGrid({ days, habits, habitCompletions, toggleHabitCompletion }: {
+function DesktopHabitGrid({ days, habits, habitCompletions, toggleHabitCompletion, onHabitClick, isGoalMet }: {
   days: Date[]
-  habits: { id: string; name: string; emoji: string; order: number }[]
+  habits: HabitDefinition[]
   habitCompletions: Record<string, string[]>
   toggleHabitCompletion: (date: string, habitId: string) => void
+  onHabitClick: (id: string) => void
+  isGoalMet: (habit: HabitDefinition) => boolean
 }) {
   return (
     <div style={{
@@ -126,46 +320,59 @@ function DesktopHabitGrid({ days, habits, habitCompletions, toggleHabitCompletio
       </div>
 
       {/* Habit rows */}
-      {habits.map((habit, hi) => (
-        <div key={habit.id} style={{
-          display: 'grid', gridTemplateColumns: '180px repeat(7, 1fr)',
-          borderBottom: hi < habits.length - 1 ? '1px solid var(--color-border)' : 'none',
-        }}>
-          <div style={{ padding: '12px 16px', display: 'flex', alignItems: 'center', gap: 8 }}>
-            <span style={{ fontSize: 18 }}>{habit.emoji}</span>
-            <span style={{ fontSize: 'var(--font-size-sm)', fontWeight: 500, color: 'var(--color-text-primary)' }}>{habit.name}</span>
+      {habits.map((habit, hi) => {
+        const goalMet = isGoalMet(habit)
+        return (
+          <div key={habit.id} style={{
+            display: 'grid', gridTemplateColumns: '180px repeat(7, 1fr)',
+            borderBottom: hi < habits.length - 1 ? '1px solid var(--color-border)' : 'none',
+            background: goalMet ? 'rgba(16, 185, 129, 0.06)' : 'transparent',
+          }}>
+            <button
+              onClick={() => onHabitClick(habit.id)}
+              style={{
+                padding: '12px 16px', display: 'flex', alignItems: 'center', gap: 8,
+                background: 'none', border: 'none', cursor: 'pointer', textAlign: 'left',
+              }}
+            >
+              <span style={{ fontSize: 18 }}>{habit.emoji}</span>
+              <span style={{ fontSize: 'var(--font-size-sm)', fontWeight: 500, color: 'var(--color-text-primary)' }}>{habit.name}</span>
+              {goalMet && <GoalBadge />}
+            </button>
+            {days.map((day) => {
+              const dateStr = format(day, 'yyyy-MM-dd')
+              const completed = (habitCompletions[dateStr] ?? []).includes(habit.id)
+              const today = isToday(day)
+              return (
+                <div key={dateStr} style={{
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  borderLeft: '1px solid var(--color-border)',
+                  background: today ? 'var(--color-today-bg)' : 'transparent', padding: '8px 0',
+                }}>
+                  <HabitCheckbox
+                    checked={completed}
+                    onToggle={() => toggleHabitCompletion(dateStr, habit.id)}
+                    color={ACCENT_COLORS[hi % ACCENT_COLORS.length]}
+                  />
+                </div>
+              )
+            })}
           </div>
-          {days.map((day) => {
-            const dateStr = format(day, 'yyyy-MM-dd')
-            const completed = (habitCompletions[dateStr] ?? []).includes(habit.id)
-            const today = isToday(day)
-            return (
-              <div key={dateStr} style={{
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                borderLeft: '1px solid var(--color-border)',
-                background: today ? 'var(--color-today-bg)' : 'transparent', padding: '8px 0',
-              }}>
-                <HabitCheckbox
-                  checked={completed}
-                  onToggle={() => toggleHabitCompletion(dateStr, habit.id)}
-                  color={ACCENT_COLORS[hi % ACCENT_COLORS.length]}
-                />
-              </div>
-            )
-          })}
-        </div>
-      ))}
+        )
+      })}
     </div>
   )
 }
 
 // ── Mobile: day-by-day stacked layout ────────────────────────────────────────
 
-function MobileHabitGrid({ days, habits, habitCompletions, toggleHabitCompletion }: {
+function MobileHabitGrid({ days, habits, habitCompletions, toggleHabitCompletion, onHabitClick, isGoalMet }: {
   days: Date[]
-  habits: { id: string; name: string; emoji: string; order: number }[]
+  habits: HabitDefinition[]
   habitCompletions: Record<string, string[]>
   toggleHabitCompletion: (date: string, habitId: string) => void
+  onHabitClick: (id: string) => void
+  isGoalMet: (habit: HabitDefinition) => boolean
 }) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
@@ -215,6 +422,7 @@ function MobileHabitGrid({ days, habits, habitCompletions, toggleHabitCompletion
             <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
               {habits.map((habit, hi) => {
                 const completed = (habitCompletions[dateStr] ?? []).includes(habit.id)
+                const goalMet = isGoalMet(habit)
                 return (
                   <div key={habit.id} style={{
                     display: 'flex', alignItems: 'center', gap: 10, padding: '4px 0',
@@ -224,15 +432,24 @@ function MobileHabitGrid({ days, habits, habitCompletions, toggleHabitCompletion
                       onToggle={() => toggleHabitCompletion(dateStr, habit.id)}
                       color={ACCENT_COLORS[hi % ACCENT_COLORS.length]}
                     />
-                    <span style={{ fontSize: 15 }}>{habit.emoji}</span>
-                    <span style={{
-                      fontSize: 'var(--font-size-sm)', fontWeight: completed ? 600 : 400,
-                      color: completed ? 'var(--color-text-primary)' : 'var(--color-text-secondary)',
-                      textDecoration: completed ? 'line-through' : 'none',
-                      opacity: completed ? 0.7 : 1,
-                    }}>
-                      {habit.name}
-                    </span>
+                    <button
+                      onClick={() => onHabitClick(habit.id)}
+                      style={{
+                        background: 'none', border: 'none', cursor: 'pointer',
+                        display: 'flex', alignItems: 'center', gap: 6, padding: 0,
+                      }}
+                    >
+                      <span style={{ fontSize: 15 }}>{habit.emoji}</span>
+                      <span style={{
+                        fontSize: 'var(--font-size-sm)', fontWeight: completed ? 600 : 400,
+                        color: completed ? 'var(--color-text-primary)' : 'var(--color-text-secondary)',
+                        textDecoration: completed ? 'line-through' : 'none',
+                        opacity: completed ? 0.7 : 1,
+                      }}>
+                        {habit.name}
+                      </span>
+                      {goalMet && <GoalBadge />}
+                    </button>
                   </div>
                 )
               })}
@@ -243,6 +460,148 @@ function MobileHabitGrid({ days, habits, habitCompletions, toggleHabitCompletion
     </div>
   )
 }
+
+// ── Goal met badge ──────────────────────────────────────────────────────────
+
+function GoalBadge() {
+  return (
+    <span style={{
+      display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+      width: 18, height: 18, borderRadius: '50%',
+      background: '#10b981', color: '#fff', fontSize: 11, fontWeight: 700, lineHeight: 1,
+      flexShrink: 0,
+    }}>
+      ✓
+    </span>
+  )
+}
+
+// ── Add habit modal ─────────────────────────────────────────────────────────
+
+function AddHabitModal({ onAdd, onCancel }: {
+  onAdd: (name: string, emoji: string, frequency: 'daily' | 'weekly') => void
+  onCancel: () => void
+}) {
+  const [name, setName] = useState('')
+  const [emoji, setEmoji] = useState('')
+  const [frequency, setFrequency] = useState<'daily' | 'weekly'>('daily')
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!name.trim()) return
+    onAdd(name.trim(), emoji.trim() || '✅', frequency)
+  }
+
+  return (
+    <>
+      {/* Backdrop */}
+      <div
+        onClick={onCancel}
+        style={{
+          position: 'fixed', inset: 0,
+          background: 'rgba(0,0,0,0.35)',
+          zIndex: 200,
+        }}
+      />
+      {/* Modal */}
+      <div style={{
+        position: 'fixed', top: '50%', left: '50%',
+        transform: 'translate(-50%, -50%)',
+        zIndex: 201,
+        width: 340, maxWidth: 'calc(100vw - 32px)',
+        background: 'var(--color-surface)',
+        border: '1px solid var(--color-border)',
+        borderRadius: 'var(--radius-lg)',
+        boxShadow: '0 20px 60px rgba(0,0,0,0.15)',
+        padding: 20,
+      }}>
+        <div style={{
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          marginBottom: 16,
+        }}>
+          <span style={{
+            fontSize: 'var(--font-size-base)', fontWeight: 700,
+            color: 'var(--color-text-primary)',
+          }}>
+            New Habit
+          </span>
+          <button onClick={onCancel} style={{
+            background: 'none', border: 'none', cursor: 'pointer',
+            fontSize: 18, color: 'var(--color-text-tertiary)', padding: 0, lineHeight: 1,
+          }}>✕</button>
+        </div>
+        <form onSubmit={handleSubmit} style={{
+          display: 'flex', flexDirection: 'column', gap: 12,
+        }}>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <input
+              type="text"
+              value={emoji}
+              onChange={(e) => setEmoji(e.target.value)}
+              placeholder="📝"
+              maxLength={4}
+              style={{
+                width: 48, textAlign: 'center',
+                padding: '8px 4px', borderRadius: 'var(--radius-sm)',
+                border: '1px solid var(--color-border)', background: 'var(--color-bg)',
+                fontSize: 20, color: 'var(--color-text-primary)',
+              }}
+            />
+            <input
+              type="text"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="Habit name"
+              autoFocus
+              style={{
+                flex: 1, padding: '8px 12px', borderRadius: 'var(--radius-sm)',
+                border: '1px solid var(--color-border)', background: 'var(--color-bg)',
+                fontSize: 'var(--font-size-sm)', color: 'var(--color-text-primary)',
+                fontFamily: 'inherit',
+              }}
+            />
+          </div>
+          <div style={{ display: 'flex', gap: 0, borderRadius: 'var(--radius-sm)', overflow: 'hidden', border: '1px solid var(--color-border)' }}>
+            {(['daily', 'weekly'] as const).map((f) => (
+              <button
+                key={f}
+                type="button"
+                onClick={() => setFrequency(f)}
+                style={{
+                  flex: 1, padding: '6px 8px',
+                  fontSize: 'var(--font-size-xs)', fontWeight: 600,
+                  border: 'none', cursor: 'pointer',
+                  borderRight: f === 'daily' ? '1px solid var(--color-border)' : 'none',
+                  background: frequency === f ? 'var(--color-accent)' : 'var(--color-bg)',
+                  color: frequency === f ? '#fff' : 'var(--color-text-secondary)',
+                }}
+              >
+                {f === 'daily' ? 'Daily' : 'Weekly'}
+              </button>
+            ))}
+          </div>
+          <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 4 }}>
+            <button type="button" onClick={onCancel} style={{
+              padding: '6px 14px', borderRadius: 'var(--radius-sm)',
+              border: '1px solid var(--color-border)', background: 'var(--color-bg)',
+              fontSize: 'var(--font-size-sm)', fontWeight: 600,
+              color: 'var(--color-text-secondary)', cursor: 'pointer',
+            }}>Cancel</button>
+            <button type="submit" disabled={!name.trim()} style={{
+              padding: '6px 14px', borderRadius: 'var(--radius-sm)',
+              border: 'none', background: 'var(--color-accent)',
+              fontSize: 'var(--font-size-sm)', fontWeight: 600,
+              color: '#fff', cursor: name.trim() ? 'pointer' : 'default',
+              opacity: name.trim() ? 1 : 0.5,
+            }}>Add</button>
+          </div>
+        </form>
+      </div>
+    </>
+  )
+}
+
+// ── Shared UI ────────────────────────────────────────────────────────────────
 
 function NavBtn({ onClick, children }: { onClick: () => void; children: React.ReactNode }) {
   return (
