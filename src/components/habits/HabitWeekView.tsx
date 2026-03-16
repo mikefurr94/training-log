@@ -3,6 +3,7 @@ import { startOfWeek, addWeeks, subWeeks, addDays, format, isToday } from 'date-
 import { useAppStore } from '../../store/useAppStore'
 import { useIsMobile } from '../../hooks/useIsMobile'
 import HabitCheckbox from './HabitCheckbox'
+import EmojiPickerPopover from './EmojiPickerPopover'
 import type { HabitDefinition } from '../../store/types'
 
 const ACCENT_COLORS = ['#6366f1', '#10b981', '#8b5cf6', '#f59e0b', '#06b6d4', '#ec4899', '#ef4444', '#f97316']
@@ -483,13 +484,13 @@ function AddHabitModal({ onAdd, onCancel }: {
   onCancel: () => void
 }) {
   const [name, setName] = useState('')
-  const [emoji, setEmoji] = useState('')
+  const [emoji, setEmoji] = useState('✅')
   const [frequency, setFrequency] = useState<'daily' | 'weekly'>('daily')
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     if (!name.trim()) return
-    onAdd(name.trim(), emoji.trim() || '✅', frequency)
+    onAdd(name.trim(), emoji, frequency)
   }
 
   return (
@@ -534,18 +535,11 @@ function AddHabitModal({ onAdd, onCancel }: {
           display: 'flex', flexDirection: 'column', gap: 12,
         }}>
           <div style={{ display: 'flex', gap: 8 }}>
-            <input
-              type="text"
-              value={emoji}
-              onChange={(e) => setEmoji(e.target.value)}
-              placeholder="📝"
-              maxLength={4}
-              style={{
-                width: 48, textAlign: 'center',
-                padding: '8px 4px', borderRadius: 'var(--radius-sm)',
-                border: '1px solid var(--color-border)', background: 'var(--color-bg)',
-                fontSize: 20, color: 'var(--color-text-primary)',
-              }}
+            <EmojiPickerPopover
+              emoji={emoji}
+              onChange={setEmoji}
+              size={48}
+              pickerSide="bottom"
             />
             <input
               type="text"

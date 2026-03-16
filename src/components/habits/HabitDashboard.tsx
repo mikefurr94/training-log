@@ -116,7 +116,7 @@ function CustomTooltip({ active, payload, label, habits }: any) {
 // ── Weekly Review ─────────────────────────────────────────────────────────────
 
 function WeeklyReview({ habits, completions, isMobile }: {
-  habits: { id: string; name: string; emoji: string; order: number; frequency?: string }[]
+  habits: { id: string; name: string; emoji: string; order: number; frequency?: string; weeklyGoal?: number }[]
   completions: Record<string, string[]>
   isMobile: boolean
 }) {
@@ -195,22 +195,31 @@ function WeeklyReview({ habits, completions, isMobile }: {
           {habits.map((h, hi) => {
             const count = week.counts[h.id] ?? 0
             const isWeekly = h.frequency === 'weekly'
-            const max = isWeekly ? 1 : 7
-            const ratio = count / max
+            const goal = isWeekly ? 1 : (h.weeklyGoal ?? 7)
+            const metGoal = count >= goal
+            const ratio = Math.min(count / goal, 1)
+            const habitColor = HABIT_COLORS[hi % HABIT_COLORS.length]
             return (
               <div key={h.id} style={{
                 flex: 1, textAlign: 'center',
                 fontSize: isMobile ? 13 : 14,
                 fontWeight: 700,
                 fontVariantNumeric: 'tabular-nums',
-                color: count === max
-                  ? HABIT_COLORS[hi % HABIT_COLORS.length]
+                color: metGoal
+                  ? habitColor
                   : count === 0
                     ? 'var(--color-text-tertiary)'
                     : 'var(--color-text-primary)',
                 opacity: count === 0 ? 0.5 : 0.4 + ratio * 0.6,
+                background: metGoal ? `${habitColor}1a` : 'transparent',
+                borderRadius: 6,
+                padding: isMobile ? '2px 0' : '3px 0',
               }}>
-                {isWeekly ? (count ? '✓' : '—') : `${count}/7`}
+                {isWeekly
+                  ? (count ? '✓' : '—')
+                  : h.weeklyGoal
+                    ? `${count}/${h.weeklyGoal}`
+                    : `${count}/7`}
               </div>
             )
           })}

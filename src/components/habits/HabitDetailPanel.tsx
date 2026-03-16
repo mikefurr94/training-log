@@ -3,6 +3,7 @@ import { AnimatePresence, motion } from 'framer-motion'
 import { useAppStore } from '../../store/useAppStore'
 import { useIsMobile } from '../../hooks/useIsMobile'
 import type { HabitFrequency } from '../../store/types'
+import EmojiPickerPopover from './EmojiPickerPopover'
 
 export default function HabitDetailPanel() {
   const selectedHabitId = useAppStore((s) => s.selectedHabitId)
@@ -79,14 +80,11 @@ export default function HabitDetailPanel() {
               borderBottom: '1px solid var(--color-border)',
               display: 'flex', alignItems: 'center', gap: 12, flexShrink: 0,
             }}>
-              <div style={{
-                width: 40, height: 40, borderRadius: 'var(--radius-md)',
-                background: 'var(--color-bg)', border: '1px solid var(--color-border)',
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                fontSize: 22, flexShrink: 0,
-              }}>
-                {habit.emoji}
-              </div>
+              <EmojiPickerPopover
+                emoji={habit.emoji}
+                onChange={(emoji) => updateHabit(habit.id, { emoji })}
+                size={40}
+              />
               <div style={{ flex: 1, minWidth: 0 }}>
                 <h2 style={{
                   fontSize: 'var(--font-size-md)', fontWeight: 'var(--font-weight-semibold)',
