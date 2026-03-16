@@ -149,6 +149,7 @@ export interface HabitDefinition {
   archived?: boolean
   weeklyGoal?: number        // completions per week to consider goal met (1-7 for daily, 1 for weekly)
   frequency?: HabitFrequency // defaults to 'daily'
+  color?: string             // hex color for grid display; falls back to palette if unset
 }
 
 /** Maps 'YYYY-MM-DD' → array of completed habit IDs */

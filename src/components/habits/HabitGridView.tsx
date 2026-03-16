@@ -8,6 +8,16 @@ const DAY_LABELS = ['M', 'T', 'W', 'T', 'F', 'S', 'S']
 const DAY_LABEL_WIDTH = 20
 const QUARTER_START_MONTHS = new Set([3, 6, 9]) // April, July, October
 
+const HABIT_COLOR_PALETTE = [
+  '#6366f1', '#3b82f6', '#14b8a6', '#10b981',
+  '#84cc16', '#f59e0b', '#f97316', '#ef4444',
+  '#ec4899', '#8b5cf6',
+]
+
+function habitColor(habit: { color?: string }, index: number): string {
+  return habit.color ?? HABIT_COLOR_PALETTE[index % HABIT_COLOR_PALETTE.length]
+}
+
 interface DayData {
   date: Date
   dateStr: string
@@ -92,8 +102,9 @@ export default function HabitGridView() {
       </div>
 
       {/* Per-habit grids */}
-      {sortedHabits.map((habit) => {
+      {sortedHabits.map((habit, habitIndex) => {
         const isWeekly = habit.frequency === 'weekly'
+        const color = habitColor(habit, habitIndex)
         const weeklyGoal = habit.weeklyGoal ?? (isWeekly ? 1 : 7)
 
         // Compute goal-met weeks
@@ -174,7 +185,7 @@ export default function HabitGridView() {
                         <div title={`${habit.name} — Week of ${format(week[0].date, 'MMM d')}${completed ? ' (done)' : ''}`} style={{
                           flex: 1, aspectRatio: '1', borderRadius: 3,
                           background: !week[0].inYear ? 'transparent' : completed
-                            ? 'var(--color-habit-done)'
+                            ? color
                             : isThisWeek ? 'var(--color-today-bg, var(--color-border-light, #e5e7eb))' : 'var(--color-border-light, #e5e7eb)',
                           opacity: !week[0].inYear ? 0 : completed ? 1 : 0.4,
                           minWidth: 0,
@@ -186,7 +197,7 @@ export default function HabitGridView() {
               </div>
 
               {/* Goal-met indicator strip */}
-              <GoalStrip grid={grid} goalMetWeeks={goalMetWeeks} quarterCols={quarterCols} />
+              <GoalStrip grid={grid} goalMetWeeks={goalMetWeeks} quarterCols={quarterCols} color={color} />
             </div>
           )
         }
@@ -276,7 +287,7 @@ export default function HabitGridView() {
                                 aspectRatio: '1',
                                 borderRadius: 3,
                                 background: completed
-                                  ? 'var(--color-habit-done)'
+                                  ? color
                                   : isCurrentWeek
                                     ? 'var(--color-today-bg, var(--color-border-light, #e5e7eb))'
                                     : 'var(--color-border-light, #e5e7eb)',
@@ -296,7 +307,7 @@ export default function HabitGridView() {
             </div>
 
             {/* Goal-met indicator strip */}
-            <GoalStrip grid={grid} goalMetWeeks={goalMetWeeks} quarterCols={quarterCols} />
+            <GoalStrip grid={grid} goalMetWeeks={goalMetWeeks} quarterCols={quarterCols} color={color} />
           </div>
         )
       })}
@@ -315,10 +326,11 @@ export default function HabitGridView() {
 // when the weekly goal was met. Uses the identical flex + gap + quarter-divider
 // structure as the day rows so it aligns pixel-perfectly.
 
-function GoalStrip({ grid, goalMetWeeks, quarterCols }: {
+function GoalStrip({ grid, goalMetWeeks, quarterCols, color }: {
   grid: DayData[][]
   goalMetWeeks: Set<number>
   quarterCols: number[]
+  color: string
 }) {
   return (
     <div style={{ display: 'flex', alignItems: 'center', marginTop: 4 }}>
@@ -336,7 +348,7 @@ function GoalStrip({ grid, goalMetWeeks, quarterCols }: {
                 flex: 1,
                 height: 3,
                 borderRadius: 2,
-                background: goalMet ? 'var(--color-habit-done)' : 'transparent',
+                background: goalMet ? color : 'transparent',
               }} />
             </React.Fragment>
           )

@@ -129,6 +129,14 @@ export default function HabitDetailPanel() {
                 />
               </Section>
 
+              {/* Color */}
+              <Section title="Color">
+                <ColorPicker
+                  value={habit.color}
+                  onChange={(color) => updateHabit(habit.id, { color })}
+                />
+              </Section>
+
               {/* Weekly Goal */}
               <Section title="Weekly Goal">
                 <GoalSelector
@@ -292,6 +300,44 @@ function GoalSelector({ value, frequency, onChange }: {
           >
             {opt.label}
           </button>
+        )
+      })}
+    </div>
+  )
+}
+
+const HABIT_COLOR_PALETTE = [
+  '#6366f1', // indigo
+  '#3b82f6', // blue
+  '#14b8a6', // teal
+  '#10b981', // emerald
+  '#84cc16', // lime
+  '#f59e0b', // amber
+  '#f97316', // orange
+  '#ef4444', // red
+  '#ec4899', // pink
+  '#8b5cf6', // violet
+]
+
+function ColorPicker({ value, onChange }: { value?: string; onChange: (v: string) => void }) {
+  return (
+    <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+      {HABIT_COLOR_PALETTE.map((hex) => {
+        const selected = value === hex
+        return (
+          <button
+            key={hex}
+            onClick={() => onChange(hex)}
+            title={hex}
+            style={{
+              width: 28, height: 28, borderRadius: '50%',
+              background: hex, border: 'none', cursor: 'pointer',
+              outline: selected ? `3px solid ${hex}` : '3px solid transparent',
+              outlineOffset: 2,
+              transition: 'outline 100ms ease, transform 100ms ease',
+              transform: selected ? 'scale(1.15)' : 'scale(1)',
+            }}
+          />
         )
       })}
     </div>
