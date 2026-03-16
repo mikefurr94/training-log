@@ -1,5 +1,5 @@
-import { useMemo, useState } from 'react'
-import { format, eachWeekOfInterval, addDays, startOfWeek, subWeeks, getMonth } from 'date-fns'
+import { useMemo } from 'react'
+import { format, eachWeekOfInterval, addDays, startOfWeek, startOfYear, endOfYear, getMonth } from 'date-fns'
 import { useAppStore } from '../../store/useAppStore'
 import { useIsMobile } from '../../hooks/useIsMobile'
 
@@ -7,35 +7,28 @@ const MONTH_LABELS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'S
 const DAY_LABELS = ['M', 'T', 'W', 'T', 'F', 'S', 'S']
 const DAY_LABEL_WIDTH = 20
 
-const RANGE_OPTIONS = [
-  { weeks: 13, label: '3 mo' },
-  { weeks: 26, label: '6 mo' },
-  { weeks: 52, label: '1 yr' },
-]
-
 interface DayData {
   date: Date
   dateStr: string
-  inRange: boolean
+  inYear: boolean
 }
 
 export default function HabitGridView() {
   const habits = useAppStore((s) => s.habits)
   const habitCompletions = useAppStore((s) => s.habitCompletions)
   const isMobile = useIsMobile()
-  const [weeksToShow, setWeeksToShow] = useState(isMobile ? 13 : 52)
 
   const today = useMemo(() => new Date(), [])
 
-  // Build a grid: array of weeks, each week is 7 days (Mon–Sun)
+  // Build a grid: full current year Jan–Dec, same as activities GridView
   const { weekStarts, grid } = useMemo(() => {
-    const currentWeekStart = startOfWeek(today, { weekStartsOn: 1 })
-    const rangeStart = subWeeks(currentWeekStart, weeksToShow - 1)
+    const yearStart = startOfYear(today)
+    const yearEnd = endOfYear(today)
 
     const ws = eachWeekOfInterval(
-      { start: rangeStart, end: currentWeekStart },
+      { start: yearStart, end: yearEnd },
       { weekStartsOn: 1 }
-    )
+    ).filter((ws) => ws >= yearStart)
 
     const g: DayData[][] = ws.map((weekStart) =>
       Array.from({ length: 7 }, (_, di) => {
@@ -43,13 +36,13 @@ export default function HabitGridView() {
         return {
           date,
           dateStr: format(date, 'yyyy-MM-dd'),
-          inRange: date <= today,
+          inYear: date >= yearStart && date <= yearEnd,
         }
       })
     )
 
     return { weekStarts: ws, grid: g }
-  }, [today, weeksToShow])
+  }, [today])
 
   const sortedHabits = useMemo(
     () => [...habits].filter((h) => !h.archived).sort((a, b) => a.order - b.order),
@@ -79,39 +72,15 @@ export default function HabitGridView() {
       flexDirection: 'column',
       gap: isMobile ? 20 : 32,
     }}>
-      {/* Range selector */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-        <div style={{
-          display: 'flex', background: 'var(--color-bg)', border: '1px solid var(--color-border)',
-          borderRadius: 'var(--radius-sm)', padding: 2, gap: 1,
-        }}>
-          {RANGE_OPTIONS.map(({ weeks, label }) => (
-            <button
-              key={weeks}
-              onClick={() => setWeeksToShow(weeks)}
-              style={{
-                padding: isMobile ? '4px 8px' : '4px 10px', borderRadius: 'var(--radius-sm)',
-                fontSize: isMobile ? 11 : 'var(--font-size-sm)', fontWeight: weeksToShow === weeks ? 600 : 500,
-                color: weeksToShow === weeks ? 'var(--color-text-inverse)' : 'var(--color-text-secondary)',
-                background: weeksToShow === weeks ? 'var(--color-accent)' : 'transparent',
-                border: 'none', cursor: 'pointer',
-              }}
-            >
-              {label}
-            </button>
-          ))}
+      {/* Legend */}
+      <div style={{ display: 'flex', gap: isMobile ? 6 : 10, alignItems: 'center' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
+          <div style={{ width: 10, height: 10, borderRadius: 2, background: 'var(--color-habit-done)' }} />
+          <span style={{ fontSize: isMobile ? 10 : 11, color: 'var(--color-text-tertiary)' }}>Done</span>
         </div>
-
-        {/* Legend */}
-        <div style={{ display: 'flex', gap: isMobile ? 6 : 10, alignItems: 'center', marginLeft: isMobile ? 0 : 'auto' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
-            <div style={{ width: 10, height: 10, borderRadius: 2, background: 'var(--color-habit-done)' }} />
-            <span style={{ fontSize: isMobile ? 10 : 11, color: 'var(--color-text-tertiary)' }}>Done</span>
-          </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
-            <div style={{ width: 10, height: 10, borderRadius: 2, background: 'var(--color-habit-none)' }} />
-            <span style={{ fontSize: isMobile ? 10 : 11, color: 'var(--color-text-tertiary)' }}>Not done</span>
-          </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
+          <div style={{ width: 10, height: 10, borderRadius: 2, background: 'var(--color-habit-none)' }} />
+          <span style={{ fontSize: isMobile ? 10 : 11, color: 'var(--color-text-tertiary)' }}>Not done</span>
         </div>
       </div>
 
@@ -124,7 +93,7 @@ export default function HabitGridView() {
           let completedCount = 0
           for (const week of grid) {
             const weekStartStr = format(week[0].date, 'yyyy-MM-dd')
-            if (week[0].inRange && (habitCompletions[weekStartStr] ?? []).includes(habit.id)) completedCount++
+            if (week[0].inYear && week[0].date <= today && (habitCompletions[weekStartStr] ?? []).includes(habit.id)) completedCount++
           }
 
           return (
@@ -157,15 +126,16 @@ export default function HabitGridView() {
                 <div style={{ display: 'flex', flex: 1, gap: 3 }}>
                   {grid.map((week, wi) => {
                     const weekStartStr = format(week[0].date, 'yyyy-MM-dd')
-                    const completed = week[0].inRange && (habitCompletions[weekStartStr] ?? []).includes(habit.id)
+                    const isPast = week[0].date <= today
+                    const completed = week[0].inYear && isPast && (habitCompletions[weekStartStr] ?? []).includes(habit.id)
                     const isThisWeek = week[0].date.getTime() === currentWeekStart
                     return (
                       <div key={wi} title={`${habit.name} — Week of ${format(week[0].date, 'MMM d')}${completed ? ' (done)' : ''}`} style={{
                         flex: 1, aspectRatio: '1', borderRadius: 3,
-                        background: !week[0].inRange ? 'transparent' : completed
+                        background: !week[0].inYear ? 'transparent' : completed
                           ? 'var(--color-habit-done)'
                           : isThisWeek ? 'var(--color-today-bg, var(--color-border-light, #e5e7eb))' : 'var(--color-border-light, #e5e7eb)',
-                        opacity: !week[0].inRange ? 0 : completed ? 1 : 0.4,
+                        opacity: !week[0].inYear ? 0 : completed ? 1 : 0.4,
                         minWidth: 0,
                       }} />
                     )
@@ -176,11 +146,11 @@ export default function HabitGridView() {
           )
         }
 
-        // Daily habits: original grid
+        // Daily habits
         let completedCount = 0
         for (const week of grid) {
           for (const day of week) {
-            if (!day.inRange) continue
+            if (!day.inYear || day.date > today) continue
             if ((habitCompletions[day.dateStr] ?? []).includes(habit.id)) completedCount++
           }
         }
@@ -239,10 +209,11 @@ export default function HabitGridView() {
                   <div style={{ display: 'flex', flex: 1, gap: 3 }}>
                     {grid.map((week, wi) => {
                       const day = week[di]
-                      const completed = day.inRange && (habitCompletions[day.dateStr] ?? []).includes(habit.id)
+                      const isPast = day.date <= today
+                      const completed = day.inYear && isPast && (habitCompletions[day.dateStr] ?? []).includes(habit.id)
                       const isCurrentWeek = week[0].date.getTime() === currentWeekStart
 
-                      return !day.inRange ? (
+                      return !day.inYear ? (
                         <div key={wi} style={{ flex: 1, aspectRatio: '1', borderRadius: 3, background: 'transparent' }} />
                       ) : (
                         <div
