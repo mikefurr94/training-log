@@ -606,30 +606,7 @@ export default function CoachPage() {
     return (
       <div style={{ display: 'flex', flex: 1, height: '100%', overflow: 'hidden', flexDirection: 'column' }}>
         <ViewTabBar view={coachView} onChangeView={setCoachView} hasPlan={hasPlan} />
-        <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
-          {/* Grid (main area) */}
-          <div style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
-            <CoachPlanGrid plan={coachPlan} />
-          </div>
-          {/* Chat side panel */}
-          <div style={{
-            width: 340, flexShrink: 0, borderLeft: '1px solid var(--color-border)',
-            display: 'flex', flexDirection: 'column', overflow: 'hidden',
-          }}>
-            <ChatPanel
-              messages={messages}
-              isStreaming={isStreaming}
-              streamingContent={streamingContent}
-              streamingCharts={streamingCharts}
-              toolStatus={toolStatus}
-              sendMessage={sendMessage}
-              hasMessages={hasMessages}
-              onCreatePlan={() => setCoachView('intake')}
-              hasPlan={hasPlan}
-              compact
-            />
-          </div>
-        </div>
+        <CoachPlanGrid plan={coachPlan} />
       </div>
     )
   }

@@ -97,9 +97,16 @@ export type WeekDayIndex = 0 | 1 | 2 | 3 | 4 | 5 | 6 // 0 = Sunday
 
 // ── Planned Activities ──────────────────────────────────────────────────────
 
+export interface PlannedExercise {
+  name: string           // e.g. "Barbell Squat", "Dumbbell Row"
+  sets: number
+  reps: string           // e.g. "8-10", "12", "30sec"
+  notes?: string         // e.g. "moderate weight", "each side"
+}
+
 export type PlannedActivity =
   | { id: string; type: 'Run'; targetDistance: number; targetPace: string; notes?: string }
-  | { id: string; type: 'WeightTraining'; workoutType: WorkoutType; notes?: string }
+  | { id: string; type: 'WeightTraining'; workoutType: WorkoutType; exercises?: PlannedExercise[]; notes?: string }
   | { id: string; type: 'Yoga'; notes?: string }
   | { id: string; type: 'Tennis'; notes?: string }
   | { id: string; type: 'Rest'; notes?: string }

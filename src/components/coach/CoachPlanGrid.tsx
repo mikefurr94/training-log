@@ -1,196 +1,238 @@
-import { useState } from 'react'
-import { useAppStore } from '../../store/useAppStore'
+import { useState, useEffect } from 'react'
+import { AnimatePresence, motion } from 'framer-motion'
+import type { CoachPlan, CoachPlanWeek, WeekDayIndex, PlannedActivity, PlannedExercise } from '../../store/types'
+import { getPlannedActivityEmoji, getPlannedActivityLabel } from '../../utils/planningUtils'
+import { parseISO, format, isWithinInterval, addDays } from 'date-fns'
 import { useIsMobile } from '../../hooks/useIsMobile'
-import type { CoachPlan, CoachPlanWeek, WeekDayIndex, PlannedActivity } from '../../store/types'
-import { getPlannedActivityEmoji } from '../../utils/planningUtils'
-import { parseISO, startOfWeek, format, isWithinInterval, addDays } from 'date-fns'
 
-// Monday-first display order: Mon=1, Tue=2, Wed=3, Thu=4, Fri=5, Sat=6, Sun=0
 const MONDAY_FIRST_ORDER: WeekDayIndex[] = [1, 2, 3, 4, 5, 6, 0]
-const DAY_LABELS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
+const DAY_ABBR = ['M', 'T', 'W', 'T', 'F', 'S', 'S']
+const DAY_NAMES = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
 
-type SelectedActivity = {
-  week: CoachPlanWeek
-  dayIndex: WeekDayIndex
+// ── Phase colors ─────────────────────────────────────────────────────────────
+// Each phase gets a hue-based color. Works in light & dark via hsl with opacity.
+
+type PhaseTheme = { hue: number; emoji: string }
+
+const PHASE_KEYWORDS: [RegExp, PhaseTheme][] = [
+  [/base/i,                { hue: 210, emoji: '🧱' }],   // blue
+  [/build/i,               { hue: 250, emoji: '📈' }],   // indigo
+  [/speed|tempo|interval/i,{ hue: 15,  emoji: '⚡' }],   // orange
+  [/threshold|lactate/i,   { hue: 340, emoji: '🔥' }],   // rose
+  [/peak/i,                { hue: 280, emoji: '🏔️' }],   // purple
+  [/taper/i,               { hue: 160, emoji: '🍃' }],   // teal
+  [/recover/i,             { hue: 140, emoji: '💚' }],   // green
+  [/race|event/i,          { hue: 45,  emoji: '🏁' }],   // gold
+  [/endurance|long/i,      { hue: 195, emoji: '🌊' }],   // cyan
+]
+
+const DEFAULT_PHASE: PhaseTheme = { hue: 220, emoji: '📅' }
+
+function getPhaseTheme(label: string): PhaseTheme {
+  for (const [re, theme] of PHASE_KEYWORDS) {
+    if (re.test(label)) return theme
+  }
+  return DEFAULT_PHASE
+}
+
+function phaseColor(hue: number, type: 'solid' | 'light' | 'muted'): string {
+  switch (type) {
+    case 'solid': return `hsl(${hue}, 65%, 55%)`
+    case 'light': return `hsla(${hue}, 60%, 55%, 0.12)`
+    case 'muted': return `hsla(${hue}, 50%, 55%, 0.5)`
+  }
+}
+
+type SelectedWorkout = {
   activity: PlannedActivity
+  week: CoachPlanWeek
+  dayIndex: number // index into MONDAY_FIRST_ORDER display order
 }
 
 interface Props {
   plan: CoachPlan
-  onEditActivity?: (week: CoachPlanWeek, dayIndex: WeekDayIndex, activity: PlannedActivity) => void
 }
 
 export default function CoachPlanGrid({ plan }: Props) {
+  const [expandedWeeks, setExpandedWeeks] = useState<Set<number>>(new Set())
+  const [selected, setSelected] = useState<SelectedWorkout | null>(null)
   const isMobile = useIsMobile()
-  const setDayOverride = useAppStore((s) => s.setDayOverride)
-  const clearWeekOverride = useAppStore((s) => s.clearWeekOverride)
-  const weekOverrides = useAppStore((s) => s.weekOverrides)
-  const [expandedWeek, setExpandedWeek] = useState<number | null>(null)
-  const [selectedActivity, setSelectedActivity] = useState<SelectedActivity | null>(null)
-
-  // Determine current week
   const today = new Date()
 
   function isCurrentWeek(week: CoachPlanWeek): boolean {
     try {
       const ws = parseISO(week.weekStart)
-      const we = addDays(ws, 6)
-      return isWithinInterval(today, { start: ws, end: we })
+      return isWithinInterval(today, { start: ws, end: addDays(ws, 6) })
     } catch { return false }
   }
 
-  function isWeekOnCalendar(week: CoachPlanWeek): boolean {
-    return weekOverrides.some((o) => o.weekStart === week.weekStart)
-  }
-
-  function addWeekToCalendar(week: CoachPlanWeek) {
-    const ws = startOfWeek(parseISO(week.weekStart), { weekStartsOn: 0 })
-    for (let d = 0; d <= 6; d++) {
-      const dayActivities = week.days[d as WeekDayIndex] ?? []
-      if (dayActivities.length > 0) {
-        setDayOverride(ws, d as WeekDayIndex, dayActivities)
+  function weekMileage(week: CoachPlanWeek): number {
+    let total = 0
+    for (const dayIdx of MONDAY_FIRST_ORDER) {
+      for (const a of week.days[dayIdx] ?? []) {
+        if (a.type === 'Run') total += a.targetDistance
+        if (a.type === 'Race' && a.distance) {
+          const mi = parseFloat(a.distance)
+          if (!isNaN(mi)) total += mi
+        }
       }
     }
+    return Math.round(total * 10) / 10
   }
 
-  function removeWeekFromCalendar(week: CoachPlanWeek) {
-    const ws = startOfWeek(parseISO(week.weekStart), { weekStartsOn: 0 })
-    clearWeekOverride(ws)
-  }
-
-  function addDayToCalendar(week: CoachPlanWeek, dayIndex: WeekDayIndex) {
-    const ws = startOfWeek(parseISO(week.weekStart), { weekStartsOn: 0 })
-    const dayActivities = week.days[dayIndex] ?? []
-    setDayOverride(ws, dayIndex, dayActivities)
-  }
-
-  if (isMobile) {
-    return (
-      <>
-        <MobileGrid
-          plan={plan}
-          expandedWeek={expandedWeek}
-          setExpandedWeek={setExpandedWeek}
-          isCurrentWeek={isCurrentWeek}
-          isWeekOnCalendar={isWeekOnCalendar}
-          addWeekToCalendar={addWeekToCalendar}
-          removeWeekFromCalendar={removeWeekFromCalendar}
-          addDayToCalendar={addDayToCalendar}
-          onActivityClick={setSelectedActivity}
-        />
-        <WorkoutDetailPanel
-          data={selectedActivity}
-          onClose={() => setSelectedActivity(null)}
-          isMobile={true}
-        />
-      </>
-    )
-  }
+  const maxMileage = Math.max(...plan.weeks.map(weekMileage), 1)
 
   return (
-    <div style={{ flex: 1, overflow: 'auto', padding: '16px 20px' }}>
-      {/* Plan header */}
-      <PlanHeader plan={plan} />
-
-      {/* Desktop grid table */}
-      <div style={{
-        border: '1px solid var(--color-border)', borderRadius: 'var(--radius-md)',
-        overflow: 'hidden', background: 'var(--color-surface)',
-      }}>
-        {/* Header row */}
-        <div style={{
-          display: 'grid', gridTemplateColumns: '80px repeat(7, 1fr) 130px',
-          borderBottom: '1px solid var(--color-border)',
-          background: 'var(--color-bg)',
-        }}>
-          <div style={thStyle}>Week</div>
-          {DAY_LABELS.map((d) => (
-            <div key={d} style={thStyle}>{d}</div>
-          ))}
-          <div style={thStyle}>Actions</div>
+    <div style={{ flex: 1, overflow: 'auto', padding: '20px 24px', position: 'relative' }}>
+      {/* Plan title */}
+      <div style={{ marginBottom: 20 }}>
+        <h2 style={{
+          margin: 0, fontSize: 20, fontWeight: 700,
+          color: 'var(--color-text-primary)',
+        }}>{plan.name}</h2>
+        <div style={{ display: 'flex', gap: 16, marginTop: 6, fontSize: 13, color: 'var(--color-text-secondary)' }}>
+          {plan.raceDate && <span>{format(parseISO(plan.raceDate), 'MMM d, yyyy')}</span>}
+          {plan.raceDistance && <span>{plan.raceDistance}</span>}
+          {plan.goalTime && <span>Goal: {plan.goalTime}</span>}
+          <span>{plan.weeks.length} weeks</span>
         </div>
+      </div>
 
-        {/* Week rows */}
+      {/* Timeline */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
         {plan.weeks.map((week) => {
           const current = isCurrentWeek(week)
-          const onCal = isWeekOnCalendar(week)
+          const expanded = expandedWeeks.has(week.weekNumber)
+          const miles = weekMileage(week)
+          const barWidth = Math.max((miles / maxMileage) * 100, 8)
+          const phase = getPhaseTheme(week.label)
+          const solid = phaseColor(phase.hue, 'solid')
+          const light = phaseColor(phase.hue, 'light')
 
           return (
-            <div
-              key={week.weekNumber}
-              style={{
-                display: 'grid', gridTemplateColumns: '80px repeat(7, 1fr) 130px',
-                borderBottom: '1px solid var(--color-border)',
-                background: current ? 'var(--color-accent-light)' : undefined,
-              }}
-            >
-              {/* Week label */}
-              <div style={{
-                padding: '8px 10px', display: 'flex', flexDirection: 'column',
-                justifyContent: 'center', borderRight: '1px solid var(--color-border)',
-              }}>
+            <div key={week.weekNumber}>
+              {/* Week row */}
+              <button
+                onClick={() => setExpandedWeeks((prev) => {
+                  const next = new Set(prev)
+                  if (next.has(week.weekNumber)) next.delete(week.weekNumber)
+                  else next.add(week.weekNumber)
+                  return next
+                })}
+                style={{
+                  width: '100%', border: 'none', cursor: 'pointer',
+                  background: current ? light : 'transparent',
+                  borderRadius: expanded ? '8px 8px 0 0' : 8,
+                  padding: '10px 12px',
+                  display: 'flex', alignItems: 'center', gap: 12,
+                  transition: 'background 120ms',
+                }}
+              >
+                {/* Week number badge */}
                 <div style={{
-                  fontSize: 11, fontWeight: 700,
-                  color: current ? 'var(--color-accent)' : 'var(--color-text-primary)',
-                }}>Wk {week.weekNumber}</div>
-                <div style={{
-                  fontSize: 9, color: 'var(--color-text-tertiary)',
-                  marginTop: 2,
-                }}>{week.label}</div>
-                <div style={{
-                  fontSize: 9, color: 'var(--color-text-tertiary)',
-                  marginTop: 1,
-                }}>{formatWeekDate(week.weekStart)}</div>
-              </div>
+                  width: 28, height: 28, borderRadius: '50%',
+                  background: solid,
+                  color: 'white',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  fontSize: 11, fontWeight: 700, flexShrink: 0,
+                }}>
+                  {week.weekNumber}
+                </div>
 
-              {/* Day cells - Monday first */}
-              {MONDAY_FIRST_ORDER.map((dayIdx, i) => {
-                const activities = week.days[dayIdx] ?? []
-                return (
-                  <DayCell
-                    key={dayIdx}
-                    activities={activities}
-                    onAddDay={() => addDayToCalendar(week, dayIdx)}
-                    onActivityClick={(activity) => setSelectedActivity({ week, dayIndex: dayIdx, activity })}
-                    isLast={i === 6}
-                  />
-                )
-              })}
+                {/* Label + date */}
+                <div style={{ minWidth: 100, textAlign: 'left' }}>
+                  <div style={{
+                    fontSize: 13, fontWeight: 600,
+                    color: current ? solid : 'var(--color-text-primary)',
+                    display: 'flex', alignItems: 'center', gap: 4,
+                  }}>
+                    <span>{phase.emoji}</span>
+                    {week.label}
+                  </div>
+                  <div style={{ fontSize: 11, color: 'var(--color-text-tertiary)' }}>
+                    {formatWeekDate(week.weekStart)}
+                  </div>
+                </div>
 
-              {/* Actions */}
-              <div style={{
-                padding: '6px 8px', display: 'flex', flexDirection: 'column',
-                alignItems: 'center', justifyContent: 'center', gap: 4,
-                borderLeft: '1px solid var(--color-border)',
-              }}>
-                {onCal ? (
-                  <>
-                    <span style={{
-                      fontSize: 10, fontWeight: 600, color: 'var(--color-status-completed-text)',
-                      display: 'flex', alignItems: 'center', gap: 3,
-                    }}>
-                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                        <polyline points="20 6 9 17 4 12" />
-                      </svg>
-                      On calendar
-                    </span>
-                    <button
-                      onClick={() => removeWeekFromCalendar(week)}
-                      style={smallBtnStyle}
-                    >Remove</button>
-                  </>
-                ) : (
-                  <button
-                    onClick={() => addWeekToCalendar(week)}
-                    style={{
-                      ...smallBtnStyle,
-                      background: 'var(--color-accent)',
-                      color: 'var(--color-text-inverse)',
-                      border: 'none',
-                    }}
-                  >Add to calendar</button>
-                )}
-              </div>
+                {/* Mileage bar */}
+                <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <div style={{
+                    height: 6, borderRadius: 3,
+                    background: solid,
+                    width: `${barWidth}%`,
+                    transition: 'width 300ms ease',
+                    opacity: current ? 1 : 0.5,
+                  }} />
+                  <span style={{
+                    fontSize: 11, fontWeight: 600,
+                    color: 'var(--color-text-tertiary)', whiteSpace: 'nowrap',
+                  }}>{miles} mi</span>
+                </div>
+
+                {/* Chevron */}
+                <svg
+                  width="14" height="14" viewBox="0 0 24 24" fill="none"
+                  stroke="var(--color-text-tertiary)" strokeWidth="2"
+                  style={{ transform: expanded ? 'rotate(180deg)' : undefined, transition: 'transform 150ms', flexShrink: 0 }}
+                >
+                  <polyline points="6 9 12 15 18 9" />
+                </svg>
+              </button>
+
+              {/* Expanded: horizontal day cards */}
+              {expanded && (
+                <div style={{
+                  background: 'var(--color-surface)',
+                  border: '1px solid var(--color-border)',
+                  borderTop: 'none',
+                  borderRadius: '0 0 8px 8px',
+                  padding: '8px 12px 10px',
+                  display: 'flex', gap: 6,
+                }}>
+                  {MONDAY_FIRST_ORDER.map((dayIdx, i) => {
+                    const activities = week.days[dayIdx] ?? []
+                    const isRest = activities.length === 0 || (activities.length === 1 && activities[0].type === 'Rest')
+
+                    return (
+                      <div
+                        key={dayIdx}
+                        onClick={() => {
+                          if (!isRest && activities[0]) {
+                            setSelected({ activity: activities[0], week, dayIndex: i })
+                          }
+                        }}
+                        style={{
+                          flex: 1,
+                          borderRadius: 6,
+                          border: '1px solid var(--color-border)',
+                          padding: '6px 4px',
+                          display: 'flex', flexDirection: 'column', alignItems: 'center',
+                          gap: 2,
+                          opacity: isRest ? 0.4 : 1,
+                          minWidth: 0,
+                          cursor: isRest ? 'default' : 'pointer',
+                          transition: 'border-color 120ms',
+                        }}
+                        onMouseEnter={(e) => { if (!isRest) e.currentTarget.style.borderColor = 'var(--color-accent)' }}
+                        onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'var(--color-border)' }}
+                      >
+                        <span style={{
+                          fontSize: 10, fontWeight: 700,
+                          color: 'var(--color-text-tertiary)',
+                        }}>{DAY_ABBR[i]}</span>
+
+                        {isRest ? (
+                          <span style={{ fontSize: 12 }}>😴</span>
+                        ) : (
+                          activities.map((a) => (
+                            <ActivityBubble key={a.id} activity={a} />
+                          ))
+                        )}
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
             </div>
           )
         })}
@@ -198,109 +240,19 @@ export default function CoachPlanGrid({ plan }: Props) {
 
       {/* Workout detail panel */}
       <WorkoutDetailPanel
-        data={selectedActivity}
-        onClose={() => setSelectedActivity(null)}
-        isMobile={false}
+        data={selected}
+        onClose={() => setSelected(null)}
+        isMobile={isMobile}
       />
     </div>
   )
 }
 
-// ── Plan Header ─────────────────────────────────────────────────────────────
+// ── Activity Bubble ───────────────────────────────────────────────────────────
 
-function PlanHeader({ plan }: { plan: CoachPlan }) {
-  return (
-    <div style={{ marginBottom: 16 }}>
-      <h2 style={{
-        margin: 0, fontSize: 'var(--font-size-lg)', fontWeight: 700,
-        color: 'var(--color-text-primary)',
-      }}>{plan.name}</h2>
-      <div style={{
-        display: 'flex', gap: 12, flexWrap: 'wrap', marginTop: 6,
-      }}>
-        {plan.raceDate && (
-          <InfoChip label="Race" value={format(parseISO(plan.raceDate), 'MMM d, yyyy')} />
-        )}
-        {plan.raceDistance && <InfoChip label="Distance" value={plan.raceDistance} />}
-        {plan.goalTime && <InfoChip label="Goal" value={plan.goalTime} />}
-        <InfoChip label="Weeks" value={String(plan.weeks.length)} />
-        {plan.preferences?.runDaysPerWeek && (
-          <InfoChip label="Runs/wk" value={String(plan.preferences.runDaysPerWeek)} />
-        )}
-        {plan.preferences?.liftDaysPerWeek !== undefined && plan.preferences.liftDaysPerWeek > 0 && (
-          <InfoChip label="Lifts/wk" value={String(plan.preferences.liftDaysPerWeek)} />
-        )}
-      </div>
-    </div>
-  )
-}
-
-function InfoChip({ label, value }: { label: string; value: string }) {
-  return (
-    <span style={{
-      fontSize: 11, color: 'var(--color-text-secondary)',
-      background: 'var(--color-bg)', padding: '3px 8px',
-      borderRadius: 'var(--radius-full)', border: '1px solid var(--color-border)',
-    }}>
-      <strong>{label}:</strong> {value}
-    </span>
-  )
-}
-
-// ── Day Cell ────────────────────────────────────────────────────────────────
-
-function DayCell({
-  activities,
-  onAddDay,
-  onActivityClick,
-  isLast,
-}: {
-  activities: PlannedActivity[]
-  onAddDay: () => void
-  onActivityClick: (activity: PlannedActivity) => void
-  isLast?: boolean
-}) {
-  const [hovered, setHovered] = useState(false)
-
-  return (
-    <div
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
-      style={{
-        padding: '6px 4px', minHeight: 56,
-        borderRight: isLast ? undefined : '1px solid var(--color-border)',
-        position: 'relative',
-        display: 'flex', flexDirection: 'column', gap: 2,
-      }}
-    >
-      {activities.length === 0 ? (
-        <span style={{ fontSize: 10, color: 'var(--color-text-tertiary)', textAlign: 'center', marginTop: 8 }}>—</span>
-      ) : (
-        activities.map((a) => (
-          <ActivityPill key={a.id} activity={a} onClick={() => onActivityClick(a)} />
-        ))
-      )}
-      {hovered && activities.length > 0 && (
-        <button
-          onClick={onAddDay}
-          title="Add this day to calendar"
-          style={{
-            position: 'absolute', top: 2, right: 2,
-            width: 16, height: 16, borderRadius: 4,
-            background: 'var(--color-accent)', color: 'white',
-            border: 'none', cursor: 'pointer', fontSize: 10,
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            lineHeight: 1,
-          }}
-        >+</button>
-      )}
-    </div>
-  )
-}
-
-function ActivityPill({ activity, onClick }: { activity: PlannedActivity; onClick?: () => void }) {
+function ActivityBubble({ activity }: { activity: PlannedActivity }) {
   const emoji = getPlannedActivityEmoji(activity)
-  let label: string = activity.type
+  let label = ''
   let detail = ''
 
   if (activity.type === 'Run') {
@@ -310,178 +262,321 @@ function ActivityPill({ activity, onClick }: { activity: PlannedActivity; onClic
     label = activity.workoutType
   } else if (activity.type === 'Race') {
     label = activity.name || 'Race'
+  } else {
+    label = activity.type
   }
 
-  const isRest = activity.type === 'Rest'
-
   return (
-    <div
-      onClick={onClick}
-      style={{
-        display: 'flex', alignItems: 'center', gap: 3,
-        padding: '2px 5px', borderRadius: 4,
-        background: isRest ? 'transparent' : 'var(--color-bg)',
-        fontSize: 10,
-        cursor: onClick && !isRest ? 'pointer' : 'default',
-        transition: 'opacity 120ms',
-      }}
-      onMouseEnter={(e) => { if (onClick && !isRest) (e.currentTarget as HTMLElement).style.opacity = '0.75' }}
-      onMouseLeave={(e) => { if (onClick && !isRest) (e.currentTarget as HTMLElement).style.opacity = '1' }}
-    >
-      <span style={{ fontSize: 10 }}>{emoji}</span>
+    <div style={{
+      display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1,
+    }}>
+      <span style={{ fontSize: 14 }}>{emoji}</span>
       <span style={{
-        fontWeight: 600,
-        color: isRest ? 'var(--color-text-tertiary)' : 'var(--color-text-primary)',
+        fontSize: 10, fontWeight: 600, color: 'var(--color-text-primary)',
+        textAlign: 'center', lineHeight: 1.2,
         overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+        maxWidth: '100%',
       }}>{label}</span>
       {detail && (
-        <span style={{ color: 'var(--color-text-tertiary)', flexShrink: 0 }}>{detail}</span>
+        <span style={{ fontSize: 9, color: 'var(--color-text-tertiary)' }}>{detail}</span>
       )}
     </div>
   )
 }
 
-// ── Workout Detail Panel ─────────────────────────────────────────────────────
+// ── Workout Detail Panel ──────────────────────────────────────────────────────
 
-function WorkoutDetailPanel({
-  data,
-  onClose,
-  isMobile,
-}: {
-  data: SelectedActivity | null
+function WorkoutDetailPanel({ data, onClose, isMobile }: {
+  data: SelectedWorkout | null
   onClose: () => void
   isMobile: boolean
 }) {
-  if (!data) return null
+  // Close on Escape
+  useEffect(() => {
+    const handleKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose()
+    }
+    window.addEventListener('keydown', handleKey)
+    return () => window.removeEventListener('keydown', handleKey)
+  }, [onClose])
 
-  const { week, dayIndex, activity } = data
-  const emoji = getPlannedActivityEmoji(activity)
-  const dayName = DAY_LABELS[MONDAY_FIRST_ORDER.indexOf(dayIndex)]
-
-  const panelStyle: React.CSSProperties = isMobile ? {
-    position: 'fixed', left: 0, right: 0, bottom: 0,
-    background: 'var(--color-surface)',
-    borderTop: '1px solid var(--color-border)',
-    borderRadius: 'var(--radius-md) var(--radius-md) 0 0',
-    boxShadow: '0 -4px 24px rgba(0,0,0,0.15)',
-    zIndex: 200,
-    padding: '20px 16px 32px',
-    maxHeight: '70vh',
-    overflowY: 'auto',
-  } : {
-    position: 'fixed', top: 0, right: 0, bottom: 0,
-    width: 320,
-    background: 'var(--color-surface)',
-    borderLeft: '1px solid var(--color-border)',
-    boxShadow: '-4px 0 24px rgba(0,0,0,0.10)',
-    zIndex: 200,
-    padding: '20px 20px 32px',
-    overflowY: 'auto',
-  }
+  const activity = data?.activity ?? null
+  const week = data?.week ?? null
+  const dayName = data ? DAY_NAMES[data.dayIndex] : ''
+  const emoji = activity ? getPlannedActivityEmoji(activity) : ''
 
   return (
-    <>
-      {/* Backdrop */}
-      <div
-        onClick={onClose}
-        style={{
-          position: 'fixed', inset: 0, zIndex: 199,
-          background: 'rgba(0,0,0,0.15)',
-        }}
-      />
-      <div style={panelStyle}>
-        {/* Header */}
-        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 20 }}>
-          <div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
-              <span style={{ fontSize: 24 }}>{emoji}</span>
-              <span style={{ fontSize: 18, fontWeight: 700, color: 'var(--color-text-primary)' }}>
-                {getActivityTitle(activity)}
-              </span>
-            </div>
-            <div style={{ fontSize: 12, color: 'var(--color-text-tertiary)' }}>
-              {dayName} · Week {week.weekNumber} — {week.label}
-            </div>
-          </div>
-          <button
+    <AnimatePresence>
+      {data && activity && week && (
+        <>
+          {/* Backdrop */}
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.15 }}
             onClick={onClose}
             style={{
-              width: 28, height: 28, borderRadius: '50%',
-              border: '1px solid var(--color-border)',
-              background: 'transparent', cursor: 'pointer',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              color: 'var(--color-text-secondary)', flexShrink: 0,
+              position: 'fixed',
+              inset: 0,
+              background: 'rgba(17, 24, 39, 0.2)',
+              backdropFilter: 'blur(1px)',
+              zIndex: 40,
+            }}
+          />
+
+          {/* Panel */}
+          <motion.div
+            initial={{ x: isMobile ? 0 : '100%', y: isMobile ? '100%' : 0 }}
+            animate={{ x: 0, y: 0 }}
+            exit={{ x: isMobile ? 0 : '100%', y: isMobile ? '100%' : 0 }}
+            transition={{ type: 'spring', damping: 28, stiffness: 280 }}
+            style={{
+              position: 'fixed',
+              top: isMobile ? 'auto' : 0,
+              right: 0,
+              bottom: 0,
+              left: isMobile ? 0 : undefined,
+              width: isMobile ? '100%' : 380,
+              maxWidth: isMobile ? '100%' : '92vw',
+              maxHeight: isMobile ? '80vh' : undefined,
+              background: 'var(--color-surface)',
+              boxShadow: 'var(--shadow-panel)',
+              zIndex: 50,
+              display: 'flex',
+              flexDirection: 'column',
+              overflow: 'hidden',
+              borderRadius: isMobile ? '12px 12px 0 0' : undefined,
             }}
           >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <line x1="18" y1="6" x2="6" y2="18" />
-              <line x1="6" y1="6" x2="18" y2="18" />
-            </svg>
-          </button>
-        </div>
-
-        {/* Details */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-          {activity.type === 'Run' && (
-            <>
-              <DetailRow label="Distance" value={`${activity.targetDistance} miles`} />
-              {activity.targetPace && activity.targetPace !== '0:00' && (
-                <DetailRow label="Target Pace" value={`${activity.targetPace} /mi`} />
-              )}
-            </>
-          )}
-
-          {activity.type === 'WeightTraining' && (
-            <DetailRow label="Workout Type" value={activity.workoutType} />
-          )}
-
-          {activity.type === 'Race' && (
-            <>
-              {activity.name && <DetailRow label="Race Name" value={activity.name} />}
-              {(activity as { type: 'Race'; name?: string; distance?: string; goalTime?: string; notes?: string }).distance && (
-                <DetailRow label="Distance" value={(activity as { type: 'Race'; name?: string; distance?: string; goalTime?: string; notes?: string }).distance!} />
-              )}
-              {(activity as { type: 'Race'; name?: string; distance?: string; goalTime?: string; notes?: string }).goalTime && (
-                <DetailRow label="Goal Time" value={(activity as { type: 'Race'; name?: string; distance?: string; goalTime?: string; notes?: string }).goalTime!} />
-              )}
-            </>
-          )}
-
-          {activity.notes && (
+            {/* Header */}
             <div style={{
-              padding: '10px 12px',
-              background: 'var(--color-bg)',
-              borderRadius: 'var(--radius-sm)',
-              border: '1px solid var(--color-border)',
+              padding: isMobile ? '16px' : '16px 20px',
+              borderBottom: '1px solid var(--color-border)',
+              display: 'flex', alignItems: 'flex-start', gap: 12, flexShrink: 0,
             }}>
-              <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--color-text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6 }}>
-                Notes
+              {/* Emoji badge */}
+              <div style={{
+                width: 40, height: 40, borderRadius: 'var(--radius-md)',
+                background: 'var(--color-accent-light)',
+                border: '1px solid var(--color-accent-border)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                fontSize: 20, flexShrink: 0,
+              }}>
+                {emoji}
               </div>
-              <div style={{ fontSize: 13, color: 'var(--color-text-primary)', lineHeight: 1.5 }}>
-                {activity.notes}
-              </div>
-            </div>
-          )}
 
-          {activity.type === 'Rest' && (
-            <div style={{ fontSize: 13, color: 'var(--color-text-tertiary)', textAlign: 'center', padding: '16px 0' }}>
-              Recovery day — no structured workout planned.
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <h2 style={{
+                  fontSize: 'var(--font-size-md)', fontWeight: 600,
+                  color: 'var(--color-text-primary)', margin: 0, marginBottom: 3,
+                }}>
+                  {getActivityTitle(activity)}
+                </h2>
+                <div style={{
+                  fontSize: 'var(--font-size-xs)', color: 'var(--color-text-tertiary)',
+                  display: 'flex', gap: 8, alignItems: 'center',
+                }}>
+                  <span>{dayName}</span>
+                  <span>·</span>
+                  <span>Week {week.weekNumber} — {week.label}</span>
+                </div>
+              </div>
+
+              {/* Close */}
+              <button
+                onClick={onClose}
+                style={{
+                  width: 32, height: 32, borderRadius: 'var(--radius-sm)',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  color: 'var(--color-text-tertiary)', fontSize: 22, flexShrink: 0,
+                  border: '1px solid var(--color-border)', background: 'var(--color-bg)',
+                  cursor: 'pointer',
+                }}
+              >×</button>
             </div>
-          )}
-        </div>
-      </div>
-    </>
+
+            {/* Body */}
+            <div style={{
+              flex: 1, overflow: 'auto',
+              padding: isMobile ? '16px' : '20px',
+              display: 'flex', flexDirection: 'column', gap: 16,
+            }}>
+              {/* Stats grid */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                {activity.type === 'Run' && (
+                  <>
+                    <StatCard label="Distance" value={`${activity.targetDistance} mi`} />
+                    {activity.targetPace && activity.targetPace !== '0:00' && (
+                      <StatCard label="Target Pace" value={`${activity.targetPace} /mi`} />
+                    )}
+                  </>
+                )}
+
+                {activity.type === 'WeightTraining' && (
+                  <StatCard label="Workout" value={activity.workoutType} />
+                )}
+                {activity.type === 'WeightTraining' && activity.exercises && (
+                  <div style={{ gridColumn: '1 / -1' }}>
+                    <ExerciseTable exercises={activity.exercises} />
+                  </div>
+                )}
+
+                {activity.type === 'Race' && (
+                  <>
+                    {activity.name && <StatCard label="Race" value={activity.name} />}
+                    {activity.distance && <StatCard label="Distance" value={activity.distance} />}
+                    {activity.goalTime && <StatCard label="Goal Time" value={activity.goalTime} />}
+                    {activity.targetPace && <StatCard label="Target Pace" value={`${activity.targetPace} /mi`} />}
+                  </>
+                )}
+              </div>
+
+              {/* Workout structure / Notes */}
+              {activity.notes && <WorkoutNotes notes={activity.notes} />}
+
+              {/* Rest day message */}
+              {activity.type === 'Rest' && (
+                <div style={{
+                  fontSize: 13, color: 'var(--color-text-tertiary)',
+                  textAlign: 'center', padding: '24px 0',
+                }}>
+                  Recovery day — no structured workout planned.
+                </div>
+              )}
+            </div>
+          </motion.div>
+        </>
+      )}
+    </AnimatePresence>
   )
 }
 
-function DetailRow({ label, value }: { label: string; value: string }) {
+function StatCard({ label, value }: { label: string; value: string }) {
   return (
     <div style={{
-      display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-      padding: '8px 0', borderBottom: '1px solid var(--color-border-light, rgba(0,0,0,0.06))',
+      background: 'var(--color-bg)', borderRadius: 'var(--radius-md)',
+      padding: '12px 14px', border: '1px solid var(--color-border)',
     }}>
-      <span style={{ fontSize: 12, color: 'var(--color-text-tertiary)', fontWeight: 600 }}>{label}</span>
-      <span style={{ fontSize: 13, color: 'var(--color-text-primary)', fontWeight: 500 }}>{value}</span>
+      <div style={{
+        fontSize: 10, fontWeight: 600, color: 'var(--color-text-tertiary)',
+        textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 4,
+      }}>{label}</div>
+      <div style={{
+        fontSize: 'var(--font-size-lg)', fontWeight: 700,
+        color: 'var(--color-text-primary)', letterSpacing: '-0.5px',
+      }}>{value}</div>
+    </div>
+  )
+}
+
+function ExerciseTable({ exercises }: { exercises: PlannedExercise[] }) {
+  return (
+    <div style={{
+      background: 'var(--color-bg)',
+      borderRadius: 'var(--radius-md)',
+      border: '1px solid var(--color-border)',
+      overflow: 'hidden',
+    }}>
+      {/* Header */}
+      <div style={{
+        display: 'grid', gridTemplateColumns: '1fr 48px 56px',
+        padding: '8px 14px',
+        borderBottom: '1px solid var(--color-border)',
+      }}>
+        <span style={tableHeaderStyle}>Exercise</span>
+        <span style={{ ...tableHeaderStyle, textAlign: 'center' }}>Sets</span>
+        <span style={{ ...tableHeaderStyle, textAlign: 'center' }}>Reps</span>
+      </div>
+
+      {/* Rows */}
+      {exercises.map((ex, i) => (
+        <div key={i} style={{
+          display: 'grid', gridTemplateColumns: '1fr 48px 56px',
+          padding: '9px 14px',
+          borderBottom: i < exercises.length - 1 ? '1px solid var(--color-border-light)' : undefined,
+        }}>
+          <div>
+            <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--color-text-primary)' }}>
+              {ex.name}
+            </div>
+            {ex.notes && (
+              <div style={{ fontSize: 11, color: 'var(--color-text-tertiary)', marginTop: 1 }}>
+                {ex.notes}
+              </div>
+            )}
+          </div>
+          <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--color-text-primary)', textAlign: 'center' }}>
+            {ex.sets}
+          </div>
+          <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--color-text-primary)', textAlign: 'center' }}>
+            {ex.reps}
+          </div>
+        </div>
+      ))}
+    </div>
+  )
+}
+
+const tableHeaderStyle: React.CSSProperties = {
+  fontSize: 10, fontWeight: 700, color: 'var(--color-text-tertiary)',
+  textTransform: 'uppercase', letterSpacing: '0.08em',
+}
+
+function WorkoutNotes({ notes }: { notes: string }) {
+  const segments = notes.includes('|') ? notes.split('|').map((s) => s.trim()).filter(Boolean) : null
+
+  if (segments) {
+    // Structured workout — render as step-by-step
+    return (
+      <div style={{
+        background: 'var(--color-bg)',
+        borderRadius: 'var(--radius-md)',
+        border: '1px solid var(--color-border)',
+        overflow: 'hidden',
+      }}>
+        <div style={{
+          fontSize: 10, fontWeight: 700, color: 'var(--color-text-tertiary)',
+          textTransform: 'uppercase', letterSpacing: '0.08em',
+          padding: '10px 14px 6px',
+        }}>Workout Structure</div>
+        {segments.map((seg, i) => (
+          <div key={i} style={{
+            display: 'flex', alignItems: 'center', gap: 10,
+            padding: '8px 14px',
+            borderTop: i > 0 ? '1px solid var(--color-border-light)' : undefined,
+          }}>
+            <div style={{
+              width: 22, height: 22, borderRadius: '50%',
+              background: 'var(--color-border)',
+              color: 'var(--color-text-secondary)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              fontSize: 10, fontWeight: 700, flexShrink: 0,
+            }}>{i + 1}</div>
+            <span style={{
+              fontSize: 13, color: 'var(--color-text-primary)', lineHeight: 1.4,
+            }}>{seg}</span>
+          </div>
+        ))}
+      </div>
+    )
+  }
+
+  // Plain notes
+  return (
+    <div style={{
+      padding: '12px 14px',
+      background: 'var(--color-bg)',
+      borderRadius: 'var(--radius-md)',
+      border: '1px solid var(--color-border)',
+    }}>
+      <div style={{
+        fontSize: 10, fontWeight: 700, color: 'var(--color-text-tertiary)',
+        textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 6,
+      }}>Notes</div>
+      <div style={{
+        fontSize: 13, color: 'var(--color-text-primary)', lineHeight: 1.5,
+      }}>{notes}</div>
     </div>
   )
 }
@@ -494,189 +589,11 @@ function getActivityTitle(activity: PlannedActivity): string {
     case 'Tennis': return 'Tennis'
     case 'Race': return activity.name || 'Race'
     case 'Rest': return 'Rest Day'
-    default: return (activity as PlannedActivity).type
+    default: return activity.type
   }
 }
 
-// ── Mobile Grid ─────────────────────────────────────────────────────────────
-
-function MobileGrid({
-  plan,
-  expandedWeek,
-  setExpandedWeek,
-  isCurrentWeek,
-  isWeekOnCalendar,
-  addWeekToCalendar,
-  removeWeekFromCalendar,
-  addDayToCalendar,
-  onActivityClick,
-}: {
-  plan: CoachPlan
-  expandedWeek: number | null
-  setExpandedWeek: (n: number | null) => void
-  isCurrentWeek: (w: CoachPlanWeek) => boolean
-  isWeekOnCalendar: (w: CoachPlanWeek) => boolean
-  addWeekToCalendar: (w: CoachPlanWeek) => void
-  removeWeekFromCalendar: (w: CoachPlanWeek) => void
-  addDayToCalendar: (w: CoachPlanWeek, d: WeekDayIndex) => void
-  onActivityClick: (data: SelectedActivity) => void
-}) {
-  return (
-    <div style={{ flex: 1, overflow: 'auto', padding: '12px' }}>
-      <PlanHeader plan={plan} />
-
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-        {plan.weeks.map((week) => {
-          const current = isCurrentWeek(week)
-          const onCal = isWeekOnCalendar(week)
-          const expanded = expandedWeek === week.weekNumber
-
-          return (
-            <div key={week.weekNumber} style={{
-              border: '1px solid var(--color-border)', borderRadius: 'var(--radius-md)',
-              overflow: 'hidden',
-              background: current ? 'var(--color-accent-light)' : 'var(--color-surface)',
-            }}>
-              {/* Week header (tap to expand) */}
-              <button
-                onClick={() => setExpandedWeek(expanded ? null : week.weekNumber)}
-                style={{
-                  width: '100%', padding: '10px 12px',
-                  display: 'flex', alignItems: 'center', gap: 8,
-                  background: 'transparent', border: 'none', cursor: 'pointer',
-                  textAlign: 'left',
-                }}
-              >
-                <div style={{ flex: 1 }}>
-                  <div style={{
-                    fontSize: 13, fontWeight: 700,
-                    color: current ? 'var(--color-accent)' : 'var(--color-text-primary)',
-                  }}>
-                    Week {week.weekNumber} — {week.label}
-                  </div>
-                  <div style={{ fontSize: 11, color: 'var(--color-text-tertiary)', marginTop: 2 }}>
-                    {formatWeekDate(week.weekStart)}
-                    {onCal && ' · On calendar'}
-                  </div>
-                </div>
-                <MiniWeekPreview week={week} />
-                <svg
-                  width="14" height="14" viewBox="0 0 24 24" fill="none"
-                  stroke="var(--color-text-tertiary)" strokeWidth="2"
-                  style={{ transform: expanded ? 'rotate(180deg)' : undefined, transition: 'transform 150ms' }}
-                >
-                  <polyline points="6 9 12 15 18 9" />
-                </svg>
-              </button>
-
-              {/* Expanded content */}
-              {expanded && (
-                <div style={{
-                  borderTop: '1px solid var(--color-border)', padding: '8px 12px 12px',
-                }}>
-                  {MONDAY_FIRST_ORDER.map((dayIdx, i) => {
-                    const activities = week.days[dayIdx] ?? []
-                    return (
-                      <div key={dayIdx} style={{
-                        display: 'flex', alignItems: 'center', gap: 8,
-                        padding: '6px 0',
-                        borderBottom: i < 6 ? '1px solid var(--color-border-light, rgba(0,0,0,0.06))' : undefined,
-                      }}>
-                        <span style={{
-                          width: 28, fontSize: 10, fontWeight: 600,
-                          color: 'var(--color-text-tertiary)', flexShrink: 0,
-                        }}>{DAY_LABELS[i]}</span>
-                        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 2 }}>
-                          {activities.length === 0 ? (
-                            <span style={{ fontSize: 11, color: 'var(--color-text-tertiary)' }}>—</span>
-                          ) : (
-                            activities.map((a) => (
-                              <ActivityPill
-                                key={a.id}
-                                activity={a}
-                                onClick={a.type !== 'Rest' ? () => onActivityClick({ week, dayIndex: dayIdx, activity: a }) : undefined}
-                              />
-                            ))
-                          )}
-                        </div>
-                        {activities.length > 0 && (
-                          <button
-                            onClick={() => addDayToCalendar(week, dayIdx)}
-                            style={{
-                              padding: '3px 6px', borderRadius: 4,
-                              fontSize: 9, fontWeight: 600,
-                              border: '1px solid var(--color-border)',
-                              background: 'transparent',
-                              color: 'var(--color-text-secondary)',
-                              cursor: 'pointer', flexShrink: 0,
-                            }}
-                          >+ Cal</button>
-                        )}
-                      </div>
-                    )
-                  })}
-
-                  {/* Week action buttons */}
-                  <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
-                    {onCal ? (
-                      <>
-                        <span style={{
-                          fontSize: 11, fontWeight: 600, color: 'var(--color-status-completed-text)',
-                          display: 'flex', alignItems: 'center', gap: 4, flex: 1,
-                        }}>
-                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                            <polyline points="20 6 9 17 4 12" />
-                          </svg>
-                          On calendar
-                        </span>
-                        <button
-                          onClick={() => removeWeekFromCalendar(week)}
-                          style={smallBtnStyle}
-                        >Remove</button>
-                      </>
-                    ) : (
-                      <button
-                        onClick={() => addWeekToCalendar(week)}
-                        style={{
-                          ...smallBtnStyle,
-                          background: 'var(--color-accent)',
-                          color: 'var(--color-text-inverse)',
-                          border: 'none',
-                          flex: 1,
-                        }}
-                      >Add entire week to calendar</button>
-                    )}
-                  </div>
-                </div>
-              )}
-            </div>
-          )
-        })}
-      </div>
-    </div>
-  )
-}
-
-// ── Mini Week Preview (mobile collapsed) ────────────────────────────────────
-
-function MiniWeekPreview({ week }: { week: CoachPlanWeek }) {
-  return (
-    <div style={{ display: 'flex', gap: 2 }}>
-      {MONDAY_FIRST_ORDER.map((dayIdx) => {
-        const activities = week.days[dayIdx] ?? []
-        const hasActivity = activities.length > 0 && activities[0].type !== 'Rest'
-        return (
-          <div key={dayIdx} style={{
-            width: 6, height: 6, borderRadius: '50%',
-            background: hasActivity ? 'var(--color-accent)' : 'var(--color-border)',
-          }} />
-        )
-      })}
-    </div>
-  )
-}
-
-// ── Helpers ─────────────────────────────────────────────────────────────────
+// ── Helpers ───────────────────────────────────────────────────────────────────
 
 function formatWeekDate(weekStart: string): string {
   try {
@@ -684,19 +601,4 @@ function formatWeekDate(weekStart: string): string {
   } catch {
     return weekStart
   }
-}
-
-const thStyle: React.CSSProperties = {
-  padding: '8px 6px', fontSize: 10, fontWeight: 700,
-  color: 'var(--color-text-tertiary)', textTransform: 'uppercase',
-  letterSpacing: '0.06em', textAlign: 'center',
-}
-
-const smallBtnStyle: React.CSSProperties = {
-  padding: '4px 8px', borderRadius: 4,
-  fontSize: 10, fontWeight: 600,
-  border: '1px solid var(--color-border)',
-  background: 'transparent',
-  color: 'var(--color-text-secondary)',
-  cursor: 'pointer',
 }
