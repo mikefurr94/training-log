@@ -23,7 +23,7 @@ export default function HabitGridView() {
   const habits = useAppStore((s) => s.habits)
   const habitCompletions = useAppStore((s) => s.habitCompletions)
   const isMobile = useIsMobile()
-  const [weeksToShow, setWeeksToShow] = useState(isMobile ? 13 : 26)
+  const [weeksToShow, setWeeksToShow] = useState(isMobile ? 13 : 52)
 
   const today = useMemo(() => new Date(), [])
 
