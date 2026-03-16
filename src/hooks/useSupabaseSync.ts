@@ -23,7 +23,7 @@ export function useSupabaseSync() {
   const loadedRef = useRef(false)
   const prevCompletionsRef = useRef<string>('')
   const prevPlanRef = useRef<string>('')
-  const prevHabitsRef = useRef<string>('')
+  const prevHabitsRef = useRef<string | null>(null) // null = remote load not yet complete
 
   const athleteId = athlete?.id
 
@@ -97,13 +97,14 @@ export function useSupabaseSync() {
       loadedRef.current = false
       prevCompletionsRef.current = ''
       prevPlanRef.current = ''
-      prevHabitsRef.current = ''
+      prevHabitsRef.current = null
     }
   }, [athleteId])
 
   // Sync habit definitions to Supabase when they change
   useEffect(() => {
     if (!athleteId || !loadedRef.current) return
+    if (prevHabitsRef.current === null) return // wait for remote load to complete first
 
     const serialized = JSON.stringify(habits)
     if (serialized === prevHabitsRef.current) return
