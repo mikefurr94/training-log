@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import React, { useMemo } from 'react'
 import { format, eachWeekOfInterval, addDays, startOfWeek, startOfYear, endOfYear, getMonth } from 'date-fns'
 import { useAppStore } from '../../store/useAppStore'
 import { useIsMobile } from '../../hooks/useIsMobile'
@@ -6,6 +6,7 @@ import { useIsMobile } from '../../hooks/useIsMobile'
 const MONTH_LABELS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
 const DAY_LABELS = ['M', 'T', 'W', 'T', 'F', 'S', 'S']
 const DAY_LABEL_WIDTH = 20
+const QUARTER_START_MONTHS = new Set([3, 6, 9]) // April, July, October
 
 interface DayData {
   date: Date
@@ -60,6 +61,12 @@ export default function HabitGridView() {
     return positions
   }, [weekStarts])
 
+  // Quarter divider column indices — cols where Q2/Q3/Q4 begin
+  const quarterCols = useMemo(
+    () => monthPositions.filter(({ month }) => QUARTER_START_MONTHS.has(month)).map(({ col }) => col),
+    [monthPositions]
+  )
+
   const totalWeeks = weekStarts.length
   const currentWeekStart = startOfWeek(today, { weekStartsOn: 1 }).getTime()
 
@@ -89,7 +96,6 @@ export default function HabitGridView() {
         const isWeekly = habit.frequency === 'weekly'
 
         if (isWeekly) {
-          // Weekly habits: one square per week
           let completedCount = 0
           for (const week of grid) {
             const weekStartStr = format(week[0].date, 'yyyy-MM-dd')
@@ -112,9 +118,13 @@ export default function HabitGridView() {
               <div style={{ marginLeft: DAY_LABEL_WIDTH, marginBottom: 4, position: 'relative', height: 14 }}>
                 {monthPositions.map(({ month, col }) => (
                   <span key={`${month}-${col}`} style={{
-                    position: 'absolute', left: `calc(${(col / totalWeeks) * 100}%)`,
-                    fontSize: 10, color: 'var(--color-text-tertiary)', fontWeight: 600,
-                    whiteSpace: 'nowrap', letterSpacing: '0.04em',
+                    position: 'absolute',
+                    left: `calc(${(col / totalWeeks) * 100}%)`,
+                    fontSize: 10,
+                    color: QUARTER_START_MONTHS.has(month) ? 'var(--color-text-secondary)' : 'var(--color-text-tertiary)',
+                    fontWeight: QUARTER_START_MONTHS.has(month) ? 700 : 600,
+                    whiteSpace: 'nowrap',
+                    letterSpacing: '0.04em',
                   }}>
                     {MONTH_LABELS[month]}
                   </span>
@@ -125,19 +135,30 @@ export default function HabitGridView() {
               <div style={{ display: 'flex', alignItems: 'stretch', width: '100%', marginLeft: DAY_LABEL_WIDTH }}>
                 <div style={{ display: 'flex', flex: 1, gap: 3 }}>
                   {grid.map((week, wi) => {
+                    const isQuarterStart = quarterCols.includes(wi)
                     const weekStartStr = format(week[0].date, 'yyyy-MM-dd')
                     const isPast = week[0].date <= today
                     const completed = week[0].inYear && isPast && (habitCompletions[weekStartStr] ?? []).includes(habit.id)
                     const isThisWeek = week[0].date.getTime() === currentWeekStart
                     return (
-                      <div key={wi} title={`${habit.name} — Week of ${format(week[0].date, 'MMM d')}${completed ? ' (done)' : ''}`} style={{
-                        flex: 1, aspectRatio: '1', borderRadius: 3,
-                        background: !week[0].inYear ? 'transparent' : completed
-                          ? 'var(--color-habit-done)'
-                          : isThisWeek ? 'var(--color-today-bg, var(--color-border-light, #e5e7eb))' : 'var(--color-border-light, #e5e7eb)',
-                        opacity: !week[0].inYear ? 0 : completed ? 1 : 0.4,
-                        minWidth: 0,
-                      }} />
+                      <React.Fragment key={wi}>
+                        {isQuarterStart && (
+                          <div aria-hidden style={{
+                            width: 2, borderRadius: 1,
+                            background: 'var(--color-text-tertiary, #9ca3af)',
+                            opacity: 0.35, flexShrink: 0,
+                            margin: '0 5px', alignSelf: 'stretch',
+                          }} />
+                        )}
+                        <div title={`${habit.name} — Week of ${format(week[0].date, 'MMM d')}${completed ? ' (done)' : ''}`} style={{
+                          flex: 1, aspectRatio: '1', borderRadius: 3,
+                          background: !week[0].inYear ? 'transparent' : completed
+                            ? 'var(--color-habit-done)'
+                            : isThisWeek ? 'var(--color-today-bg, var(--color-border-light, #e5e7eb))' : 'var(--color-border-light, #e5e7eb)',
+                          opacity: !week[0].inYear ? 0 : completed ? 1 : 0.4,
+                          minWidth: 0,
+                        }} />
+                      </React.Fragment>
                     )
                   })}
                 </div>
@@ -171,24 +192,21 @@ export default function HabitGridView() {
             {/* Month labels */}
             <div style={{ marginLeft: DAY_LABEL_WIDTH, marginBottom: 4, position: 'relative', height: 14 }}>
               {monthPositions.map(({ month, col }) => (
-                <span
-                  key={`${month}-${col}`}
-                  style={{
-                    position: 'absolute',
-                    left: `calc(${(col / totalWeeks) * 100}%)`,
-                    fontSize: 10,
-                    color: 'var(--color-text-tertiary)',
-                    fontWeight: 600,
-                    whiteSpace: 'nowrap',
-                    letterSpacing: '0.04em',
-                  }}
-                >
+                <span key={`${month}-${col}`} style={{
+                  position: 'absolute',
+                  left: `calc(${(col / totalWeeks) * 100}%)`,
+                  fontSize: 10,
+                  color: QUARTER_START_MONTHS.has(month) ? 'var(--color-text-secondary)' : 'var(--color-text-tertiary)',
+                  fontWeight: QUARTER_START_MONTHS.has(month) ? 700 : 600,
+                  whiteSpace: 'nowrap',
+                  letterSpacing: '0.04em',
+                }}>
                   {MONTH_LABELS[month]}
                 </span>
               ))}
             </div>
 
-            {/* Day rows */}
+            {/* Day rows with quarter dividers */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
               {DAY_LABELS.map((dayLabel, di) => (
                 <div key={di} style={{ display: 'flex', alignItems: 'stretch', width: '100%', marginBottom: 3 }}>
@@ -208,32 +226,44 @@ export default function HabitGridView() {
                   </div>
                   <div style={{ display: 'flex', flex: 1, gap: 3 }}>
                     {grid.map((week, wi) => {
+                      const isQuarterStart = quarterCols.includes(wi)
                       const day = week[di]
                       const isPast = day.date <= today
                       const completed = day.inYear && isPast && (habitCompletions[day.dateStr] ?? []).includes(habit.id)
                       const isCurrentWeek = week[0].date.getTime() === currentWeekStart
 
-                      return !day.inYear ? (
-                        <div key={wi} style={{ flex: 1, aspectRatio: '1', borderRadius: 3, background: 'transparent' }} />
-                      ) : (
-                        <div
-                          key={wi}
-                          title={`${habit.name} — ${format(day.date, 'MMM d, yyyy')}${completed ? ' (done)' : ''}`}
-                          style={{
-                            flex: 1,
-                            aspectRatio: '1',
-                            borderRadius: 3,
-                            background: completed
-                              ? 'var(--color-habit-done)'
-                              : isCurrentWeek
-                                ? 'var(--color-today-bg, var(--color-border-light, #e5e7eb))'
-                                : 'var(--color-border-light, #e5e7eb)',
-                            opacity: completed ? 1 : 0.4,
-                            cursor: 'default',
-                            transition: 'opacity 80ms ease',
-                            minWidth: 0,
-                          }}
-                        />
+                      return (
+                        <React.Fragment key={wi}>
+                          {isQuarterStart && (
+                            <div aria-hidden style={{
+                              width: 2, borderRadius: 1,
+                              background: 'var(--color-text-tertiary, #9ca3af)',
+                              opacity: 0.35, flexShrink: 0,
+                              margin: '0 5px', alignSelf: 'stretch',
+                            }} />
+                          )}
+                          {!day.inYear ? (
+                            <div style={{ flex: 1, aspectRatio: '1', borderRadius: 3, background: 'transparent' }} />
+                          ) : (
+                            <div
+                              title={`${habit.name} — ${format(day.date, 'MMM d, yyyy')}${completed ? ' (done)' : ''}`}
+                              style={{
+                                flex: 1,
+                                aspectRatio: '1',
+                                borderRadius: 3,
+                                background: completed
+                                  ? 'var(--color-habit-done)'
+                                  : isCurrentWeek
+                                    ? 'var(--color-today-bg, var(--color-border-light, #e5e7eb))'
+                                    : 'var(--color-border-light, #e5e7eb)',
+                                opacity: completed ? 1 : 0.4,
+                                cursor: 'default',
+                                transition: 'opacity 80ms ease',
+                                minWidth: 0,
+                              }}
+                            />
+                          )}
+                        </React.Fragment>
                       )
                     })}
                   </div>
