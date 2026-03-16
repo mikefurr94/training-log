@@ -589,7 +589,7 @@ function getActivityTitle(activity: PlannedActivity): string {
     case 'Tennis': return 'Tennis'
     case 'Race': return activity.name || 'Race'
     case 'Rest': return 'Rest Day'
-    default: return activity.type
+    default: return (activity as any).type ?? 'Activity'
   }
 }
 
