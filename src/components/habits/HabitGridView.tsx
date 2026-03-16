@@ -94,6 +94,27 @@ export default function HabitGridView() {
       {/* Per-habit grids */}
       {sortedHabits.map((habit) => {
         const isWeekly = habit.frequency === 'weekly'
+        const weeklyGoal = habit.weeklyGoal ?? (isWeekly ? 1 : 7)
+
+        // Compute goal-met weeks
+        const goalMetWeeks = new Set<number>()
+        grid.forEach((week, wi) => {
+          // Skip fully-future weeks
+          if (!week.some((d) => d.inYear && d.date <= today)) return
+
+          if (isWeekly) {
+            const weekStartStr = format(week[0].date, 'yyyy-MM-dd')
+            if ((habitCompletions[weekStartStr] ?? []).includes(habit.id)) {
+              goalMetWeeks.add(wi)
+            }
+          } else {
+            const eligibleDays = week.filter((d) => d.inYear && d.date <= today)
+            const completedDays = eligibleDays.filter((d) =>
+              (habitCompletions[d.dateStr] ?? []).includes(habit.id)
+            )
+            if (completedDays.length >= weeklyGoal) goalMetWeeks.add(wi)
+          }
+        })
 
         if (isWeekly) {
           let completedCount = 0
@@ -163,6 +184,9 @@ export default function HabitGridView() {
                   })}
                 </div>
               </div>
+
+              {/* Goal-met indicator strip */}
+              <GoalStrip grid={grid} goalMetWeeks={goalMetWeeks} quarterCols={quarterCols} />
             </div>
           )
         }
@@ -270,6 +294,9 @@ export default function HabitGridView() {
                 </div>
               ))}
             </div>
+
+            {/* Goal-met indicator strip */}
+            <GoalStrip grid={grid} goalMetWeeks={goalMetWeeks} quarterCols={quarterCols} />
           </div>
         )
       })}
@@ -279,6 +306,42 @@ export default function HabitGridView() {
           No habits yet. Add some habits to see them here.
         </div>
       )}
+    </div>
+  )
+}
+
+// ── Goal-met indicator strip ──────────────────────────────────────────────────
+// A thin row of bars below each habit grid, one per week column, that lights up
+// when the weekly goal was met. Uses the identical flex + gap + quarter-divider
+// structure as the day rows so it aligns pixel-perfectly.
+
+function GoalStrip({ grid, goalMetWeeks, quarterCols }: {
+  grid: DayData[][]
+  goalMetWeeks: Set<number>
+  quarterCols: number[]
+}) {
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', marginTop: 4 }}>
+      <div style={{ width: DAY_LABEL_WIDTH, flexShrink: 0 }} />
+      <div style={{ display: 'flex', flex: 1, gap: 3 }}>
+        {grid.map((_, wi) => {
+          const isQuarterStart = quarterCols.includes(wi)
+          const goalMet = goalMetWeeks.has(wi)
+          return (
+            <React.Fragment key={wi}>
+              {isQuarterStart && (
+                <div style={{ width: 2, margin: '0 5px', flexShrink: 0 }} />
+              )}
+              <div style={{
+                flex: 1,
+                height: 3,
+                borderRadius: 2,
+                background: goalMet ? 'var(--color-habit-done)' : 'transparent',
+              }} />
+            </React.Fragment>
+          )
+        })}
+      </div>
     </div>
   )
 }
