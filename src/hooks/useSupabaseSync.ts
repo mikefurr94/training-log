@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react'
 import { useAppStore } from '../store/useAppStore'
-import { loadHabits, saveHabitDay, loadPlan, savePlan, loadCoachPlan } from '../api/db'
-import type { CoachPlan } from '../store/types'
+import { loadHabits, saveHabitDay, loadPlan, savePlan, loadCoachPlan, loadHabitDefinitions, saveHabitDefinitions } from '../api/db'
+import type { CoachPlan, HabitDefinition } from '../store/types'
 
 // Debounce helper
 function debounce<T extends (...args: unknown[]) => void>(fn: T, ms: number): T {
@@ -15,6 +15,7 @@ function debounce<T extends (...args: unknown[]) => void>(fn: T, ms: number): T 
 export function useSupabaseSync() {
   const athlete = useAppStore((s) => s.athlete)
   const habitCompletions = useAppStore((s) => s.habitCompletions)
+  const habits = useAppStore((s) => s.habits)
   const weekTemplate = useAppStore((s) => s.weekTemplate)
   const weekOverrides = useAppStore((s) => s.weekOverrides)
   const keyDates = useAppStore((s) => s.keyDates)
@@ -22,6 +23,7 @@ export function useSupabaseSync() {
   const loadedRef = useRef(false)
   const prevCompletionsRef = useRef<string>('')
   const prevPlanRef = useRef<string>('')
+  const prevHabitsRef = useRef<string>('')
 
   const athleteId = athlete?.id
 
@@ -34,6 +36,23 @@ export function useSupabaseSync() {
       .then((data) => {
         if (Object.keys(data).length > 0) {
           setHabitCompletions(data)
+        }
+      })
+      .catch(console.error)
+
+    // Load habit definitions — Supabase wins if it has data (enables cross-device sync)
+    loadHabitDefinitions(athleteId)
+      .then((remoteHabits) => {
+        if (remoteHabits && remoteHabits.length > 0) {
+          useAppStore.getState().reorderHabits(remoteHabits as HabitDefinition[])
+          prevHabitsRef.current = JSON.stringify(remoteHabits)
+        } else {
+          // No remote habits yet — push local habits up so other devices get them
+          const localHabits = useAppStore.getState().habits
+          if (localHabits.length > 0) {
+            saveHabitDefinitions(athleteId, localHabits).catch(console.error)
+            prevHabitsRef.current = JSON.stringify(localHabits)
+          }
         }
       })
       .catch(console.error)
@@ -78,8 +97,28 @@ export function useSupabaseSync() {
       loadedRef.current = false
       prevCompletionsRef.current = ''
       prevPlanRef.current = ''
+      prevHabitsRef.current = ''
     }
   }, [athleteId])
+
+  // Sync habit definitions to Supabase when they change
+  useEffect(() => {
+    if (!athleteId || !loadedRef.current) return
+
+    const serialized = JSON.stringify(habits)
+    if (serialized === prevHabitsRef.current) return
+    prevHabitsRef.current = serialized
+
+    const syncHabits = debounce(async () => {
+      try {
+        await saveHabitDefinitions(athleteId, habits)
+      } catch (err) {
+        console.error('Failed to sync habit definitions:', err)
+      }
+    }, 1000)
+
+    syncHabits()
+  }, [athleteId, habits])
 
   // Sync habit completions to Supabase when they change
   useEffect(() => {
