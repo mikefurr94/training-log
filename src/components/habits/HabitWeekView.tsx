@@ -137,6 +137,20 @@ export default function HabitWeekView() {
         </div>
       )}
 
+      {/* Weekly habits — shown FIRST on mobile so they're always visible */}
+      {weeklyHabits.length > 0 && (
+        <WeeklyHabitsSection
+          weeklyHabits={weeklyHabits}
+          dailyHabitsLength={dailyHabits.length}
+          habitCompletions={habitCompletions}
+          weekStartStr={weekStartStr}
+          toggleHabitCompletion={toggleHabitCompletion}
+          setSelectedHabitId={setSelectedHabitId}
+          isGoalMet={isGoalMet}
+          isMobile={isMobile}
+        />
+      )}
+
       {/* Daily habits grid */}
       {dailyHabits.length > 0 && (
         isMobile ? (
@@ -158,62 +172,6 @@ export default function HabitWeekView() {
             isGoalMet={isGoalMet}
           />
         )
-      )}
-
-      {/* Weekly habits section */}
-      {weeklyHabits.length > 0 && (
-        <div>
-          <div style={{
-            fontSize: 11, fontWeight: 700, textTransform: 'uppercase',
-            letterSpacing: '0.06em', color: 'var(--color-text-tertiary)',
-            marginBottom: 8,
-          }}>
-            Weekly
-          </div>
-          <div style={{
-            background: 'var(--color-surface)',
-            border: '1px solid var(--color-border)',
-            borderRadius: 'var(--radius-lg)',
-            overflow: 'hidden',
-          }}>
-            {weeklyHabits.map((habit, hi) => {
-              const completed = (habitCompletions[weekStartStr] ?? []).includes(habit.id)
-              const goalMet = isGoalMet(habit)
-              return (
-                <div key={habit.id} style={{
-                  display: 'flex', alignItems: 'center', gap: 12,
-                  padding: '12px 16px',
-                  borderBottom: hi < weeklyHabits.length - 1 ? '1px solid var(--color-border)' : 'none',
-                  background: goalMet ? 'rgba(16, 185, 129, 0.06)' : 'transparent',
-                }}>
-                  <HabitCheckbox
-                    checked={completed}
-                    onToggle={() => toggleHabitCompletion(weekStartStr, habit.id)}
-                    color={ACCENT_COLORS[(dailyHabits.length + hi) % ACCENT_COLORS.length]}
-                  />
-                  <button
-                    onClick={() => setSelectedHabitId(habit.id)}
-                    style={{
-                      background: 'none', border: 'none', cursor: 'pointer',
-                      display: 'flex', alignItems: 'center', gap: 8, padding: 0, flex: 1,
-                    }}
-                  >
-                    <span style={{ fontSize: 18 }}>{habit.emoji}</span>
-                    <span style={{
-                      fontSize: 'var(--font-size-sm)', fontWeight: 500,
-                      color: 'var(--color-text-primary)',
-                      textDecoration: completed ? 'line-through' : 'none',
-                      opacity: completed ? 0.7 : 1,
-                    }}>
-                      {habit.name}
-                    </span>
-                    {goalMet && <GoalBadge />}
-                  </button>
-                </div>
-              )
-            })}
-          </div>
-        </div>
       )}
 
       {/* Add habit button + modal */}
@@ -276,6 +234,86 @@ export default function HabitWeekView() {
           )}
         </div>
       )}
+    </div>
+  )
+}
+
+// ── Weekly habits section (shared mobile + desktop) ──────────────────────────
+
+function WeeklyHabitsSection({
+  weeklyHabits, dailyHabitsLength, habitCompletions, weekStartStr,
+  toggleHabitCompletion, setSelectedHabitId, isGoalMet, isMobile,
+}: {
+  weeklyHabits: HabitDefinition[]
+  dailyHabitsLength: number
+  habitCompletions: Record<string, string[]>
+  weekStartStr: string
+  toggleHabitCompletion: (date: string, habitId: string) => void
+  setSelectedHabitId: (id: string) => void
+  isGoalMet: (habit: HabitDefinition) => boolean
+  isMobile: boolean
+}) {
+  return (
+    <div>
+      <div style={{
+        fontSize: 11, fontWeight: 700, textTransform: 'uppercase',
+        letterSpacing: '0.06em', color: 'var(--color-text-tertiary)',
+        marginBottom: 8,
+      }}>
+        This week
+      </div>
+      <div style={{
+        background: 'var(--color-surface)',
+        border: '1px solid var(--color-border)',
+        borderRadius: 'var(--radius-lg)',
+        overflow: 'hidden',
+      }}>
+        {weeklyHabits.map((habit, hi) => {
+          const completed = (habitCompletions[weekStartStr] ?? []).includes(habit.id)
+          const goalMet = isGoalMet(habit)
+          return (
+            <div key={habit.id} style={{
+              display: 'flex', alignItems: 'center', gap: 12,
+              padding: isMobile ? '14px 16px' : '12px 16px',
+              borderBottom: hi < weeklyHabits.length - 1 ? '1px solid var(--color-border)' : 'none',
+              background: goalMet ? 'rgba(16, 185, 129, 0.06)' : 'transparent',
+            }}>
+              <HabitCheckbox
+                checked={completed}
+                onToggle={() => toggleHabitCompletion(weekStartStr, habit.id)}
+                color={ACCENT_COLORS[(dailyHabitsLength + hi) % ACCENT_COLORS.length]}
+              />
+              <button
+                onClick={() => setSelectedHabitId(habit.id)}
+                style={{
+                  background: 'none', border: 'none', cursor: 'pointer',
+                  display: 'flex', alignItems: 'center', gap: 8, padding: 0, flex: 1,
+                  minWidth: 0,
+                }}
+              >
+                <span style={{ fontSize: 18, flexShrink: 0 }}>{habit.emoji}</span>
+                <span style={{
+                  fontSize: 'var(--font-size-sm)', fontWeight: 500,
+                  color: 'var(--color-text-primary)',
+                  textDecoration: completed ? 'line-through' : 'none',
+                  opacity: completed ? 0.7 : 1,
+                  overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                }}>
+                  {habit.name}
+                </span>
+                {goalMet && <GoalBadge />}
+              </button>
+              {/* Week-done pill */}
+              <span style={{
+                fontSize: 11, fontWeight: 600, flexShrink: 0,
+                color: completed ? 'var(--color-habit-done)' : 'var(--color-text-tertiary)',
+              }}>
+                {completed ? 'Done ✓' : 'This week'}
+              </span>
+            </div>
+          )
+        })}
+      </div>
     </div>
   )
 }
