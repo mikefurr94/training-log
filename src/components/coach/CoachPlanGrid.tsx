@@ -382,6 +382,33 @@ export default function CoachPlanGrid({ plan }: Props) {
   )
 }
 
+// ── Run type classifier ──────────────────────────────────────────────────────
+
+const RUN_TYPE_PATTERNS: [RegExp, string][] = [
+  [/tempo/i,                'Tempo'],
+  [/interval/i,             'Intervals'],
+  [/speed/i,                'Speed'],
+  [/fartlek/i,              'Fartlek'],
+  [/threshold/i,            'Threshold'],
+  [/long\s*run|long\s*day/i,'Long Run'],
+  [/recovery/i,             'Recovery'],
+  [/easy/i,                 'Easy'],
+  [/warm.?up|cool.?down/i,  'Easy'],
+  [/progression/i,          'Progression'],
+  [/hill/i,                 'Hills'],
+  [/race\s*pace|goal\s*pace/i, 'Race Pace'],
+]
+
+function inferRunType(activity: Extract<PlannedActivity, { type: 'Run' }>): string | null {
+  const notes = activity.notes ?? ''
+  for (const [re, label] of RUN_TYPE_PATTERNS) {
+    if (re.test(notes)) return label
+  }
+  // Heuristic: if distance >= 10mi it's probably a long run
+  if (activity.targetDistance >= 10) return 'Long Run'
+  return null
+}
+
 // ── Activity Bubble ──────────────────────────────────────────────────────────
 
 function ActivityBubble({ activity }: { activity: PlannedActivity }) {
@@ -390,8 +417,14 @@ function ActivityBubble({ activity }: { activity: PlannedActivity }) {
   let detail = ''
 
   if (activity.type === 'Run') {
-    label = `${activity.targetDistance}mi`
-    if (activity.targetPace && activity.targetPace !== '0:00') detail = activity.targetPace
+    const runType = inferRunType(activity)
+    label = runType ? `${runType}` : `${activity.targetDistance}mi`
+    detail = `${activity.targetDistance}mi`
+    if (runType && activity.targetPace && activity.targetPace !== '0:00') {
+      detail += ` · ${activity.targetPace}`
+    } else if (!runType && activity.targetPace && activity.targetPace !== '0:00') {
+      detail = activity.targetPace
+    }
   } else if (activity.type === 'WeightTraining') {
     label = activity.workoutType
   } else if (activity.type === 'Race') {
@@ -706,6 +739,17 @@ function EditableNotes({ initialValue, onSave }: {
 }) {
   const [value, setValue] = useState(initialValue)
   const [focused, setFocused] = useState(false)
+  const textareaRef = useRef<HTMLTextAreaElement>(null)
+
+  // Auto-resize textarea to fit content without scrolling
+  const autoResize = useCallback(() => {
+    const el = textareaRef.current
+    if (!el) return
+    el.style.height = 'auto'
+    el.style.height = `${el.scrollHeight}px`
+  }, [])
+
+  useEffect(() => { autoResize() }, [value, autoResize])
 
   return (
     <div style={{
@@ -720,17 +764,19 @@ function EditableNotes({ initialValue, onSave }: {
         textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 6,
       }}>Notes</div>
       <textarea
+        ref={textareaRef}
         value={value}
         onChange={(e) => setValue(e.target.value)}
         onFocus={() => setFocused(true)}
         onBlur={() => { setFocused(false); if (value !== initialValue) onSave(value) }}
         placeholder="Add notes..."
-        rows={value ? Math.min(value.split('\n').length + 1, 6) : 2}
+        rows={3}
         style={{
           fontSize: 13, color: 'var(--color-text-primary)', lineHeight: 1.5,
           background: 'transparent', border: 'none', outline: 'none',
-          width: '100%', padding: 0, margin: 0, resize: 'vertical',
-          fontFamily: 'inherit',
+          width: '100%', padding: 0, margin: 0, resize: 'none',
+          fontFamily: 'inherit', overflow: 'hidden',
+          minHeight: 60,
         }}
       />
     </div>
@@ -1056,7 +1102,10 @@ function StatCard({ label, value }: { label: string; value: string }) {
 
 function getActivityTitle(activity: PlannedActivity): string {
   switch (activity.type) {
-    case 'Run': return 'Run'
+    case 'Run': {
+      const runType = inferRunType(activity)
+      return runType ? `${runType} Run` : 'Run'
+    }
     case 'WeightTraining': return 'Weight Training'
     case 'Yoga': return 'Yoga'
     case 'Tennis': return 'Tennis'
