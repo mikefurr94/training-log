@@ -360,11 +360,12 @@ function MobileHeader({ onOpenSideNav }: { onOpenSideNav?: () => void }) {
 
 export function MobileTabBar() {
   const activeApp = useAppStore((s) => s.activeApp)
-  if (activeApp === 'coach') return null
   const appMode = useAppStore((s) => s.appMode)
   const setAppMode = useAppStore((s) => s.setAppMode)
   const habitView = useAppStore((s) => s.habitView)
   const setHabitView = useAppStore((s) => s.setHabitView)
+
+  if (activeApp === 'coach') return null
 
   const isTraining = activeApp === 'training'
   const tabs = isTraining ? TRAINING_TABS : HABIT_TABS
