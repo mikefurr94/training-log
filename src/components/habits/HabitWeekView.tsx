@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useRef, useEffect } from 'react'
 import { startOfWeek, addWeeks, subWeeks, addDays, format, isToday } from 'date-fns'
 import { useAppStore } from '../../store/useAppStore'
 import { useIsMobile } from '../../hooks/useIsMobile'
@@ -413,6 +413,12 @@ function MobileHabitGrid({ days, habits, habitCompletions, toggleHabitCompletion
   onHabitClick: (id: string) => void
   isGoalMet: (habit: HabitDefinition) => boolean
 }) {
+  const todayRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    todayRef.current?.scrollIntoView({ block: 'start', behavior: 'auto' })
+  }, [])
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
       {days.map((day) => {
@@ -423,7 +429,7 @@ function MobileHabitGrid({ days, habits, habitCompletions, toggleHabitCompletion
         ).length
 
         return (
-          <div key={dateStr} style={{
+          <div key={dateStr} ref={today ? todayRef : undefined} style={{
             background: today ? 'var(--color-today-bg)' : 'var(--color-surface)',
             border: today ? '1.5px solid var(--color-today-border)' : '1px solid var(--color-border)',
             borderRadius: 'var(--radius-md)',
