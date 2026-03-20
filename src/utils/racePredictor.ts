@@ -107,7 +107,9 @@ export function riegelPredict(
   knownTimeSeconds: number,
   targetDistanceMeters: number,
 ): number {
-  return knownTimeSeconds * Math.pow(targetDistanceMeters / knownDistanceMeters, 1.06)
+  // Use 1.045 exponent (closer to COROS/Garmin) instead of original 1.06
+  // 1.06 over-penalizes longer distances; 1.045 better matches real-world performance
+  return knownTimeSeconds * Math.pow(targetDistanceMeters / knownDistanceMeters, 1.045)
 }
 
 // ── Trail Run Elevation Adjustment ──────────────────────────────────────────
@@ -156,25 +158,21 @@ export function isQualifyingRun(activity: StravaActivity): boolean {
 // ── Training Volume Adjustment ──────────────────────────────────────────────
 
 function getVolumeAdjustment(weeklyMilesAvg: number, distance: RaceDistance): number {
+  // Reduced volume penalties to align with COROS/Garmin approach.
+  // These platforms focus on physiological capacity (VO2max) with minimal volume penalties.
   if (distance.meters === 42195) {
-    // Marathon
-    if (weeklyMilesAvg < 30) return 1.08
-    if (weeklyMilesAvg < 40) return 1.03
-    if (weeklyMilesAvg >= 50) return 0.98
+    // Marathon — only penalize very low volume
+    if (weeklyMilesAvg < 20) return 1.04
+    if (weeklyMilesAvg < 30) return 1.01
+    if (weeklyMilesAvg >= 50) return 0.99
     return 1.0
   }
   if (distance.meters === 21097.5) {
     // Half Marathon
-    if (weeklyMilesAvg < 20) return 1.05
-    if (weeklyMilesAvg < 30) return 1.02
+    if (weeklyMilesAvg < 15) return 1.02
     return 1.0
   }
-  if (distance.meters === 16093.4) {
-    // 10 Miler
-    if (weeklyMilesAvg < 15) return 1.03
-    return 1.0
-  }
-  // 5K - no adjustment
+  // 10 Miler & 5K — no volume adjustment (fitness-based prediction)
   return 1.0
 }
 
@@ -281,10 +279,12 @@ export function generatePredictions(
   const qualifyingRuns = buildQualifyingRuns(runs)
   if (qualifyingRuns.length < 2) return null
 
-  // Use median of top 3-5 VDOT scores
+  // Use 75th percentile of top 5 VDOT scores (like COROS/Garmin — emphasis on best efforts)
+  // This better represents current fitness potential vs. conservative median
   const topN = qualifyingRuns.slice(0, Math.min(5, qualifyingRuns.length))
   const sorted = [...topN].sort((a, b) => a.vdot - b.vdot)
-  const referenceVdot = sorted[Math.floor(sorted.length / 2)].vdot
+  const p75Index = Math.min(Math.floor(sorted.length * 0.75), sorted.length - 1)
+  const referenceVdot = sorted[p75Index].vdot
 
   // Best effort for Riegel
   const bestEffort = qualifyingRuns[0]
@@ -312,8 +312,8 @@ export function generatePredictions(
       distance.meters,
     )
 
-    // Blend: 60% VDOT, 40% Riegel
-    let blendedTime = vdotTime * 0.6 + riegelTime * 0.4
+    // Blend: 80% VDOT, 20% Riegel (COROS/Garmin lean heavily on VO2max-based prediction)
+    let blendedTime = vdotTime * 0.8 + riegelTime * 0.2
 
     // Apply volume adjustment
     blendedTime *= getVolumeAdjustment(weeklyMilesAvg, distance)
