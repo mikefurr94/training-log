@@ -13,6 +13,7 @@ import HabitWeekView from '../components/habits/HabitWeekView'
 import HabitGridView from '../components/habits/HabitGridView'
 import HabitDashboard from '../components/habits/HabitDashboard'
 import HabitDetailPanel from '../components/habits/HabitDetailPanel'
+import RacePredictorPage from './RacePredictorPage'
 import CoachPage from './CoachPage'
 import { useAppStore } from '../store/useAppStore'
 import { useActivities } from '../hooks/useActivities'
@@ -133,6 +134,12 @@ export default function CalendarPage() {
               {isTraining && appMode === 'review' && (
                 <div style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
                   <WeekReviewPage />
+                </div>
+              )}
+
+              {isTraining && appMode === 'predictor' && (
+                <div style={{ flex: 1, overflow: 'auto' }}>
+                  <RacePredictorPage />
                 </div>
               )}
 

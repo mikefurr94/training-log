@@ -52,6 +52,20 @@ function IconReview({ color }: { color: string }) {
   )
 }
 
+function IconPredictor({ color }: { color: string }) {
+  return (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="12" cy="12" r="10" />
+      <circle cx="12" cy="12" r="6" />
+      <circle cx="12" cy="12" r="2" />
+      <line x1="12" y1="2" x2="12" y2="5" />
+      <line x1="12" y1="19" x2="12" y2="22" />
+      <line x1="2" y1="12" x2="5" y2="12" />
+      <line x1="19" y1="12" x2="22" y2="12" />
+    </svg>
+  )
+}
+
 function IconWeekly({ color }: { color: string }) {
   return (
     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
@@ -71,6 +85,7 @@ const TRAINING_TABS: { mode: AppMode; label: string; Icon: React.FC<{ color: str
   { mode: 'grid',      label: 'Grid',      Icon: IconGrid },
   { mode: 'dashboard', label: 'Dashboard', Icon: IconDashboard },
   { mode: 'review',    label: 'Review',    Icon: IconReview },
+  { mode: 'predictor', label: 'Predictor', Icon: IconPredictor },
 ]
 
 const HABIT_TABS: { mode: HabitView; label: string; Icon: React.FC<{ color: string }> }[] = [

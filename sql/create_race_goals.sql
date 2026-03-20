@@ -1,0 +1,7 @@
+CREATE TABLE IF NOT EXISTS race_goals (
+  athlete_id BIGINT PRIMARY KEY,
+  goals JSONB DEFAULT '{}'::jsonb,
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+ALTER TABLE race_goals ENABLE ROW LEVEL SECURITY;

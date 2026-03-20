@@ -175,7 +175,7 @@ export type ThemeMode = 'light' | 'dark'
 
 // ── App Mode ────────────────────────────────────────────────────────────────
 
-export type AppMode = 'calendar' | 'grid' | 'dashboard' | 'review'
+export type AppMode = 'calendar' | 'grid' | 'dashboard' | 'review' | 'predictor'
 
 export type ActiveApp = 'training' | 'habits' | 'coach'
 
