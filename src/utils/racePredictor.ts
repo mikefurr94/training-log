@@ -265,32 +265,42 @@ function buildQualifyingRuns(runs: StravaActivity[]): QualifyingRun[] {
  * Generate race predictions from activity data.
  * @param activitiesByDate - all activities keyed by date
  * @param asOfDate - compute predictions as of this date (default: today)
+ * @param vo2maxOverride - optional manual VO2Max entry (e.g. from COROS watch)
  */
 export function generatePredictions(
   activitiesByDate: Record<string, StravaActivity[]>,
   asOfDate?: Date,
+  vo2maxOverride?: number | null,
 ): PredictionResult | null {
   const endDate = asOfDate ?? new Date()
   const startDate = subMonths(endDate, 6)
 
   const runs = getRunsInWindow(activitiesByDate, startDate, endDate)
-  if (runs.length < 2) return null
+
+  // If VO2Max override is provided, we can generate predictions even with fewer runs
+  const hasOverride = typeof vo2maxOverride === 'number' && vo2maxOverride > 0
+  if (!hasOverride && runs.length < 2) return null
 
   const qualifyingRuns = buildQualifyingRuns(runs)
-  if (qualifyingRuns.length < 2) return null
+  if (!hasOverride && qualifyingRuns.length < 2) return null
 
   // Use 75th percentile of top 5 VDOT scores (like COROS/Garmin — emphasis on best efforts)
-  // This better represents current fitness potential vs. conservative median
   const topN = qualifyingRuns.slice(0, Math.min(5, qualifyingRuns.length))
   const sorted = [...topN].sort((a, b) => a.vdot - b.vdot)
   const p75Index = Math.min(Math.floor(sorted.length * 0.75), sorted.length - 1)
-  const referenceVdot = sorted[p75Index].vdot
+  const calculatedVdot = sorted.length > 0 ? sorted[p75Index].vdot : 0
 
-  // Best effort for Riegel
-  const bestEffort = qualifyingRuns[0]
-  const bestEffortTime = isTrailRun(bestEffort.activity)
-    ? getElevationAdjustedTime(bestEffort.activity)
-    : bestEffort.activity.moving_time
+  // When VO2Max override is set, use it directly as the reference VDOT
+  const referenceVdot = hasOverride ? vo2maxOverride! : calculatedVdot
+
+  // Best effort for Riegel (only if we have qualifying runs)
+  const hasBestEffort = qualifyingRuns.length > 0
+  const bestEffort = hasBestEffort ? qualifyingRuns[0] : null
+  const bestEffortTime = bestEffort
+    ? (isTrailRun(bestEffort.activity)
+        ? getElevationAdjustedTime(bestEffort.activity)
+        : bestEffort.activity.moving_time)
+    : 0
 
   const weeklyMilesAvg = computeWeeklyMileage(activitiesByDate, startDate, endDate)
 
@@ -302,18 +312,23 @@ export function generatePredictions(
   }
 
   const predictions: RacePrediction[] = RACE_DISTANCES.map((distance) => {
-    // VDOT-based prediction
+    // VDOT-based prediction (primary — always available with override or calculated)
     const vdotTime = predictTimeFromVDOT(referenceVdot, distance.meters)
 
-    // Riegel-based prediction from best effort
-    const riegelTime = riegelPredict(
-      bestEffort.activity.distance,
-      bestEffortTime,
-      distance.meters,
-    )
-
-    // Blend: 80% VDOT, 20% Riegel (COROS/Garmin lean heavily on VO2max-based prediction)
-    let blendedTime = vdotTime * 0.8 + riegelTime * 0.2
+    // If we have a best effort, blend with Riegel; otherwise use pure VDOT
+    let blendedTime: number
+    if (bestEffort) {
+      const riegelTime = riegelPredict(
+        bestEffort.activity.distance,
+        bestEffortTime,
+        distance.meters,
+      )
+      // Blend: 80% VDOT, 20% Riegel (COROS/Garmin lean heavily on VO2max-based prediction)
+      blendedTime = vdotTime * 0.8 + riegelTime * 0.2
+    } else {
+      // Pure VDOT prediction when using override with no run data
+      blendedTime = vdotTime
+    }
 
     // Apply volume adjustment
     blendedTime *= getVolumeAdjustment(weeklyMilesAvg, distance)
@@ -324,7 +339,7 @@ export function generatePredictions(
       distance,
       predictedTime: Math.round(blendedTime),
       predictedPace,
-      confidence: calculateConfidence(topN, weeklyMilesAvg, distance),
+      confidence: hasOverride ? 'high' as const : calculateConfidence(topN, weeklyMilesAvg, distance),
     }
   })
 
@@ -349,6 +364,7 @@ export function generatePredictions(
 export function generateWeeklyTrend(
   activitiesByDate: Record<string, StravaActivity[]>,
   distanceIndex: number,
+  vo2maxOverride?: number | null,
 ): WeeklyTrendPoint[] {
   const today = new Date()
   const trendStart = subMonths(today, 6)
@@ -359,7 +375,7 @@ export function generateWeeklyTrend(
     // Use the end of this week (or today if it's the current week) as the "as of" date
     const asOf = weekEnd_ > today ? today : weekEnd_
 
-    const result = generatePredictions(activitiesByDate, asOf)
+    const result = generatePredictions(activitiesByDate, asOf, vo2maxOverride)
     const prediction = result?.predictions[distanceIndex] ?? null
 
     return {

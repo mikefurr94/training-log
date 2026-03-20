@@ -34,12 +34,24 @@ export default function RacePredictorPage() {
   const [goalInput, setGoalInput] = useState('')
   const [goalsLoaded, setGoalsLoaded] = useState(false)
 
-  // Load goals from Supabase
+  // VO2Max override state
+  const [vo2max, setVo2max] = useState<number | null>(null)
+  const [vo2maxDate, setVo2maxDate] = useState<string>('')
+  const [vo2maxInput, setVo2maxInput] = useState('')
+
+  // Load goals + VO2Max from Supabase
   useEffect(() => {
     if (!athlete?.id) return
     loadRaceGoals(athlete.id)
-      .then((g) => {
-        setGoals(g)
+      .then((g: any) => {
+        // VO2Max is stored alongside goals in the same JSONB
+        const { _vo2max, _vo2maxDate, ...rest } = g
+        setGoals(rest)
+        if (_vo2max) {
+          setVo2max(Number(_vo2max))
+          setVo2maxInput(String(_vo2max))
+        }
+        if (_vo2maxDate) setVo2maxDate(_vo2maxDate)
         setGoalsLoaded(true)
       })
       .catch(() => setGoalsLoaded(true))
@@ -51,14 +63,36 @@ export default function RacePredictorPage() {
     setGoalInput(goals[dist.name] ?? '')
   }, [selectedTab, goalsLoaded])
 
+  const handleSaveVo2max = useCallback(() => {
+    const val = parseFloat(vo2maxInput)
+    if (isNaN(val) || val < 15 || val > 90 || !athlete?.id) return
+    const today = new Date().toISOString().slice(0, 10)
+    setVo2max(val)
+    setVo2maxDate(today)
+    setVo2maxInput(String(val))
+    const updated = { ...goals, _vo2max: String(val), _vo2maxDate: today }
+    saveRaceGoals(athlete.id, updated).catch(() => {})
+  }, [vo2maxInput, athlete?.id, goals])
+
+  const handleClearVo2max = useCallback(() => {
+    if (!athlete?.id) return
+    setVo2max(null)
+    setVo2maxDate('')
+    setVo2maxInput('')
+    const updated = { ...goals }
+    delete (updated as any)._vo2max
+    delete (updated as any)._vo2maxDate
+    saveRaceGoals(athlete.id, updated).catch(() => {})
+  }, [athlete?.id, goals])
+
   const result = useMemo<PredictionResult | null>(
-    () => generatePredictions(activitiesByDate),
-    [activitiesByDate],
+    () => generatePredictions(activitiesByDate, undefined, vo2max),
+    [activitiesByDate, vo2max],
   )
 
   const trendData = useMemo<WeeklyTrendPoint[]>(
-    () => generateWeeklyTrend(activitiesByDate, selectedTab),
-    [activitiesByDate, selectedTab],
+    () => generateWeeklyTrend(activitiesByDate, selectedTab, vo2max),
+    [activitiesByDate, selectedTab, vo2max],
   )
 
   const currentPrediction = result?.predictions[selectedTab] ?? null
@@ -138,6 +172,102 @@ export default function RacePredictorPage() {
             </button>
           )
         })}
+      </div>
+
+      {/* ── VO2Max Override ── */}
+      <div style={{
+        background: 'var(--color-surface)',
+        borderRadius: 'var(--radius-lg)',
+        border: vo2max ? '1px solid #6366f1' : '1px solid var(--color-border)',
+        padding: isMobile ? '14px 16px' : '16px 20px',
+        display: 'flex',
+        flexDirection: isMobile ? 'column' : 'row',
+        alignItems: isMobile ? 'stretch' : 'center',
+        gap: isMobile ? 10 : 16,
+      }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 2, minWidth: 0 }}>
+          <div style={{
+            fontSize: isMobile ? 'var(--font-size-sm)' : 'var(--font-size-base)',
+            fontWeight: 600,
+            color: 'var(--color-text-primary)',
+            whiteSpace: 'nowrap',
+          }}>
+            VO₂ Max
+          </div>
+          <div style={{
+            fontSize: isMobile ? 10 : 11,
+            color: 'var(--color-text-tertiary)',
+          }}>
+            {vo2max
+              ? `From watch · Updated ${vo2maxDate}`
+              : 'Enter from COROS, Garmin, or other device'}
+          </div>
+        </div>
+
+        <div style={{
+          display: 'flex',
+          gap: 8,
+          flex: 1,
+          alignItems: 'center',
+          marginLeft: isMobile ? 0 : 'auto',
+        }}>
+          <input
+            type="number"
+            value={vo2maxInput}
+            onChange={(e) => setVo2maxInput(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && handleSaveVo2max()}
+            placeholder="e.g. 61"
+            min={15}
+            max={90}
+            step={0.1}
+            style={{
+              padding: '8px 12px',
+              borderRadius: 'var(--radius-md)',
+              border: '1px solid var(--color-border)',
+              background: 'var(--color-bg)',
+              color: 'var(--color-text-primary)',
+              fontSize: 'var(--font-size-sm)',
+              fontVariantNumeric: 'tabular-nums',
+              width: isMobile ? '100%' : 90,
+              outline: 'none',
+            }}
+          />
+          <button
+            onClick={handleSaveVo2max}
+            disabled={!vo2maxInput.trim()}
+            style={{
+              padding: '8px 16px',
+              borderRadius: 'var(--radius-md)',
+              border: 'none',
+              background: vo2maxInput.trim() ? '#6366f1' : 'var(--color-border)',
+              color: vo2maxInput.trim() ? '#fff' : 'var(--color-text-tertiary)',
+              fontWeight: 600,
+              fontSize: 'var(--font-size-sm)',
+              cursor: vo2maxInput.trim() ? 'pointer' : 'default',
+              whiteSpace: 'nowrap',
+            }}
+          >
+            Set
+          </button>
+          {vo2max && (
+            <button
+              onClick={handleClearVo2max}
+              style={{
+                padding: '8px 12px',
+                borderRadius: 'var(--radius-md)',
+                border: '1px solid var(--color-border)',
+                background: 'var(--color-surface)',
+                color: 'var(--color-text-tertiary)',
+                fontWeight: 500,
+                fontSize: 'var(--font-size-sm)',
+                cursor: 'pointer',
+                whiteSpace: 'nowrap',
+              }}
+            >
+              Clear
+            </button>
+          )}
+        </div>
       </div>
 
       {/* ── Current Prediction ── */}
@@ -465,9 +595,9 @@ export default function RacePredictorPage() {
               isMobile={isMobile}
             />
             <MetricCard
-              label="VDOT"
+              label={vo2max ? 'VO₂ Max (Watch)' : 'VDOT'}
               value={`${result.referenceVdot}`}
-              unit="fitness"
+              unit={vo2max ? 'override' : 'fitness'}
               isMobile={isMobile}
             />
           </div>
