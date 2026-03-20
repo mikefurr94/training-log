@@ -290,8 +290,14 @@ export function generatePredictions(
   const p75Index = Math.min(Math.floor(sorted.length * 0.75), sorted.length - 1)
   const calculatedVdot = sorted.length > 0 ? sorted[p75Index].vdot : 0
 
-  // When VO2Max override is set, use it directly as the reference VDOT
-  const referenceVdot = hasOverride ? vo2maxOverride! : calculatedVdot
+  // When VO2Max override is set, convert to effective VDOT.
+  // Watch VO2Max (COROS/Garmin) is raw physiological capacity; VDOT factors in
+  // running economy. For most runners, VDOT ≈ VO2Max × 0.875.
+  // e.g. COROS VO2Max 61 → effective VDOT ~53.4 → matches COROS race predictions.
+  const VO2MAX_TO_VDOT_FACTOR = 0.875
+  const referenceVdot = hasOverride
+    ? vo2maxOverride! * VO2MAX_TO_VDOT_FACTOR
+    : calculatedVdot
 
   // Best effort for Riegel (only if we have qualifying runs)
   const hasBestEffort = qualifyingRuns.length > 0
