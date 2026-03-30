@@ -321,6 +321,12 @@ export function generatePredictions(
     // VDOT-based prediction (primary — always available with override or calculated)
     const vdotTime = predictTimeFromVDOT(referenceVdot, distance.meters)
 
+    // Find best effort at or near this target distance (within ±20%)
+    const sameDistanceBest = qualifyingRuns.find((r) => {
+      const ratio = r.activity.distance / distance.meters
+      return ratio >= 0.8 && ratio <= 1.2
+    })
+
     // If we have a best effort, blend with Riegel; otherwise use pure VDOT
     let blendedTime: number
     if (bestEffort) {
@@ -329,8 +335,15 @@ export function generatePredictions(
         bestEffortTime,
         distance.meters,
       )
-      // Blend: 80% VDOT, 20% Riegel (COROS/Garmin lean heavily on VO2max-based prediction)
-      blendedTime = vdotTime * 0.8 + riegelTime * 0.2
+
+      if (sameDistanceBest) {
+        // When we have a direct effort near this distance, lean more on Riegel
+        // since the extrapolation is minimal and reflects proven ability
+        blendedTime = vdotTime * 0.5 + riegelTime * 0.5
+      } else {
+        // Blend: 80% VDOT, 20% Riegel (COROS/Garmin lean heavily on VO2max-based prediction)
+        blendedTime = vdotTime * 0.8 + riegelTime * 0.2
+      }
     } else {
       // Pure VDOT prediction when using override with no run data
       blendedTime = vdotTime
@@ -338,6 +351,21 @@ export function generatePredictions(
 
     // Apply volume adjustment
     blendedTime *= getVolumeAdjustment(weeklyMilesAvg, distance)
+
+    // Floor: never predict slower than a proven same-distance effort.
+    // If the runner has actually completed this distance, respect that time.
+    if (sameDistanceBest) {
+      const actualTime = isTrailRun(sameDistanceBest.activity)
+        ? getElevationAdjustedTime(sameDistanceBest.activity)
+        : sameDistanceBest.activity.moving_time
+      // Scale to exact target distance via Riegel (minimal extrapolation for ±20% range)
+      const scaledActual = riegelPredict(
+        sameDistanceBest.activity.distance,
+        actualTime,
+        distance.meters,
+      )
+      blendedTime = Math.min(blendedTime, scaledActual)
+    }
 
     const predictedPace = blendedTime / metersToMiles(distance.meters) // seconds per mile
 
