@@ -58,9 +58,9 @@ export default function DayCell({
     ? (plannedActivities ?? []).find(p => p.type === 'Race')
     : undefined
 
-  // Filter non-Race planned activities to enabled types (skip Rest in calendar)
+  // Filter non-Race planned activities to enabled types
   const filteredPlanned = (plannedActivities ?? []).filter(
-    (p) => p.type !== 'Rest' && p.type !== 'Race' && enabledTypes.includes(p.type as ActivityType)
+    (p) => p.type !== 'Race' && (p.type === 'Rest' || enabledTypes.includes(p.type as ActivityType))
   )
 
   const dayKeyDates = keyDates ?? []
