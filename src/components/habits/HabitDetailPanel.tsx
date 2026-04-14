@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { useAppStore } from '../../store/useAppStore'
 import { useIsMobile } from '../../hooks/useIsMobile'
@@ -27,11 +27,29 @@ export default function HabitDetailPanel() {
     return () => window.removeEventListener('keydown', handleKey)
   }, [])
 
-  // Determine if at top/bottom of sorted list
-  const sorted = [...habits].filter((h) => !h.archived).sort((a, b) => a.order - b.order)
-  const idx = sorted.findIndex((h) => h.id === selectedHabitId)
+  // Determine position within the same visible grouping (archived + frequency)
+  // that HabitWeekView uses when rendering.
+  const targetFreq = habit?.frequency ?? 'daily'
+  const peers = habit
+    ? [...habits]
+        .filter((h) => !!h.archived === !!habit.archived && (h.frequency ?? 'daily') === targetFreq)
+        .sort((a, b) => a.order - b.order)
+    : []
+  const idx = peers.findIndex((h) => h.id === selectedHabitId)
   const isFirst = idx <= 0
-  const isLast = idx >= sorted.length - 1
+  const isLast = idx >= peers.length - 1
+
+  // Transient feedback state when a move button is clicked
+  const [justMoved, setJustMoved] = useState<'up' | 'down' | null>(null)
+  const moveTimer = useRef<number | null>(null)
+  useEffect(() => () => { if (moveTimer.current) window.clearTimeout(moveTimer.current) }, [])
+  const handleMove = (direction: 'up' | 'down') => {
+    if (!habit) return
+    moveHabit(habit.id, direction)
+    setJustMoved(direction)
+    if (moveTimer.current) window.clearTimeout(moveTimer.current)
+    moveTimer.current = window.setTimeout(() => setJustMoved(null), 500)
+  }
 
   return (
     <AnimatePresence>
@@ -150,18 +168,35 @@ export default function HabitDetailPanel() {
               <Section title="Reorder">
                 <div style={{ display: 'flex', gap: 8 }}>
                   <ActionButton
-                    onClick={() => moveHabit(habit.id, 'up')}
+                    onClick={() => handleMove('up')}
                     disabled={isFirst}
+                    flash={justMoved === 'up'}
                   >
-                    Move up
+                    {justMoved === 'up' ? '✓ Moved up' : 'Move up'}
                   </ActionButton>
                   <ActionButton
-                    onClick={() => moveHabit(habit.id, 'down')}
+                    onClick={() => handleMove('down')}
                     disabled={isLast}
+                    flash={justMoved === 'down'}
                   >
-                    Move down
+                    {justMoved === 'down' ? '✓ Moved down' : 'Move down'}
                   </ActionButton>
                 </div>
+                {peers.length > 1 && (
+                  <motion.div
+                    key={idx}
+                    initial={{ opacity: 0.4, y: -2 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.2 }}
+                    style={{
+                      marginTop: 8,
+                      fontSize: 'var(--font-size-xs)',
+                      color: 'var(--color-text-tertiary)',
+                    }}
+                  >
+                    Position {idx + 1} of {peers.length}
+                  </motion.div>
+                )}
               </Section>
 
               {/* Archive */}
@@ -344,8 +379,8 @@ function ColorPicker({ value, onChange }: { value?: string; onChange: (v: string
   )
 }
 
-function ActionButton({ onClick, disabled, children }: {
-  onClick: () => void; disabled?: boolean; children: React.ReactNode
+function ActionButton({ onClick, disabled, flash, children }: {
+  onClick: () => void; disabled?: boolean; flash?: boolean; children: React.ReactNode
 }) {
   return (
     <button
@@ -355,10 +390,11 @@ function ActionButton({ onClick, disabled, children }: {
         flex: 1, padding: '8px 12px',
         borderRadius: 'var(--radius-md)',
         fontSize: 'var(--font-size-sm)', fontWeight: 600, cursor: disabled ? 'default' : 'pointer',
-        border: '1px solid var(--color-border)',
-        background: 'var(--color-bg)',
-        color: disabled ? 'var(--color-text-tertiary)' : 'var(--color-text-secondary)',
+        border: flash ? '1px solid #10b981' : '1px solid var(--color-border)',
+        background: flash ? 'rgba(16, 185, 129, 0.12)' : 'var(--color-bg)',
+        color: flash ? '#047857' : disabled ? 'var(--color-text-tertiary)' : 'var(--color-text-secondary)',
         opacity: disabled ? 0.5 : 1,
+        transition: 'background 150ms ease, border-color 150ms ease, color 150ms ease',
       }}
     >
       {children}

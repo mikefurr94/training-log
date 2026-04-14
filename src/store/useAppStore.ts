@@ -456,16 +456,27 @@ export const useAppStore = create<AppStore>()(
 
       moveHabit: (id: string, direction: 'up' | 'down') =>
         set((s) => {
-          const sorted = [...s.habits].sort((a, b) => a.order - b.order)
-          const idx = sorted.findIndex((h) => h.id === id)
-          if (idx < 0) return s
+          const target = s.habits.find((h) => h.id === id)
+          if (!target) return s
+          // Only swap within the same visible grouping (archived state + frequency),
+          // matching how HabitWeekView renders habits. Otherwise a swap with an
+          // invisible neighbor looks like a dropped/delayed click.
+          const targetFreq = target.frequency ?? 'daily'
+          const peers = s.habits
+            .filter((h) => !!h.archived === !!target.archived && (h.frequency ?? 'daily') === targetFreq)
+            .sort((a, b) => a.order - b.order)
+          const idx = peers.findIndex((h) => h.id === id)
           const swapIdx = direction === 'up' ? idx - 1 : idx + 1
-          if (swapIdx < 0 || swapIdx >= sorted.length) return s
-          const newHabits = [...sorted]
-          const tmpOrder = newHabits[idx].order
-          newHabits[idx] = { ...newHabits[idx], order: newHabits[swapIdx].order }
-          newHabits[swapIdx] = { ...newHabits[swapIdx], order: tmpOrder }
-          return { habits: newHabits }
+          if (swapIdx < 0 || swapIdx >= peers.length) return s
+          const a = peers[idx]
+          const b = peers[swapIdx]
+          return {
+            habits: s.habits.map((h) => {
+              if (h.id === a.id) return { ...h, order: b.order }
+              if (h.id === b.id) return { ...h, order: a.order }
+              return h
+            }),
+          }
         }),
 
       // ── Theme ──────────────────────────────────────────────────────────────
