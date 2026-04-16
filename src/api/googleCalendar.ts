@@ -2,7 +2,7 @@
 
 /** Get the Google OAuth authorization URL */
 export async function getGoogleAuthUrl(athleteId: number): Promise<string> {
-  const res = await fetch(`/api/google-auth?athlete_id=${athleteId}`)
+  const res = await fetch(`/api/google-calendar?path=auth&athlete_id=${athleteId}`)
   if (!res.ok) throw new Error('Failed to get auth URL')
   const data = await res.json()
   return data.url
@@ -10,7 +10,7 @@ export async function getGoogleAuthUrl(athleteId: number): Promise<string> {
 
 /** Check if Google Calendar is connected for this athlete */
 export async function checkGoogleCalendarConnection(athleteId: number): Promise<boolean> {
-  const res = await fetch(`/api/google-calendar-sync?athlete_id=${athleteId}`)
+  const res = await fetch(`/api/google-calendar?path=sync&athlete_id=${athleteId}`)
   if (!res.ok) return false
   const data = await res.json()
   return data.connected
@@ -18,7 +18,7 @@ export async function checkGoogleCalendarConnection(athleteId: number): Promise<
 
 /** Disconnect Google Calendar */
 export async function disconnectGoogleCalendar(athleteId: number): Promise<void> {
-  const res = await fetch(`/api/google-calendar-sync?athlete_id=${athleteId}`, {
+  const res = await fetch(`/api/google-calendar?path=sync&athlete_id=${athleteId}`, {
     method: 'DELETE',
   })
   if (!res.ok) throw new Error('Failed to disconnect')
@@ -30,7 +30,7 @@ export async function syncActivityToCalendar(
   activity: { id: string; type: string; [key: string]: unknown },
   date: string, // 'YYYY-MM-DD'
 ): Promise<void> {
-  const res = await fetch(`/api/google-calendar-sync?athlete_id=${athleteId}`, {
+  const res = await fetch(`/api/google-calendar?path=sync&athlete_id=${athleteId}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ activity, date, action: 'upsert' }),
@@ -46,7 +46,7 @@ export async function deleteCalendarEvent(
   athleteId: number,
   activityId: string,
 ): Promise<void> {
-  const res = await fetch(`/api/google-calendar-sync?athlete_id=${athleteId}`, {
+  const res = await fetch(`/api/google-calendar?path=sync&athlete_id=${athleteId}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ activity: { id: activityId }, action: 'delete' }),

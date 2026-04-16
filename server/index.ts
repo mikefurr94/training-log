@@ -57,32 +57,24 @@ app.all('/api/activities', async (req, res) => {
   }
 })
 
-app.all('/api/google-auth', async (req, res) => {
+app.all('/api/google-calendar', async (req, res) => {
   try {
-    const { default: handler } = await import('../api/google-auth.js')
+    const { default: handler } = await import('../api/google-calendar.js')
     await handler(req as any, res as any)
   } catch (err: any) {
-    console.error('[api/google-auth] Error:', err.message)
+    console.error('[api/google-calendar] Error:', err.message)
     res.status(500).json({ error: err.message })
   }
 })
 
-app.all('/api/google-callback', async (req, res) => {
+// Local dev: mirror the /google-callback route Vercel handles via rewrite
+app.all('/google-callback', async (req, res) => {
+  req.query.path = 'callback'
   try {
-    const { default: handler } = await import('../api/google-callback.js')
+    const { default: handler } = await import('../api/google-calendar.js')
     await handler(req as any, res as any)
   } catch (err: any) {
-    console.error('[api/google-callback] Error:', err.message)
-    res.status(500).json({ error: err.message })
-  }
-})
-
-app.all('/api/google-calendar-sync', async (req, res) => {
-  try {
-    const { default: handler } = await import('../api/google-calendar-sync.js')
-    await handler(req as any, res as any)
-  } catch (err: any) {
-    console.error('[api/google-calendar-sync] Error:', err.message)
+    console.error('[google-callback] Error:', err.message)
     res.status(500).json({ error: err.message })
   }
 })
