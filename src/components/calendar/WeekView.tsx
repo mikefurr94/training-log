@@ -382,7 +382,14 @@ function MobileDayRow({
             onPointerMove={cancelIfMoved}
             style={{
               touchAction: 'none',
-              opacity: dragState?.activityId === plannedRace.id ? 0.35 : 1,
+              userSelect: 'none',
+              WebkitUserSelect: 'none',
+              WebkitTouchCallout: 'none',
+              opacity: dragState?.activityId === plannedRace.id ? 0.5 : 1,
+              transform: dragState?.activityId === plannedRace.id ? 'scale(0.96)' : 'scale(1)',
+              boxShadow: dragState?.activityId === plannedRace.id ? '0 0 0 2px #e11d48, 0 6px 18px rgba(225,29,72,0.35)' : 'none',
+              borderRadius: 7,
+              transition: 'transform 0.12s, box-shadow 0.12s, opacity 0.12s',
             }}
           >
             <button
@@ -469,7 +476,14 @@ function MobileDayRow({
                   style={{
                     flex: 1, minWidth: 0,
                     touchAction: 'none',
-                    opacity: dragState?.activityId === p.id ? 0.35 : 1,
+                    userSelect: 'none',
+                    WebkitUserSelect: 'none',
+                    WebkitTouchCallout: 'none',
+                    opacity: dragState?.activityId === p.id ? 0.5 : 1,
+                    transform: dragState?.activityId === p.id ? 'scale(0.96)' : 'scale(1)',
+                    boxShadow: dragState?.activityId === p.id ? `0 0 0 2px ${colors.hex}, 0 6px 18px ${colors.hex}55` : 'none',
+                    borderRadius: 6,
+                    transition: 'transform 0.12s, box-shadow 0.12s, opacity 0.12s',
                   }}
                 >
                   <PlannedBadge

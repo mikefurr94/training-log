@@ -52,6 +52,9 @@ export default function PlannedBadge({ activity, compact = false, onClick, onDra
         overflow: 'hidden',
         minWidth: 0,
         opacity: isDragging ? 0.4 : 1,
+        userSelect: 'none',
+        WebkitUserSelect: 'none',
+        WebkitTouchCallout: 'none',
       }}
       onMouseEnter={(e) => {
         if (onClick || draggable) {
