@@ -105,12 +105,12 @@ export interface PlannedExercise {
 }
 
 export type PlannedActivity =
-  | { id: string; type: 'Run'; targetDistance: number; targetPace: string; notes?: string }
-  | { id: string; type: 'WeightTraining'; workoutType: WorkoutType; exercises?: PlannedExercise[]; notes?: string }
-  | { id: string; type: 'Yoga'; notes?: string }
-  | { id: string; type: 'Tennis'; notes?: string }
-  | { id: string; type: 'Rest'; notes?: string }
-  | { id: string; type: 'Race'; name?: string; distance?: string; goalTime?: string; targetPace?: string; notes?: string }
+  | { id: string; type: 'Run'; targetDistance: number; targetPace: string; notes?: string; scheduledTime?: string }
+  | { id: string; type: 'WeightTraining'; workoutType: WorkoutType; exercises?: PlannedExercise[]; notes?: string; scheduledTime?: string }
+  | { id: string; type: 'Yoga'; notes?: string; scheduledTime?: string }
+  | { id: string; type: 'Tennis'; notes?: string; scheduledTime?: string }
+  | { id: string; type: 'Rest'; notes?: string; scheduledTime?: string }
+  | { id: string; type: 'Race'; name?: string; distance?: string; goalTime?: string; targetPace?: string; notes?: string; scheduledTime?: string }
 
 export interface WeekTemplate {
   days: Record<WeekDayIndex, PlannedActivity[]>
@@ -308,6 +308,9 @@ export interface AppState {
 
   // Theme
   theme: ThemeMode
+
+  // Google Calendar
+  googleCalendarConnected: boolean
 }
 
 export interface AppActions {
@@ -393,6 +396,9 @@ export interface AppActions {
 
   // Theme
   toggleTheme: () => void
+
+  // Google Calendar
+  setGoogleCalendarConnected: (connected: boolean) => void
 }
 
 export type AppStore = AppState & AppActions

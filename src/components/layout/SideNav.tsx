@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useAppStore } from '../../store/useAppStore'
 import { useIsMobile } from '../../hooks/useIsMobile'
+import { useGoogleCalendar } from '../../hooks/useGoogleCalendar'
 import type { ActiveApp } from '../../store/types'
 
 export const SIDEBAR_WIDTH = 64
@@ -68,6 +69,18 @@ function IconTheme({ isDark }: { isDark: boolean }) {
   )
 }
 
+function IconCalendarSync({ color }: { color: string }) {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
+      <line x1="16" y1="2" x2="16" y2="6" />
+      <line x1="8" y1="2" x2="8" y2="6" />
+      <line x1="3" y1="10" x2="21" y2="10" />
+      <path d="M9 16l2 2 4-4" />
+    </svg>
+  )
+}
+
 const NAV_ITEMS: { app: ActiveApp; label: string; Icon: React.FC<{ color: string }> }[] = [
   { app: 'training',   label: 'Training', Icon: IconTraining },
   { app: 'habits',     label: 'Habits',   Icon: IconHabits },
@@ -83,8 +96,10 @@ function DesktopSidebar() {
   const logout = useAppStore((s) => s.logout)
   const theme = useAppStore((s) => s.theme)
   const toggleTheme = useAppStore((s) => s.toggleTheme)
+  const { connected: gcalConnected, connect: connectGcal, disconnect: disconnectGcal } = useGoogleCalendar()
   const [hoveredApp, setHoveredApp] = useState<ActiveApp | null>(null)
   const [themeHovered, setThemeHovered] = useState(false)
+  const [gcalHovered, setGcalHovered] = useState(false)
   const [avatarHovered, setAvatarHovered] = useState(false)
 
   return (
@@ -168,6 +183,47 @@ function DesktopSidebar() {
         <IconTheme isDark={theme === 'light'} />
       </button>
 
+      {/* Google Calendar connect/disconnect */}
+      <button
+        onClick={() => {
+          if (gcalConnected) {
+            if (confirm('Disconnect Google Calendar?')) disconnectGcal()
+          } else {
+            connectGcal()
+          }
+        }}
+        onMouseEnter={() => setGcalHovered(true)}
+        onMouseLeave={() => setGcalHovered(false)}
+        title={gcalConnected ? 'Google Calendar connected — click to disconnect' : 'Connect Google Calendar'}
+        style={{
+          width: 36, height: 36, borderRadius: 8,
+          color: gcalConnected
+            ? 'var(--color-accent)'
+            : gcalHovered
+              ? 'var(--color-text-primary)'
+              : 'var(--color-text-tertiary)',
+          background: gcalHovered ? 'var(--color-border-light, rgba(0,0,0,0.06))' : 'transparent',
+          border: 'none', cursor: 'pointer',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          transition: 'background 150ms ease, color 150ms ease',
+          position: 'relative',
+        }}
+      >
+        <IconCalendarSync color={gcalConnected
+          ? 'var(--color-accent)'
+          : gcalHovered
+            ? 'var(--color-text-primary)'
+            : 'var(--color-text-tertiary)'} />
+        {gcalConnected && (
+          <div style={{
+            position: 'absolute', bottom: 4, right: 4,
+            width: 6, height: 6, borderRadius: '50%',
+            background: '#22c55e',
+            border: '1.5px solid var(--color-surface)',
+          }} />
+        )}
+      </button>
+
       {/* Avatar / logout */}
       {athlete && (
         <button
@@ -204,6 +260,7 @@ function MobileDrawer({ open, onClose }: { open: boolean; onClose: () => void })
   const logout = useAppStore((s) => s.logout)
   const theme = useAppStore((s) => s.theme)
   const toggleTheme = useAppStore((s) => s.toggleTheme)
+  const { connected: gcalConnected, connect: connectGcal, disconnect: disconnectGcal } = useGoogleCalendar()
   const [hoveredApp, setHoveredApp] = useState<ActiveApp | null>(null)
 
   return (
@@ -317,6 +374,36 @@ function MobileDrawer({ open, onClose }: { open: boolean; onClose: () => void })
             }}
           >
             <IconTheme isDark={theme === 'light'} />
+          </button>
+
+          <button
+            onClick={() => {
+              if (gcalConnected) {
+                if (confirm('Disconnect Google Calendar?')) disconnectGcal()
+              } else {
+                connectGcal()
+              }
+            }}
+            title={gcalConnected ? 'Google Calendar connected' : 'Connect Google Calendar'}
+            style={{
+              width: 34, height: 34, borderRadius: 8,
+              color: gcalConnected ? 'var(--color-accent)' : 'var(--color-text-secondary)',
+              background: 'transparent',
+              border: `1px solid ${gcalConnected ? 'var(--color-accent)' : 'var(--color-border)'}`,
+              cursor: 'pointer',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              position: 'relative',
+            }}
+          >
+            <IconCalendarSync color={gcalConnected ? 'var(--color-accent)' : 'var(--color-text-secondary)'} />
+            {gcalConnected && (
+              <div style={{
+                position: 'absolute', bottom: 2, right: 2,
+                width: 6, height: 6, borderRadius: '50%',
+                background: '#22c55e',
+                border: '1.5px solid var(--color-surface)',
+              }} />
+            )}
           </button>
 
           {athlete && (

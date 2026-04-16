@@ -2,6 +2,7 @@ import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import { format, parseISO, startOfWeek } from 'date-fns'
 import { navigateAnchor } from '../utils/dateUtils'
+import { syncActivityToCalendar } from '../api/googleCalendar'
 import type {
   AppStore,
   ActivityType,
@@ -344,6 +345,15 @@ export const useAppStore = create<AppStore>()(
 
         const [toActs, toD, toIdx] = getDayActs(toDate)
         get().setDayOverride(toD, toIdx, [...toActs, activity])
+
+        // Re-sync the moved activity to Google Calendar so the event follows the drag.
+        // The sync endpoint upserts by activity id, so the existing event is moved, not duplicated.
+        const { athlete, googleCalendarConnected } = get()
+        if (athlete?.id && googleCalendarConnected && activity.type !== 'Rest') {
+          syncActivityToCalendar(athlete.id, activity, toDate).catch((err) => {
+            console.error('Failed to sync moved activity to Google Calendar:', err)
+          })
+        }
       },
 
       clearWeekOverride: (weekStart: Date) => {
@@ -489,6 +499,10 @@ export const useAppStore = create<AppStore>()(
           return { theme: newTheme }
         }),
 
+      // ── Google Calendar ───────────────────────────────────────────────────
+      googleCalendarConnected: false,
+      setGoogleCalendarConnected: (connected: boolean) => set({ googleCalendarConnected: connected }),
+
     }),
     {
       name: 'training-log-store',
@@ -513,6 +527,7 @@ export const useAppStore = create<AppStore>()(
         habitCompletions: state.habitCompletions,
         habitView: state.habitView,
         theme: state.theme,
+        googleCalendarConnected: state.googleCalendarConnected,
       }),
       onRehydrateStorage: () => (state) => {
         if (state?.theme) {

@@ -42,6 +42,18 @@ export default defineConfig({
         target: 'http://localhost:3001',
         changeOrigin: true,
       },
+      '/api/google-auth': {
+        target: 'http://localhost:3001',
+        changeOrigin: true,
+      },
+      '/api/google-callback': {
+        target: 'http://localhost:3001',
+        changeOrigin: true,
+      },
+      '/api/google-calendar-sync': {
+        target: 'http://localhost:3001',
+        changeOrigin: true,
+      },
     },
   },
 })

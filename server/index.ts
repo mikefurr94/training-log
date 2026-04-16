@@ -57,6 +57,36 @@ app.all('/api/activities', async (req, res) => {
   }
 })
 
+app.all('/api/google-auth', async (req, res) => {
+  try {
+    const { default: handler } = await import('../api/google-auth.js')
+    await handler(req as any, res as any)
+  } catch (err: any) {
+    console.error('[api/google-auth] Error:', err.message)
+    res.status(500).json({ error: err.message })
+  }
+})
+
+app.all('/api/google-callback', async (req, res) => {
+  try {
+    const { default: handler } = await import('../api/google-callback.js')
+    await handler(req as any, res as any)
+  } catch (err: any) {
+    console.error('[api/google-callback] Error:', err.message)
+    res.status(500).json({ error: err.message })
+  }
+})
+
+app.all('/api/google-calendar-sync', async (req, res) => {
+  try {
+    const { default: handler } = await import('../api/google-calendar-sync.js')
+    await handler(req as any, res as any)
+  } catch (err: any) {
+    console.error('[api/google-calendar-sync] Error:', err.message)
+    res.status(500).json({ error: err.message })
+  }
+})
+
 app.listen(PORT, () => {
   console.log(`Auth server running at http://localhost:${PORT}`)
 })

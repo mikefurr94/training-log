@@ -14,6 +14,7 @@ import {
   paceStringToSeconds,
   parseGoalTimeToSeconds,
 } from '../../utils/planningUtils'
+import { useGoogleCalendar } from '../../hooks/useGoogleCalendar'
 
 interface ClothingItem {
   icon: string
@@ -93,7 +94,7 @@ export default function PlannedActivityPanel() {
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
+            exit={{ opacity: 0, pointerEvents: 'none' }}
             transition={{ duration: 0.15 }}
             onClick={closePanel}
             style={{
@@ -191,9 +192,12 @@ function PanelContent({
   const calculatedGoalTime = canAutoCalc && paceMode === 'pace' ? calcGoalTime(raceTargetPace, distanceMiles) : ''
   const calculatedPace = canAutoCalc && paceMode === 'time' ? calcPaceFromGoalTime(raceGoalTime, distanceMiles) : ''
 
+  const [scheduledTime, setScheduledTime] = useState(activity.scheduledTime ?? '07:00')
   const [notes, setNotes] = useState(activity.notes ?? '')
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [saved, setSaved] = useState(false)
+
+  const { connected: gcalConnected, syncActivity, deleteActivity: deleteGcalEvent } = useGoogleCalendar()
 
   const prevTypeRef = useRef<ActivityTypeChoice>(type)
 
@@ -208,6 +212,7 @@ function PanelContent({
     setRaceGoalTime(activity.type === 'Race' ? (activity.goalTime ?? '') : '')
     setRaceTargetPace(activity.type === 'Race' ? (activity.targetPace ?? '') : '')
     setPaceMode('pace')
+    setScheduledTime(activity.scheduledTime ?? '07:00')
     setNotes(activity.notes ?? '')
     setErrors({})
     setSaved(false)
@@ -255,8 +260,9 @@ function PanelContent({
   function buildActivity(): PlannedActivity | null {
     if (!validate()) return null
     const id = activity.id
+    const time = scheduledTime || '07:00'
     if (type === 'Run') {
-      return { id, type: 'Run', targetDistance: parseFloat(targetDistance), targetPace: targetPace || '0:00', ...(notes ? { notes } : {}) }
+      return { id, type: 'Run', targetDistance: parseFloat(targetDistance), targetPace: targetPace || '0:00', ...(notes ? { notes } : {}), scheduledTime: time }
     } else if (type === 'Race') {
       const finalPace = canAutoCalc && paceMode === 'time' ? calculatedPace : raceTargetPace
       const finalGoalTime = canAutoCalc && paceMode === 'pace' ? calculatedGoalTime : raceGoalTime
@@ -267,15 +273,16 @@ function PanelContent({
         ...(finalGoalTime ? { goalTime: finalGoalTime } : {}),
         ...(finalPace ? { targetPace: finalPace } : {}),
         ...(notes ? { notes } : {}),
+        scheduledTime: time,
       }
     } else if (type === 'WeightTraining') {
-      return { id, type: 'WeightTraining', workoutType, ...(notes ? { notes } : {}) }
+      return { id, type: 'WeightTraining', workoutType, ...(notes ? { notes } : {}), scheduledTime: time }
     } else if (type === 'Yoga') {
-      return { id, type: 'Yoga', ...(notes ? { notes } : {}) }
+      return { id, type: 'Yoga', ...(notes ? { notes } : {}), scheduledTime: time }
     } else if (type === 'Tennis') {
-      return { id, type: 'Tennis', ...(notes ? { notes } : {}) }
+      return { id, type: 'Tennis', ...(notes ? { notes } : {}), scheduledTime: time }
     } else {
-      return { id, type: 'Rest', ...(notes ? { notes } : {}) }
+      return { id, type: 'Rest', ...(notes ? { notes } : {}), scheduledTime: time }
     }
   }
 
@@ -297,6 +304,12 @@ function PanelContent({
       ? current.map((a) => (a.id === updated.id ? updated : a))
       : [...current, updated]
     setDayOverride(ws, dayIndex, newList)
+
+    // Sync to Google Calendar (fire-and-forget)
+    if (gcalConnected) {
+      syncActivity(updated, dateStr)
+    }
+
     if (!exists) {
       // New activity — close panel so user can immediately see it on the calendar
       closePanel()
@@ -311,6 +324,12 @@ function PanelContent({
     const current = getCurrentPlannedActivities()
     const newList = current.filter((a) => a.id !== activity.id)
     setDayOverride(ws, dayIndex, newList)
+
+    // Delete from Google Calendar (fire-and-forget)
+    if (gcalConnected) {
+      deleteGcalEvent(activity.id)
+    }
+
     closePanel()
   }
 
@@ -629,6 +648,40 @@ function PanelContent({
                 <option key={wt} value={wt}>{wt}</option>
               ))}
             </select>
+          </div>
+        )}
+
+        {/* Scheduled time */}
+        {type !== 'Rest' && (
+          <div>
+            <label style={labelStyle}>Scheduled time</label>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <input
+                type="time"
+                value={scheduledTime}
+                onChange={(e) => setScheduledTime(e.target.value)}
+                style={{
+                  ...inputStyle,
+                  width: 140,
+                  cursor: 'pointer',
+                }}
+              />
+              {gcalConnected && (
+                <span style={{
+                  fontSize: 10,
+                  color: 'var(--color-text-tertiary)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 4,
+                }}>
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
+                    <polyline points="22 4 12 14.01 9 11.01" />
+                  </svg>
+                  Syncs to Google Calendar
+                </span>
+              )}
+            </div>
           </div>
         )}
 
