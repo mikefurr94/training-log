@@ -1,11 +1,8 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node'
-import { google } from 'googleapis'
 
-const oauth2Client = new google.auth.OAuth2(
-  process.env.GOOGLE_CLIENT_ID!,
-  process.env.GOOGLE_CLIENT_SECRET!,
-  process.env.GOOGLE_REDIRECT_URI || 'http://localhost:3000/google-callback'
-)
+const CLIENT_ID = process.env.GOOGLE_CLIENT_ID!
+const REDIRECT_URI = process.env.GOOGLE_REDIRECT_URI || 'http://localhost:3000/google-callback'
+const SCOPE = 'https://www.googleapis.com/auth/calendar.events'
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' })
@@ -13,12 +10,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const { athlete_id } = req.query
   if (!athlete_id) return res.status(400).json({ error: 'Missing athlete_id' })
 
-  const authUrl = oauth2Client.generateAuthUrl({
+  const params = new URLSearchParams({
+    client_id: CLIENT_ID,
+    redirect_uri: REDIRECT_URI,
+    response_type: 'code',
+    scope: SCOPE,
     access_type: 'offline',
     prompt: 'consent',
-    scope: ['https://www.googleapis.com/auth/calendar.events'],
     state: String(athlete_id),
   })
 
-  return res.status(200).json({ url: authUrl })
+  const url = `https://accounts.google.com/o/oauth2/v2/auth?${params.toString()}`
+  return res.status(200).json({ url })
 }
