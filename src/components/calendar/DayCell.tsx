@@ -3,7 +3,7 @@ import { format, isToday, isSameMonth, startOfDay } from 'date-fns'
 import ActivityBadge from './ActivityBadge'
 import PlannedBadge from './PlannedBadge'
 import WeatherInfo from './WeatherInfo'
-import { mapStravaType } from '../../utils/activityColors'
+import { mapStravaType, getActivityColor } from '../../utils/activityColors'
 import { useAppStore } from '../../store/useAppStore'
 import type { StravaActivity, PlannedActivity, KeyDate } from '../../store/types'
 import type { ActivityType } from '../../utils/activityColors'
@@ -47,6 +47,7 @@ export default function DayCell({
   const outsideMonth = monthRef ? !isSameMonth(date, monthRef) : false
   const dateKey = format(date, 'yyyy-MM-dd')
   const isFutureOrToday = startOfDay(date) >= startOfDay(new Date())
+  const isPastDay = startOfDay(date) < startOfDay(new Date())
 
   // Filter actual activities to enabled types
   const filtered = activities.filter((a) =>
@@ -430,6 +431,40 @@ export default function DayCell({
             +{overflow} more
           </button>
         )}
+
+        {/* Confirmed rest badge — shown on past days with no actual activities */}
+        {isPastDay && !compact && !outsideMonth && filtered.length === 0 && (() => {
+          const restColors = getActivityColor('Rest')
+          return (
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 4,
+              width: '100%',
+              background: restColors.light,
+              border: `1px solid ${restColors.border}`,
+              borderRadius: 5,
+              padding: '3px 7px',
+              overflow: 'hidden',
+              minWidth: 0,
+            }}>
+              <span style={{ fontSize: 11, flexShrink: 0 }}>{restColors.emoji}</span>
+              <span style={{
+                fontSize: 'var(--font-size-xs)',
+                fontWeight: 'var(--font-weight-medium)',
+                color: restColors.bg,
+                whiteSpace: 'nowrap',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                minWidth: 0,
+                lineHeight: 1.2,
+                letterSpacing: '-0.1px',
+              }}>
+                Rest
+              </span>
+            </div>
+          )
+        })()}
 
         {/* Planned activity badges (dashed style) — excludes Race when race card is shown */}
         {nonRacePlannedVisible.map((planned) => (
