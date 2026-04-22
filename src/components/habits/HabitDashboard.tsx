@@ -13,7 +13,7 @@ const HABIT_COLORS = ['#6366f1', '#10b981', '#8b5cf6', '#f59e0b', '#06b6d4', '#e
 
 export default function HabitDashboard() {
   const habits = useAppStore((s) => s.habits)
-  const habitCompletions = useAppStore((s) => s.habitCompletions)
+  const habitCounts = useAppStore((s) => s.habitCounts)
   const isMobile = useIsMobile()
 
   const sortedHabits = useMemo(
@@ -22,8 +22,8 @@ export default function HabitDashboard() {
   )
 
   const weekStats = useMemo(
-    () => buildHabitWeekStats(sortedHabits, habitCompletions, WEEKS_TO_SHOW),
-    [sortedHabits, habitCompletions]
+    () => buildHabitWeekStats(sortedHabits, habitCounts, WEEKS_TO_SHOW),
+    [sortedHabits, habitCounts]
   )
 
   const lineData = useMemo(() =>
@@ -66,7 +66,7 @@ export default function HabitDashboard() {
       {/* Weekly Review */}
       <section>
         <SectionHeader title="Weekly Review" subtitle="8-wk" isMobile={isMobile} />
-        <WeeklyReview habits={sortedHabits} completions={habitCompletions} isMobile={isMobile} />
+        <WeeklyReview habits={sortedHabits} habitCounts={habitCounts} isMobile={isMobile} />
       </section>
     </div>
   )
@@ -115,9 +115,9 @@ function CustomTooltip({ active, payload, label, habits }: any) {
 
 // ── Weekly Review ─────────────────────────────────────────────────────────────
 
-function WeeklyReview({ habits, completions, isMobile }: {
-  habits: { id: string; name: string; emoji: string; order: number; frequency?: string; weeklyGoal?: number }[]
-  completions: Record<string, string[]>
+function WeeklyReview({ habits, habitCounts, isMobile }: {
+  habits: { id: string; name: string; emoji: string; order: number; frequency?: string; weeklyGoal?: number; dailyTarget?: number }[]
+  habitCounts: Record<string, Record<string, number>>
   isMobile: boolean
 }) {
   const weeks = useMemo(() => {
@@ -128,15 +128,15 @@ function WeeklyReview({ habits, completions, isMobile }: {
       const ws = startOfWeek(subWeeks(today, w), { weekStartsOn: 1 })
       const counts: Record<string, number> = {}
       for (const h of habits) {
+        const target = h.dailyTarget ?? 1
         if (h.frequency === 'weekly') {
-          // Weekly habits: check the week-start date only
           const key = format(ws, 'yyyy-MM-dd')
-          counts[h.id] = (completions[key] ?? []).includes(h.id) ? 1 : 0
+          counts[h.id] = (habitCounts[key]?.[h.id] ?? 0) >= target ? 1 : 0
         } else {
           let done = 0
           for (let d = 0; d < 7; d++) {
             const key = format(addDays(ws, d), 'yyyy-MM-dd')
-            if ((completions[key] ?? []).includes(h.id)) done++
+            if ((habitCounts[key]?.[h.id] ?? 0) >= target) done++
           }
           counts[h.id] = done
         }
@@ -145,7 +145,7 @@ function WeeklyReview({ habits, completions, isMobile }: {
     }
 
     return rows
-  }, [habits, completions])
+  }, [habits, habitCounts])
 
   return (
     <div style={{

@@ -157,10 +157,14 @@ export interface HabitDefinition {
   weeklyGoal?: number        // completions per week to consider goal met (1-7 for daily, 1 for weekly)
   frequency?: HabitFrequency // defaults to 'daily'
   color?: string             // hex color for grid display; falls back to palette if unset
+  dailyTarget?: number       // how many times per day to complete (default 1)
 }
 
 /** Maps 'YYYY-MM-DD' → array of completed habit IDs */
 export type HabitCompletions = Record<string, string[]>
+
+/** Maps 'YYYY-MM-DD' → { habitId → count } */
+export type HabitCounts = Record<string, Record<string, number>>
 
 export type HabitView = 'week' | 'grid' | 'dashboard'
 
@@ -299,7 +303,7 @@ export interface AppState {
 
   // Habits
   habits: HabitDefinition[]
-  habitCompletions: HabitCompletions
+  habitCounts: HabitCounts
   habitView: HabitView
   selectedHabitId: string | null
 
@@ -383,8 +387,8 @@ export interface AppActions {
   addNewPlannedActivity: (dateStr: string) => void
 
   // Habits
-  toggleHabitCompletion: (date: string, habitId: string) => void
-  setHabitCompletions: (completions: Record<string, string[]>) => void
+  toggleHabitCompletion: (date: string, habitId: string, target: number) => void
+  setHabitCounts: (counts: HabitCounts) => void
   loadPlanFromDb: (data: Record<string, unknown>) => void
   addHabit: (habit: HabitDefinition) => void
   removeHabit: (id: string) => void

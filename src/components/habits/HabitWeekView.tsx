@@ -10,7 +10,7 @@ const ACCENT_COLORS = ['#6366f1', '#10b981', '#8b5cf6', '#f59e0b', '#06b6d4', '#
 
 export default function HabitWeekView() {
   const habits = useAppStore((s) => s.habits)
-  const habitCompletions = useAppStore((s) => s.habitCompletions)
+  const habitCounts = useAppStore((s) => s.habitCounts)
   const toggleHabitCompletion = useAppStore((s) => s.toggleHabitCompletion)
   const setSelectedHabitId = useAppStore((s) => s.setSelectedHabitId)
   const addHabit = useAppStore((s) => s.addHabit)
@@ -51,24 +51,24 @@ export default function HabitWeekView() {
   )
 
   // Compute weekly completion counts for goal highlighting
+  // A day counts as complete when count >= dailyTarget
   const weeklyCompletions = useMemo(() => {
     const counts: Record<string, number> = {}
     for (const habit of [...dailyHabits, ...weeklyHabits]) {
+      const target = habit.dailyTarget ?? 1
       if (habit.frequency === 'weekly') {
-        // Weekly habits: check if the week-start date has this habit
-        counts[habit.id] = (habitCompletions[weekStartStr] ?? []).includes(habit.id) ? 1 : 0
+        counts[habit.id] = (habitCounts[weekStartStr]?.[habit.id] ?? 0) >= target ? 1 : 0
       } else {
-        // Daily habits: count completions across the 7 days
         let count = 0
         for (const day of days) {
           const dateStr = format(day, 'yyyy-MM-dd')
-          if ((habitCompletions[dateStr] ?? []).includes(habit.id)) count++
+          if ((habitCounts[dateStr]?.[habit.id] ?? 0) >= target) count++
         }
         counts[habit.id] = count
       }
     }
     return counts
-  }, [dailyHabits, weeklyHabits, habitCompletions, days, weekStartStr])
+  }, [dailyHabits, weeklyHabits, habitCounts, days, weekStartStr])
 
   const isGoalMet = (habit: HabitDefinition) => {
     const goal = habit.frequency === 'weekly' ? 1 : habit.weeklyGoal
@@ -142,7 +142,7 @@ export default function HabitWeekView() {
         <WeeklyHabitsSection
           weeklyHabits={weeklyHabits}
           dailyHabitsLength={dailyHabits.length}
-          habitCompletions={habitCompletions}
+          habitCounts={habitCounts}
           weekStartStr={weekStartStr}
           toggleHabitCompletion={toggleHabitCompletion}
           setSelectedHabitId={setSelectedHabitId}
@@ -157,7 +157,7 @@ export default function HabitWeekView() {
           <MobileHabitGrid
             days={days}
             habits={dailyHabits}
-            habitCompletions={habitCompletions}
+            habitCounts={habitCounts}
             toggleHabitCompletion={toggleHabitCompletion}
             onHabitClick={setSelectedHabitId}
             isGoalMet={isGoalMet}
@@ -166,7 +166,7 @@ export default function HabitWeekView() {
           <DesktopHabitGrid
             days={days}
             habits={dailyHabits}
-            habitCompletions={habitCompletions}
+            habitCounts={habitCounts}
             toggleHabitCompletion={toggleHabitCompletion}
             onHabitClick={setSelectedHabitId}
             isGoalMet={isGoalMet}
@@ -241,14 +241,14 @@ export default function HabitWeekView() {
 // ── Weekly habits section (shared mobile + desktop) ──────────────────────────
 
 function WeeklyHabitsSection({
-  weeklyHabits, dailyHabitsLength, habitCompletions, weekStartStr,
+  weeklyHabits, dailyHabitsLength, habitCounts, weekStartStr,
   toggleHabitCompletion, setSelectedHabitId, isGoalMet, isMobile,
 }: {
   weeklyHabits: HabitDefinition[]
   dailyHabitsLength: number
-  habitCompletions: Record<string, string[]>
+  habitCounts: Record<string, Record<string, number>>
   weekStartStr: string
-  toggleHabitCompletion: (date: string, habitId: string) => void
+  toggleHabitCompletion: (date: string, habitId: string, target: number) => void
   setSelectedHabitId: (id: string) => void
   isGoalMet: (habit: HabitDefinition) => boolean
   isMobile: boolean
@@ -269,7 +269,8 @@ function WeeklyHabitsSection({
         overflow: 'hidden',
       }}>
         {weeklyHabits.map((habit, hi) => {
-          const completed = (habitCompletions[weekStartStr] ?? []).includes(habit.id)
+          const target = habit.dailyTarget ?? 1
+          const count = habitCounts[weekStartStr]?.[habit.id] ?? 0
           const goalMet = isGoalMet(habit)
           return (
             <div key={habit.id} style={{
@@ -279,8 +280,9 @@ function WeeklyHabitsSection({
               background: goalMet ? 'rgba(16, 185, 129, 0.06)' : 'transparent',
             }}>
               <HabitCheckbox
-                checked={completed}
-                onToggle={() => toggleHabitCompletion(weekStartStr, habit.id)}
+                count={count}
+                target={target}
+                onToggle={() => toggleHabitCompletion(weekStartStr, habit.id, target)}
                 color={ACCENT_COLORS[(dailyHabitsLength + hi) % ACCENT_COLORS.length]}
               />
               <button
@@ -295,8 +297,8 @@ function WeeklyHabitsSection({
                 <span style={{
                   fontSize: 'var(--font-size-sm)', fontWeight: 500,
                   color: 'var(--color-text-primary)',
-                  textDecoration: completed ? 'line-through' : 'none',
-                  opacity: completed ? 0.7 : 1,
+                  textDecoration: count >= target ? 'line-through' : 'none',
+                  opacity: count >= target ? 0.7 : 1,
                   overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
                 }}>
                   {habit.name}
@@ -306,9 +308,9 @@ function WeeklyHabitsSection({
               {/* Week-done pill */}
               <span style={{
                 fontSize: 11, fontWeight: 600, flexShrink: 0,
-                color: completed ? 'var(--color-habit-done)' : 'var(--color-text-tertiary)',
+                color: count >= target ? 'var(--color-habit-done)' : 'var(--color-text-tertiary)',
               }}>
-                {completed ? 'Done ✓' : 'This week'}
+                {count >= target ? 'Done ✓' : 'This week'}
               </span>
             </div>
           )
@@ -320,11 +322,11 @@ function WeeklyHabitsSection({
 
 // ── Desktop: original grid layout ────────────────────────────────────────────
 
-function DesktopHabitGrid({ days, habits, habitCompletions, toggleHabitCompletion, onHabitClick, isGoalMet }: {
+function DesktopHabitGrid({ days, habits, habitCounts, toggleHabitCompletion, onHabitClick, isGoalMet }: {
   days: Date[]
   habits: HabitDefinition[]
-  habitCompletions: Record<string, string[]>
-  toggleHabitCompletion: (date: string, habitId: string) => void
+  habitCounts: Record<string, Record<string, number>>
+  toggleHabitCompletion: (date: string, habitId: string, target: number) => void
   onHabitClick: (id: string) => void
   isGoalMet: (habit: HabitDefinition) => boolean
 }) {
@@ -380,7 +382,8 @@ function DesktopHabitGrid({ days, habits, habitCompletions, toggleHabitCompletio
             </button>
             {days.map((day) => {
               const dateStr = format(day, 'yyyy-MM-dd')
-              const completed = (habitCompletions[dateStr] ?? []).includes(habit.id)
+              const target = habit.dailyTarget ?? 1
+              const count = habitCounts[dateStr]?.[habit.id] ?? 0
               const today = isToday(day)
               return (
                 <div key={dateStr} style={{
@@ -389,8 +392,9 @@ function DesktopHabitGrid({ days, habits, habitCompletions, toggleHabitCompletio
                   background: today ? 'var(--color-today-bg)' : 'transparent', padding: '8px 0',
                 }}>
                   <HabitCheckbox
-                    checked={completed}
-                    onToggle={() => toggleHabitCompletion(dateStr, habit.id)}
+                    count={count}
+                    target={target}
+                    onToggle={() => toggleHabitCompletion(dateStr, habit.id, target)}
                     color={ACCENT_COLORS[hi % ACCENT_COLORS.length]}
                   />
                 </div>
@@ -405,11 +409,11 @@ function DesktopHabitGrid({ days, habits, habitCompletions, toggleHabitCompletio
 
 // ── Mobile: day-by-day stacked layout ────────────────────────────────────────
 
-function MobileHabitGrid({ days, habits, habitCompletions, toggleHabitCompletion, onHabitClick, isGoalMet }: {
+function MobileHabitGrid({ days, habits, habitCounts, toggleHabitCompletion, onHabitClick, isGoalMet }: {
   days: Date[]
   habits: HabitDefinition[]
-  habitCompletions: Record<string, string[]>
-  toggleHabitCompletion: (date: string, habitId: string) => void
+  habitCounts: Record<string, Record<string, number>>
+  toggleHabitCompletion: (date: string, habitId: string, target: number) => void
   onHabitClick: (id: string) => void
   isGoalMet: (habit: HabitDefinition) => boolean
 }) {
@@ -424,9 +428,10 @@ function MobileHabitGrid({ days, habits, habitCompletions, toggleHabitCompletion
       {days.map((day) => {
         const dateStr = format(day, 'yyyy-MM-dd')
         const today = isToday(day)
-        const completedCount = (habitCompletions[dateStr] ?? []).filter(
-          (id) => habits.some((h) => h.id === id)
-        ).length
+        const completedCount = habits.filter((h) => {
+          const target = h.dailyTarget ?? 1
+          return (habitCounts[dateStr]?.[h.id] ?? 0) >= target
+        }).length
 
         return (
           <div key={dateStr} ref={today ? todayRef : undefined} style={{
@@ -466,15 +471,17 @@ function MobileHabitGrid({ days, habits, habitCompletions, toggleHabitCompletion
             {/* Habits list */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
               {habits.map((habit, hi) => {
-                const completed = (habitCompletions[dateStr] ?? []).includes(habit.id)
+                const target = habit.dailyTarget ?? 1
+                const count = habitCounts[dateStr]?.[habit.id] ?? 0
                 const goalMet = isGoalMet(habit)
                 return (
                   <div key={habit.id} style={{
                     display: 'flex', alignItems: 'center', gap: 10, padding: '4px 0',
                   }}>
                     <HabitCheckbox
-                      checked={completed}
-                      onToggle={() => toggleHabitCompletion(dateStr, habit.id)}
+                      count={count}
+                      target={target}
+                      onToggle={() => toggleHabitCompletion(dateStr, habit.id, target)}
                       color={ACCENT_COLORS[hi % ACCENT_COLORS.length]}
                     />
                     <button
@@ -486,10 +493,10 @@ function MobileHabitGrid({ days, habits, habitCompletions, toggleHabitCompletion
                     >
                       <span style={{ fontSize: 15 }}>{habit.emoji}</span>
                       <span style={{
-                        fontSize: 'var(--font-size-sm)', fontWeight: completed ? 600 : 400,
-                        color: completed ? 'var(--color-text-primary)' : 'var(--color-text-secondary)',
-                        textDecoration: completed ? 'line-through' : 'none',
-                        opacity: completed ? 0.7 : 1,
+                        fontSize: 'var(--font-size-sm)', fontWeight: count >= target ? 600 : 400,
+                        color: count >= target ? 'var(--color-text-primary)' : 'var(--color-text-secondary)',
+                        textDecoration: count >= target ? 'line-through' : 'none',
+                        opacity: count >= target ? 0.7 : 1,
                       }}>
                         {habit.name}
                       </span>

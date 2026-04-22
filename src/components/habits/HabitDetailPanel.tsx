@@ -104,12 +104,19 @@ export default function HabitDetailPanel() {
                 size={40}
               />
               <div style={{ flex: 1, minWidth: 0 }}>
-                <h2 style={{
-                  fontSize: 'var(--font-size-md)', fontWeight: 'var(--font-weight-semibold)',
-                  color: 'var(--color-text-primary)', letterSpacing: '-0.3px', margin: 0,
-                }}>
-                  {habit.name}
-                </h2>
+                <input
+                  value={habit.name}
+                  onChange={(e) => updateHabit(habit.id, { name: e.target.value })}
+                  onBlur={(e) => { if (!e.target.value.trim()) updateHabit(habit.id, { name: 'Untitled habit' }) }}
+                  style={{
+                    fontSize: 'var(--font-size-md)', fontWeight: 'var(--font-weight-semibold)',
+                    color: 'var(--color-text-primary)', letterSpacing: '-0.3px',
+                    background: 'transparent', border: 'none', outline: 'none',
+                    width: '100%', padding: 0, margin: 0,
+                    fontFamily: 'inherit', cursor: 'text',
+                  }}
+                  onFocus={(e) => e.target.select()}
+                />
                 <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-tertiary)', marginTop: 2 }}>
                   {(habit.frequency ?? 'daily') === 'weekly' ? 'Weekly habit' : 'Daily habit'}
                 </div>
@@ -146,6 +153,38 @@ export default function HabitDetailPanel() {
                   onChange={(frequency) => updateHabit(habit.id, { frequency })}
                 />
               </Section>
+
+              {/* Daily target */}
+              {(habit.frequency ?? 'daily') === 'daily' && (
+                <Section title="Daily target">
+                  <div style={{ display: 'flex', gap: 6 }}>
+                    {[1, 2, 3].map((n) => {
+                      const active = (habit.dailyTarget ?? 1) === n
+                      return (
+                        <button
+                          key={n}
+                          onClick={() => updateHabit(habit.id, { dailyTarget: n })}
+                          style={{
+                            width: 40, height: 34, borderRadius: 'var(--radius-sm)',
+                            border: active ? '1.5px solid var(--color-accent)' : '1px solid var(--color-border)',
+                            background: active ? 'var(--color-accent)' : 'var(--color-bg)',
+                            color: active ? '#fff' : 'var(--color-text-primary)',
+                            fontSize: 'var(--font-size-sm)', fontWeight: active ? 700 : 500,
+                            cursor: 'pointer', transition: 'all 120ms ease',
+                          }}
+                        >
+                          ×{n}
+                        </button>
+                      )
+                    })}
+                  </div>
+                  <div style={{ marginTop: 6, fontSize: 'var(--font-size-xs)', color: 'var(--color-text-tertiary)' }}>
+                    {(habit.dailyTarget ?? 1) === 1
+                      ? 'One check marks it done'
+                      : `Click ${habit.dailyTarget} times to mark done`}
+                  </div>
+                </Section>
+              )}
 
               {/* Color */}
               <Section title="Color">

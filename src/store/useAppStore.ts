@@ -17,6 +17,7 @@ import type {
   PlannedActivity,
   KeyDate,
   HabitDefinition,
+  HabitCounts,
   HabitView,
   ActiveApp,
   ThemeMode,
@@ -424,21 +425,24 @@ export const useAppStore = create<AppStore>()(
 
       // ── Habits ─────────────────────────────────────────────────────────────
       habits: DEFAULT_HABITS,
-      habitCompletions: {},
+      habitCounts: {} as HabitCounts,
       habitView: 'week' as HabitView,
       selectedHabitId: null as string | null,
 
-      toggleHabitCompletion: (date: string, habitId: string) =>
+      toggleHabitCompletion: (date: string, habitId: string, target: number) =>
         set((s) => {
-          const existing = s.habitCompletions[date] ?? []
-          const updated = existing.includes(habitId)
-            ? existing.filter((id) => id !== habitId)
-            : [...existing, habitId]
-          return { habitCompletions: { ...s.habitCompletions, [date]: updated } }
+          const dayCounts = s.habitCounts[date] ?? {}
+          const current = dayCounts[habitId] ?? 0
+          const next = current >= target ? 0 : current + 1
+          return {
+            habitCounts: {
+              ...s.habitCounts,
+              [date]: { ...dayCounts, [habitId]: next },
+            },
+          }
         }),
 
-      setHabitCompletions: (completions: Record<string, string[]>) =>
-        set({ habitCompletions: completions }),
+      setHabitCounts: (counts: HabitCounts) => set({ habitCounts: counts }),
 
       loadPlanFromDb: (data: Record<string, unknown>) =>
         set({
@@ -524,7 +528,7 @@ export const useAppStore = create<AppStore>()(
         weekOverrides: state.weekOverrides,
         keyDates: state.keyDates,
         habits: state.habits,
-        habitCompletions: state.habitCompletions,
+        habitCounts: state.habitCounts,
         habitView: state.habitView,
         theme: state.theme,
         googleCalendarConnected: state.googleCalendarConnected,

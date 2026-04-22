@@ -14,12 +14,12 @@ function debounce<T extends (...args: unknown[]) => void>(fn: T, ms: number): T 
 
 export function useSupabaseSync() {
   const athlete = useAppStore((s) => s.athlete)
-  const habitCompletions = useAppStore((s) => s.habitCompletions)
+  const habitCounts = useAppStore((s) => s.habitCounts)
   const habits = useAppStore((s) => s.habits)
   const weekTemplate = useAppStore((s) => s.weekTemplate)
   const weekOverrides = useAppStore((s) => s.weekOverrides)
   const keyDates = useAppStore((s) => s.keyDates)
-  const setHabitCompletions = useAppStore((s) => s.setHabitCompletions)
+  const setHabitCounts = useAppStore((s) => s.setHabitCounts)
   const loadedRef = useRef(false)
   const prevCompletionsRef = useRef<string>('')
   const prevPlanRef = useRef<string>('')
@@ -35,7 +35,20 @@ export function useSupabaseSync() {
     loadHabits(athleteId)
       .then((data) => {
         if (Object.keys(data).length > 0) {
-          setHabitCompletions(data)
+          // Convert remote string[] format → counts, merging with local (take max per habit)
+          const local = useAppStore.getState().habitCounts
+          const merged: Record<string, Record<string, number>> = {}
+          const allDates = new Set([...Object.keys(local), ...Object.keys(data)])
+          for (const date of allDates) {
+            const localDay = local[date] ?? {}
+            const remoteIds = data[date] ?? []
+            const day: Record<string, number> = { ...localDay }
+            for (const id of remoteIds) {
+              day[id] = Math.max(day[id] ?? 0, 1)
+            }
+            merged[date] = day
+          }
+          setHabitCounts(merged)
         }
       })
       .catch(console.error)
@@ -121,18 +134,27 @@ export function useSupabaseSync() {
     syncHabits()
   }, [athleteId, habits])
 
-  // Sync habit completions to Supabase when they change
+  // Sync habit completions to Supabase when counts change
+  // Sends habit IDs where count >= dailyTarget (preserves existing DB schema)
   useEffect(() => {
     if (!athleteId || !loadedRef.current) return
 
-    const serialized = JSON.stringify(habitCompletions)
+    const serialized = JSON.stringify(habitCounts)
     if (serialized === prevCompletionsRef.current) return
     prevCompletionsRef.current = serialized
 
     const syncChanges = debounce(async () => {
-      for (const [date, habitIds] of Object.entries(habitCompletions)) {
+      const currentHabits = useAppStore.getState().habits
+      for (const [date, dayCounts] of Object.entries(habitCounts)) {
+        const completedIds = Object.entries(dayCounts)
+          .filter(([habitId, count]) => {
+            const habit = currentHabits.find((h) => h.id === habitId)
+            const target = habit?.dailyTarget ?? 1
+            return count >= target
+          })
+          .map(([id]) => id)
         try {
-          await saveHabitDay(athleteId, date, habitIds)
+          await saveHabitDay(athleteId, date, completedIds)
         } catch (err) {
           console.error('Failed to sync habit:', err)
         }
@@ -140,7 +162,7 @@ export function useSupabaseSync() {
     }, 1000)
 
     syncChanges()
-  }, [athleteId, habitCompletions])
+  }, [athleteId, habitCounts])
 
   // Sync training plan to Supabase when it changes
   useEffect(() => {

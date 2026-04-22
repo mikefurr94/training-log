@@ -26,7 +26,7 @@ interface DayData {
 
 export default function HabitGridView() {
   const habits = useAppStore((s) => s.habits)
-  const habitCompletions = useAppStore((s) => s.habitCompletions)
+  const habitCounts = useAppStore((s) => s.habitCounts)
   const isMobile = useIsMobile()
 
   const today = useMemo(() => new Date(), [])
@@ -115,13 +115,15 @@ export default function HabitGridView() {
 
           if (isWeekly) {
             const weekStartStr = format(week[0].date, 'yyyy-MM-dd')
-            if ((habitCompletions[weekStartStr] ?? []).includes(habit.id)) {
+            const target = habit.dailyTarget ?? 1
+            if ((habitCounts[weekStartStr]?.[habit.id] ?? 0) >= target) {
               goalMetWeeks.add(wi)
             }
           } else {
+            const target = habit.dailyTarget ?? 1
             const eligibleDays = week.filter((d) => d.inYear && d.date <= today)
             const completedDays = eligibleDays.filter((d) =>
-              (habitCompletions[d.dateStr] ?? []).includes(habit.id)
+              (habitCounts[d.dateStr]?.[habit.id] ?? 0) >= target
             )
             if (completedDays.length >= weeklyGoal) goalMetWeeks.add(wi)
           }
@@ -131,7 +133,7 @@ export default function HabitGridView() {
           let completedCount = 0
           for (const week of grid) {
             const weekStartStr = format(week[0].date, 'yyyy-MM-dd')
-            if (week[0].inYear && week[0].date <= today && (habitCompletions[weekStartStr] ?? []).includes(habit.id)) completedCount++
+            if (week[0].inYear && week[0].date <= today && (habitCounts[weekStartStr]?.[habit.id] ?? 0) >= (habit.dailyTarget ?? 1)) completedCount++
           }
 
           return (
@@ -170,7 +172,7 @@ export default function HabitGridView() {
                     const isQuarterStart = quarterCols.includes(wi)
                     const weekStartStr = format(week[0].date, 'yyyy-MM-dd')
                     const isPast = week[0].date <= today
-                    const completed = week[0].inYear && isPast && (habitCompletions[weekStartStr] ?? []).includes(habit.id)
+                    const completed = week[0].inYear && isPast && (habitCounts[weekStartStr]?.[habit.id] ?? 0) >= (habit.dailyTarget ?? 1)
                     const isThisWeek = week[0].date.getTime() === currentWeekStart
                     return (
                       <React.Fragment key={wi}>
@@ -207,7 +209,7 @@ export default function HabitGridView() {
         for (const week of grid) {
           for (const day of week) {
             if (!day.inYear || day.date > today) continue
-            if ((habitCompletions[day.dateStr] ?? []).includes(habit.id)) completedCount++
+            if ((habitCounts[day.dateStr]?.[habit.id] ?? 0) >= (habit.dailyTarget ?? 1)) completedCount++
           }
         }
 
@@ -264,7 +266,7 @@ export default function HabitGridView() {
                       const isQuarterStart = quarterCols.includes(wi)
                       const day = week[di]
                       const isPast = day.date <= today
-                      const completed = day.inYear && isPast && (habitCompletions[day.dateStr] ?? []).includes(habit.id)
+                      const completed = day.inYear && isPast && (habitCounts[day.dateStr]?.[habit.id] ?? 0) >= (habit.dailyTarget ?? 1)
                       const isCurrentWeek = week[0].date.getTime() === currentWeekStart
 
                       return (

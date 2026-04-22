@@ -1,25 +1,23 @@
 import { subDays, format, startOfWeek, addDays, subWeeks } from 'date-fns'
-import type { HabitDefinition, HabitCompletions } from '../store/types'
+import type { HabitDefinition, HabitCounts } from '../store/types'
 
 export function calculateStreak(
-  habitId: string,
-  completions: HabitCompletions,
+  habit: HabitDefinition,
+  counts: HabitCounts,
   fromDate: Date
 ): { current: number; longest: number } {
+  const target = habit.dailyTarget ?? 1
   let current = 0
   let longest = 0
   let streak = 0
 
-  // Walk backwards from fromDate for current streak
   for (let i = 0; i < 365; i++) {
     const d = format(subDays(fromDate, i), 'yyyy-MM-dd')
-    if ((completions[d] ?? []).includes(habitId)) {
-      if (i === current) current++ // only if consecutive from today
+    const done = (counts[d]?.[habit.id] ?? 0) >= target
+    if (done) {
+      if (i === current) current++
       streak++
     } else {
-      if (i === current) {
-        // current streak broken
-      }
       longest = Math.max(longest, streak)
       streak = 0
     }
@@ -30,20 +28,19 @@ export function calculateStreak(
 }
 
 export function weeklyCompletionRate(
-  habitId: string,
-  completions: HabitCompletions,
+  habit: HabitDefinition,
+  counts: HabitCounts,
   weekStart: Date,
-  frequency?: 'daily' | 'weekly'
 ): number {
-  if (frequency === 'weekly') {
-    // Weekly habits: 0 or 1 based on the week-start date
+  const target = habit.dailyTarget ?? 1
+  if (habit.frequency === 'weekly') {
     const key = format(weekStart, 'yyyy-MM-dd')
-    return (completions[key] ?? []).includes(habitId) ? 1 : 0
+    return (counts[key]?.[habit.id] ?? 0) >= target ? 1 : 0
   }
   let completed = 0
   for (let i = 0; i < 7; i++) {
     const d = format(addDays(weekStart, i), 'yyyy-MM-dd')
-    if ((completions[d] ?? []).includes(habitId)) completed++
+    if ((counts[d]?.[habit.id] ?? 0) >= target) completed++
   }
   return completed / 7
 }
@@ -51,13 +48,13 @@ export function weeklyCompletionRate(
 export interface HabitWeekStat {
   label: string
   weekOf: string
-  rates: Record<string, number> // habitId -> completion rate (0-1)
+  rates: Record<string, number>
   overallRate: number
 }
 
 export function buildHabitWeekStats(
   habits: HabitDefinition[],
-  completions: HabitCompletions,
+  counts: HabitCounts,
   weeksBack: number
 ): HabitWeekStat[] {
   const today = new Date()
@@ -69,7 +66,7 @@ export function buildHabitWeekStats(
     const rates: Record<string, number> = {}
 
     for (const habit of habits) {
-      rates[habit.id] = weeklyCompletionRate(habit.id, completions, ws, habit.frequency)
+      rates[habit.id] = weeklyCompletionRate(habit, counts, ws)
     }
 
     const values = Object.values(rates)
