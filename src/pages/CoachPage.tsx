@@ -11,13 +11,14 @@ import type { ReflectionMessage, ReflectionConversation, CoachView } from '../st
 
 // ── View Tab Bar ────────────────────────────────────────────────────────────
 
-function ViewTabBar({ view, onChangeView, hasPlan }: {
+function ViewTabBar({ view, onChangeView, hasPlan, chatEnabled }: {
   view: CoachView
   onChangeView: (v: CoachView) => void
   hasPlan: boolean
+  chatEnabled: boolean
 }) {
   const tabs: { key: CoachView; label: string; show: boolean }[] = [
-    { key: 'chat', label: 'Chat', show: true },
+    { key: 'chat', label: 'Chat', show: chatEnabled },
     { key: 'plan', label: 'Plan', show: hasPlan },
     { key: 'intake', label: 'New Plan', show: true },
   ]
@@ -517,6 +518,7 @@ export default function CoachPage() {
   } = useReflectionChat(athleteId ?? null)
 
   const [showSidebar, setShowSidebar] = useState(false)
+  const featureFlags = useAppStore((s) => s.featureFlags)
 
   const hasMessages = messages.length > 0 || isStreaming
   const hasPlan = !!coachPlan
@@ -530,12 +532,19 @@ export default function CoachPage() {
     prevPlanRef.current = coachPlan
   }, [coachPlan, setCoachView])
 
-  // If on plan view but no plan exists, redirect to chat
+  // If on plan view but no plan exists, redirect to intake
   useEffect(() => {
     if (coachView === 'plan' && !hasPlan) {
-      setCoachView('chat')
+      setCoachView('intake')
     }
   }, [coachView, hasPlan, setCoachView])
+
+  // If chat is disabled and on chat view, redirect to intake
+  useEffect(() => {
+    if (!featureFlags.chatEnabled && coachView === 'chat') {
+      setCoachView('intake')
+    }
+  }, [featureFlags.chatEnabled, coachView, setCoachView])
 
   function handleIntakeSubmit(data: {
     raceName: string
@@ -582,7 +591,7 @@ export default function CoachPage() {
   if (coachView === 'intake') {
     return (
       <div style={{ display: 'flex', flex: 1, height: '100%', overflow: 'hidden', flexDirection: 'column' }}>
-        <ViewTabBar view={coachView} onChangeView={setCoachView} hasPlan={hasPlan} />
+        <ViewTabBar view={coachView} onChangeView={setCoachView} hasPlan={hasPlan} chatEnabled={featureFlags.chatEnabled} />
         <PlanBuilderForm
           onSubmit={handleIntakeSubmit}
           onCancel={() => setCoachView('chat')}
@@ -597,7 +606,7 @@ export default function CoachPage() {
     if (isMobile) {
       return (
         <div style={{ display: 'flex', flex: 1, height: '100%', overflow: 'hidden', flexDirection: 'column' }}>
-          <ViewTabBar view={coachView} onChangeView={setCoachView} hasPlan={hasPlan} />
+          <ViewTabBar view={coachView} onChangeView={setCoachView} hasPlan={hasPlan} chatEnabled={featureFlags.chatEnabled} />
           <CoachPlanGrid plan={coachPlan} />
         </div>
       )
@@ -605,7 +614,7 @@ export default function CoachPage() {
 
     return (
       <div style={{ display: 'flex', flex: 1, height: '100%', overflow: 'hidden', flexDirection: 'column' }}>
-        <ViewTabBar view={coachView} onChangeView={setCoachView} hasPlan={hasPlan} />
+        <ViewTabBar view={coachView} onChangeView={setCoachView} hasPlan={hasPlan} chatEnabled={featureFlags.chatEnabled} />
         <CoachPlanGrid plan={coachPlan} />
       </div>
     )
@@ -617,7 +626,7 @@ export default function CoachPage() {
     <div style={{
       display: 'flex', flex: 1, height: '100%', overflow: 'hidden', flexDirection: 'column',
     }}>
-      <ViewTabBar view={coachView} onChangeView={setCoachView} hasPlan={hasPlan} />
+      <ViewTabBar view={coachView} onChangeView={setCoachView} hasPlan={hasPlan} chatEnabled={featureFlags.chatEnabled} />
 
       <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
         {/* Desktop sidebar */}

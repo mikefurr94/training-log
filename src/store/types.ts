@@ -173,6 +173,12 @@ export type HabitView = 'week' | 'grid' | 'dashboard'
 export type ReviewScope = 'week' | 'month' | 'quarter'
 export type WeekScore = 'green' | 'yellow' | 'red'
 
+// ── Feature Flags ────────────────────────────────────────────────────────────
+
+export interface FeatureFlags {
+  chatEnabled: boolean
+}
+
 // ── Theme ────────────────────────────────────────────────────────────────────
 
 export type ThemeMode = 'light' | 'dark'
@@ -315,6 +321,9 @@ export interface AppState {
 
   // Google Calendar
   googleCalendarConnected: boolean
+
+  // Feature flags
+  featureFlags: FeatureFlags
 }
 
 export interface AppActions {
@@ -403,6 +412,9 @@ export interface AppActions {
 
   // Google Calendar
   setGoogleCalendarConnected: (connected: boolean) => void
+
+  // Feature flags
+  setFeatureFlag: (key: keyof FeatureFlags, value: boolean) => void
 }
 
 export type AppStore = AppState & AppActions

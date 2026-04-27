@@ -23,6 +23,7 @@ import type {
   ThemeMode,
   CoachView,
   CoachPlan,
+  FeatureFlags,
 } from './types'
 import type { CalendarView } from '../utils/dateUtils'
 
@@ -507,6 +508,11 @@ export const useAppStore = create<AppStore>()(
       googleCalendarConnected: false,
       setGoogleCalendarConnected: (connected: boolean) => set({ googleCalendarConnected: connected }),
 
+      // ── Feature Flags ─────────────────────────────────────────────────────
+      featureFlags: { chatEnabled: true } as FeatureFlags,
+      setFeatureFlag: (key: keyof FeatureFlags, value: boolean) =>
+        set((state) => ({ featureFlags: { ...state.featureFlags, [key]: value } })),
+
     }),
     {
       name: 'training-log-store',
@@ -532,6 +538,7 @@ export const useAppStore = create<AppStore>()(
         habitView: state.habitView,
         theme: state.theme,
         googleCalendarConnected: state.googleCalendarConnected,
+        featureFlags: state.featureFlags,
       }),
       onRehydrateStorage: () => (state) => {
         if (state?.theme) {

@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useAppStore } from '../../store/useAppStore'
 import { useIsMobile } from '../../hooks/useIsMobile'
 import { useGoogleCalendar } from '../../hooks/useGoogleCalendar'
-import type { ActiveApp } from '../../store/types'
+import type { ActiveApp, FeatureFlags } from '../../store/types'
 
 export const SIDEBAR_WIDTH = 64
 
@@ -81,6 +81,79 @@ function IconCalendarSync({ color }: { color: string }) {
   )
 }
 
+function IconAdmin({ color }: { color: string }) {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="12" cy="12" r="3" />
+      <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
+    </svg>
+  )
+}
+
+// ── Admin Panel ───────────────────────────────────────────────────────────────
+
+function AdminPanel({ onClose, mobile = false }: { onClose: () => void; mobile?: boolean }) {
+  const featureFlags = useAppStore((s) => s.featureFlags)
+  const setFeatureFlag = useAppStore((s) => s.setFeatureFlag)
+
+  const flags: { key: keyof FeatureFlags; label: string; description: string }[] = [
+    { key: 'chatEnabled', label: 'AI Chat', description: 'Coach chat interface' },
+  ]
+
+  return (
+    <div style={{
+      position: mobile ? 'relative' : 'fixed',
+      ...(mobile ? {} : { left: SIDEBAR_WIDTH + 8, bottom: 12, zIndex: 100 }),
+      background: 'var(--color-surface)',
+      border: '1px solid var(--color-border)',
+      borderRadius: 10,
+      padding: '12px 14px',
+      width: 220,
+      boxShadow: '0 4px 20px rgba(0,0,0,0.12)',
+    }}>
+      <div style={{
+        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+        marginBottom: 10,
+      }}>
+        <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--color-text-tertiary)', letterSpacing: '0.6px', textTransform: 'uppercase' }}>
+          Feature Flags
+        </span>
+        <button
+          onClick={onClose}
+          style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-text-tertiary)', padding: 2, lineHeight: 1 }}
+        >✕</button>
+      </div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+        {flags.map(({ key, label, description }) => (
+          <div key={key} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+            <div>
+              <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--color-text-primary)' }}>{label}</div>
+              <div style={{ fontSize: 11, color: 'var(--color-text-tertiary)' }}>{description}</div>
+            </div>
+            <button
+              onClick={() => setFeatureFlag(key, !featureFlags[key])}
+              style={{
+                width: 38, height: 22, borderRadius: 11,
+                background: featureFlags[key] ? 'var(--color-accent)' : 'var(--color-border)',
+                border: 'none', cursor: 'pointer', flexShrink: 0,
+                position: 'relative', transition: 'background 200ms ease',
+              }}
+            >
+              <div style={{
+                position: 'absolute', top: 3, left: featureFlags[key] ? 19 : 3,
+                width: 16, height: 16, borderRadius: '50%',
+                background: 'white',
+                transition: 'left 200ms ease',
+                boxShadow: '0 1px 3px rgba(0,0,0,0.2)',
+              }} />
+            </button>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
 const NAV_ITEMS: { app: ActiveApp; label: string; Icon: React.FC<{ color: string }> }[] = [
   { app: 'training',   label: 'Training', Icon: IconTraining },
   { app: 'habits',     label: 'Habits',   Icon: IconHabits },
@@ -96,11 +169,19 @@ function DesktopSidebar() {
   const logout = useAppStore((s) => s.logout)
   const theme = useAppStore((s) => s.theme)
   const toggleTheme = useAppStore((s) => s.toggleTheme)
+  const featureFlags = useAppStore((s) => s.featureFlags)
   const { connected: gcalConnected, connect: connectGcal, disconnect: disconnectGcal } = useGoogleCalendar()
   const [hoveredApp, setHoveredApp] = useState<ActiveApp | null>(null)
+
+  const visibleNavItems = NAV_ITEMS.filter((item) => {
+    if (item.app === 'coach' && !featureFlags.chatEnabled) return false
+    return true
+  })
   const [themeHovered, setThemeHovered] = useState(false)
   const [gcalHovered, setGcalHovered] = useState(false)
   const [avatarHovered, setAvatarHovered] = useState(false)
+  const [adminOpen, setAdminOpen] = useState(false)
+  const [adminHovered, setAdminHovered] = useState(false)
 
   return (
     <nav style={{
@@ -116,7 +197,7 @@ function DesktopSidebar() {
       gap: 2,
       zIndex: 11,
     }}>
-      {NAV_ITEMS.map(({ app, label, Icon }) => {
+      {visibleNavItems.map(({ app, label, Icon }) => {
         const active = activeApp === app
         const hovered = hoveredApp === app
         const iconColor = active
@@ -164,6 +245,31 @@ function DesktopSidebar() {
       })}
 
       <div style={{ flex: 1 }} />
+
+      {/* Admin panel */}
+      {adminOpen && <AdminPanel onClose={() => setAdminOpen(false)} />}
+
+      {/* Admin button */}
+      <button
+        onClick={() => setAdminOpen((v) => !v)}
+        onMouseEnter={() => setAdminHovered(true)}
+        onMouseLeave={() => setAdminHovered(false)}
+        title="Feature flags"
+        style={{
+          width: 36, height: 36, borderRadius: 8,
+          color: adminOpen
+            ? 'var(--color-accent)'
+            : adminHovered ? 'var(--color-text-primary)' : 'var(--color-text-tertiary)',
+          background: adminOpen
+            ? 'var(--color-accent-light)'
+            : adminHovered ? 'var(--color-border-light, rgba(0,0,0,0.06))' : 'transparent',
+          border: 'none', cursor: 'pointer',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          transition: 'background 150ms ease, color 150ms ease',
+        }}
+      >
+        <IconAdmin color={adminOpen ? 'var(--color-accent)' : adminHovered ? 'var(--color-text-primary)' : 'var(--color-text-tertiary)'} />
+      </button>
 
       {/* Theme toggle */}
       <button
@@ -260,8 +366,15 @@ function MobileDrawer({ open, onClose }: { open: boolean; onClose: () => void })
   const logout = useAppStore((s) => s.logout)
   const theme = useAppStore((s) => s.theme)
   const toggleTheme = useAppStore((s) => s.toggleTheme)
+  const featureFlags = useAppStore((s) => s.featureFlags)
   const { connected: gcalConnected, connect: connectGcal, disconnect: disconnectGcal } = useGoogleCalendar()
   const [hoveredApp, setHoveredApp] = useState<ActiveApp | null>(null)
+  const [adminOpen, setAdminOpen] = useState(false)
+
+  const visibleNavItems = NAV_ITEMS.filter((item) => {
+    if (item.app === 'coach' && !featureFlags.chatEnabled) return false
+    return true
+  })
 
   return (
     <>
@@ -309,7 +422,7 @@ function MobileDrawer({ open, onClose }: { open: boolean; onClose: () => void })
 
         {/* Nav items */}
         <div style={{ padding: '8px', display: 'flex', flexDirection: 'column', gap: 2 }}>
-          {NAV_ITEMS.map(({ app, label, Icon }) => {
+          {visibleNavItems.map(({ app, label, Icon }) => {
             const active = activeApp === app
             const hovered = hoveredApp === app
             const iconColor = active
@@ -355,6 +468,13 @@ function MobileDrawer({ open, onClose }: { open: boolean; onClose: () => void })
         </div>
 
         <div style={{ flex: 1 }} />
+
+        {/* Admin panel (mobile inline) */}
+        {adminOpen && (
+          <div style={{ padding: '0 12px 8px' }}>
+            <AdminPanel onClose={() => setAdminOpen(false)} mobile />
+          </div>
+        )}
 
         {/* Bottom: theme + avatar */}
         <div style={{
@@ -404,6 +524,21 @@ function MobileDrawer({ open, onClose }: { open: boolean; onClose: () => void })
                 border: '1.5px solid var(--color-surface)',
               }} />
             )}
+          </button>
+
+          <button
+            onClick={() => setAdminOpen((v) => !v)}
+            title="Feature flags"
+            style={{
+              width: 34, height: 34, borderRadius: 8,
+              color: adminOpen ? 'var(--color-accent)' : 'var(--color-text-secondary)',
+              background: 'transparent',
+              border: `1px solid ${adminOpen ? 'var(--color-accent)' : 'var(--color-border)'}`,
+              cursor: 'pointer',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+            }}
+          >
+            <IconAdmin color={adminOpen ? 'var(--color-accent)' : 'var(--color-text-secondary)'} />
           </button>
 
           {athlete && (
