@@ -9,12 +9,9 @@ import PlannedActivityPanel from '../components/planning/PlannedActivityPanel'
 import KeyDateModal from '../components/planning/KeyDateModal'
 import DashboardPage from './DashboardPage'
 import WeekReviewPage from './WeekReviewPage'
-import HabitWeekView from '../components/habits/HabitWeekView'
-import HabitGridView from '../components/habits/HabitGridView'
-import HabitDashboard from '../components/habits/HabitDashboard'
-import HabitDetailPanel from '../components/habits/HabitDetailPanel'
 import RacePredictorPage from './RacePredictorPage'
 import CoachPage from './CoachPage'
+import TableBuilderPage from './TableBuilderPage'
 import { useAppStore } from '../store/useAppStore'
 import { useActivities } from '../hooks/useActivities'
 import { useCalendarRange } from '../hooks/useCalendarRange'
@@ -34,7 +31,6 @@ export default function CalendarPage() {
   const setError = useAppStore((s) => s.setError)
   const activeApp = useAppStore((s) => s.activeApp)
   const appMode = useAppStore((s) => s.appMode)
-  const habitView = useAppStore((s) => s.habitView)
   const isMobile = useIsMobile()
   const [sideNavOpen, setSideNavOpen] = useState(false)
 
@@ -47,9 +43,7 @@ export default function CalendarPage() {
   const deleteKeyDate = useAppStore((s) => s.deleteKeyDate)
 
   const isTraining = activeApp === 'training'
-  const viewKey = isTraining ? appMode : activeApp === 'habits' ? `habits-${habitView}` : activeApp
-
-  const mobilePadding = isMobile ? '12px 12px 20px' : '24px 24px 40px'
+  const viewKey = isTraining ? appMode : activeApp
 
   function handleKeyDateSave(keyDate: KeyDate) {
     if (editingKeyDate?.id) {
@@ -143,29 +137,17 @@ export default function CalendarPage() {
                 </div>
               )}
 
-              {/* Habit views */}
-              {activeApp === 'habits' && habitView === 'week' && (
-                <div style={{ flex: 1, overflow: 'auto', padding: mobilePadding }}>
-                  <HabitWeekView />
-                </div>
-              )}
-
-              {activeApp === 'habits' && habitView === 'grid' && (
-                <div style={{ flex: 1, overflow: 'auto', padding: mobilePadding }}>
-                  <HabitGridView />
-                </div>
-              )}
-
-              {activeApp === 'habits' && habitView === 'dashboard' && (
-                <div style={{ flex: 1, overflow: 'auto', padding: mobilePadding }}>
-                  <HabitDashboard />
-                </div>
-              )}
-
               {/* Coach */}
               {activeApp === 'coach' && (
                 <div style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
                   <CoachPage />
+                </div>
+              )}
+
+              {/* Tables */}
+              {activeApp === 'tables' && (
+                <div style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+                  <TableBuilderPage />
                 </div>
               )}
             </motion.div>
@@ -173,7 +155,6 @@ export default function CalendarPage() {
 
           <ActivityPanel />
           <PlannedActivityPanel />
-          {activeApp === 'habits' && <HabitDetailPanel />}
         </div>
 
         {/* Bottom tab bar on mobile */}

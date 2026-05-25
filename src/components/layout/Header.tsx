@@ -6,7 +6,7 @@ import { getDateRange } from '../../utils/dateUtils'
 import { useIsMobile } from '../../hooks/useIsMobile'
 import ViewToggle from '../ui/ViewToggle'
 import ActivityFilters from '../ui/ActivityFilters'
-import type { AppMode, HabitView } from '../../store/types'
+import type { AppMode } from '../../store/types'
 
 // ── Tab SVG Icons (same style as SideNav) ────────────────────────────────────
 
@@ -88,12 +88,6 @@ const TRAINING_TABS: { mode: AppMode; label: string; Icon: React.FC<{ color: str
   { mode: 'predictor', label: 'Predictor', Icon: IconPredictor },
 ]
 
-const HABIT_TABS: { mode: HabitView; label: string; Icon: React.FC<{ color: string }> }[] = [
-  { mode: 'week',      label: 'Weekly',    Icon: IconWeekly },
-  { mode: 'grid',      label: 'Grid',      Icon: IconGrid },
-  { mode: 'dashboard', label: 'Dashboard', Icon: IconDashboard },
-]
-
 interface HeaderProps {
   onOpenSideNav?: () => void
 }
@@ -118,8 +112,6 @@ function DesktopHeader() {
   const activeApp = useAppStore((s) => s.activeApp)
   const appMode = useAppStore((s) => s.appMode)
   const setAppMode = useAppStore((s) => s.setAppMode)
-  const habitView = useAppStore((s) => s.habitView)
-  const setHabitView = useAppStore((s) => s.setHabitView)
   const showPlan = useAppStore((s) => s.showPlan)
   const toggleShowPlan = useAppStore((s) => s.toggleShowPlan)
   const { label } = useCalendarRange()
@@ -158,8 +150,9 @@ function DesktopHeader() {
       overflow: 'visible',
       minWidth: 0,
     }}>
-      {/* View tabs */}
-      <div style={{
+      {/* View tabs — training only */}
+      {isTraining && (
+        <div style={{
           display: 'flex',
           background: 'var(--color-bg)',
           border: '1px solid var(--color-border)',
@@ -168,20 +161,13 @@ function DesktopHeader() {
           gap: 1,
           flexShrink: 0,
         }}>
-          {isTraining ? (
-            TRAINING_TABS.map(({ mode, label: mLabel }) => (
-              <button key={mode} onClick={() => setAppMode(mode)} style={tabStyle(appMode === mode)}>
-                {mLabel}
-              </button>
-            ))
-          ) : (
-            HABIT_TABS.map(({ mode, label: mLabel }) => (
-              <button key={mode} onClick={() => setHabitView(mode)} style={tabStyle(habitView === mode)}>
-                {mLabel}
-              </button>
-            ))
-          )}
+          {TRAINING_TABS.map(({ mode, label: mLabel }) => (
+            <button key={mode} onClick={() => setAppMode(mode)} style={tabStyle(appMode === mode)}>
+              {mLabel}
+            </button>
+          ))}
         </div>
+      )}
 
       {showCalendarNav && (
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginLeft: 4 }}>
@@ -272,8 +258,8 @@ function MobileHeader({ onOpenSideNav }: { onOpenSideNav?: () => void }) {
   const showFilters = isTraining && (appMode === 'calendar' || appMode === 'grid' || appMode === 'dashboard' || appMode === 'review')
   const [showMore, setShowMore] = useState(false)
 
-  const appLabel = activeApp === 'training' ? 'Training' : activeApp === 'habits' ? 'Habits' : 'Coach'
-  const appEmoji = activeApp === 'training' ? '🏃' : activeApp === 'habits' ? '✅' : '💬'
+  const appLabel = activeApp === 'training' ? 'Training' : activeApp === 'coach' ? 'Coach' : activeApp === 'tables' ? 'Tables' : activeApp
+  const appEmoji = activeApp === 'training' ? '🏃' : activeApp === 'coach' ? '💬' : '📋'
 
   return (
     <>
@@ -377,17 +363,12 @@ export function MobileTabBar() {
   const activeApp = useAppStore((s) => s.activeApp)
   const appMode = useAppStore((s) => s.appMode)
   const setAppMode = useAppStore((s) => s.setAppMode)
-  const habitView = useAppStore((s) => s.habitView)
-  const setHabitView = useAppStore((s) => s.setHabitView)
 
-  if (activeApp === 'coach') return null
+  if (activeApp !== 'training') return null
 
-  const isTraining = activeApp === 'training'
-  const tabs = isTraining ? TRAINING_TABS : HABIT_TABS
-  const currentMode = isTraining ? appMode : habitView
-  const setMode = isTraining
-    ? (mode: string) => setAppMode(mode as AppMode)
-    : (mode: string) => setHabitView(mode as HabitView)
+  const tabs = TRAINING_TABS
+  const currentMode = appMode
+  const setMode = (mode: string) => setAppMode(mode as AppMode)
 
   return (
     <nav style={{
