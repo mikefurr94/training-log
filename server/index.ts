@@ -37,6 +37,16 @@ app.all('/api/plan', async (req, res) => {
   }
 })
 
+app.all('/api/table-chat', async (req, res) => {
+  try {
+    const { default: handler } = await import('../api/table-chat.js')
+    await handler(req as any, res as any)
+  } catch (err: any) {
+    console.error('[api/table-chat] Error:', err.message)
+    res.status(500).json({ error: err.message })
+  }
+})
+
 app.all('/api/reflection', async (req, res) => {
   try {
     const { default: handler } = await import('../api/reflection.js')

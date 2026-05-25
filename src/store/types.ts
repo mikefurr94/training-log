@@ -187,7 +187,7 @@ export type ThemeMode = 'light' | 'dark'
 
 export type AppMode = 'calendar' | 'grid' | 'dashboard' | 'review' | 'predictor'
 
-export type ActiveApp = 'training' | 'habits' | 'coach'
+export type ActiveApp = 'training' | 'habits' | 'coach' | 'tables'
 
 export type CoachView = 'chat' | 'plan' | 'intake'
 
