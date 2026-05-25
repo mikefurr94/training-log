@@ -1,7 +1,5 @@
-import { useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import Header, { MobileTabBar } from '../components/layout/Header'
-import SideNav from '../components/layout/SideNav'
 import CalendarRoot from '../components/calendar/CalendarRoot'
 import GridView from '../components/calendar/GridView'
 import ActivityPanel from '../components/activity/ActivityPanel'
@@ -11,7 +9,6 @@ import DashboardPage from './DashboardPage'
 import WeekReviewPage from './WeekReviewPage'
 import RacePredictorPage from './RacePredictorPage'
 import CoachPage from './CoachPage'
-import TableBuilderPage from './TableBuilderPage'
 import { useAppStore } from '../store/useAppStore'
 import { useActivities } from '../hooks/useActivities'
 import { useCalendarRange } from '../hooks/useCalendarRange'
@@ -32,7 +29,6 @@ export default function CalendarPage() {
   const activeApp = useAppStore((s) => s.activeApp)
   const appMode = useAppStore((s) => s.appMode)
   const isMobile = useIsMobile()
-  const [sideNavOpen, setSideNavOpen] = useState(false)
 
   // Key date modal state
   const editingKeyDate = useAppStore((s) => s.editingKeyDate)
@@ -69,9 +65,6 @@ export default function CalendarPage() {
       overflow: 'hidden',
       background: 'var(--color-bg)',
     }}>
-      {/* Side navigation */}
-      <SideNav open={sideNavOpen} onClose={() => setSideNavOpen(false)} />
-
       {/* Main column */}
       <div style={{
         display: 'flex',
@@ -80,7 +73,7 @@ export default function CalendarPage() {
         minWidth: 0,
         overflow: 'hidden',
       }}>
-        <Header onOpenSideNav={() => setSideNavOpen(true)} />
+        <Header />
 
         {error && (
           <div style={{
@@ -144,12 +137,7 @@ export default function CalendarPage() {
                 </div>
               )}
 
-              {/* Tables */}
-              {activeApp === 'tables' && (
-                <div style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
-                  <TableBuilderPage />
-                </div>
-              )}
+
             </motion.div>
           </AnimatePresence>
 

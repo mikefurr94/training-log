@@ -88,16 +88,12 @@ const TRAINING_TABS: { mode: AppMode; label: string; Icon: React.FC<{ color: str
   { mode: 'predictor', label: 'Predictor', Icon: IconPredictor },
 ]
 
-interface HeaderProps {
-  onOpenSideNav?: () => void
-}
-
-export default function Header({ onOpenSideNav }: HeaderProps) {
+export default function Header() {
   const isMobile = useIsMobile()
   const activeApp = useAppStore((s) => s.activeApp)
   // Coach has its own header built into the page
   if (activeApp === 'coach' && !isMobile) return null
-  if (isMobile) return <MobileHeader onOpenSideNav={onOpenSideNav} />
+  if (isMobile) return <MobileHeader />
   return <DesktopHeader />
 }
 
@@ -246,7 +242,7 @@ function DesktopHeader() {
 
 // ── Mobile Header ────────────────────────────────────────────────────────────
 
-function MobileHeader({ onOpenSideNav }: { onOpenSideNav?: () => void }) {
+function MobileHeader() {
   const distanceUnit = useAppStore((s) => s.distanceUnit)
   const setDistanceUnit = useAppStore((s) => s.setDistanceUnit)
   const activeApp = useAppStore((s) => s.activeApp)
@@ -275,18 +271,6 @@ function MobileHeader({ onOpenSideNav }: { onOpenSideNav?: () => void }) {
       }}>
         {/* Row 1: hamburger + app name + settings */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 12px' }}>
-          {/* Hamburger / side nav opener */}
-          <button
-            onClick={onOpenSideNav}
-            style={{
-              width: 32, height: 32, borderRadius: 'var(--radius-sm)',
-              border: '1px solid var(--color-border)', background: 'transparent',
-              fontSize: 16, color: 'var(--color-text-secondary)',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              cursor: 'pointer', flexShrink: 0,
-            }}
-          >☰</button>
-
           {/* Current app indicator */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 5, flexShrink: 0 }}>
             <span style={{ fontSize: 16 }}>{appEmoji}</span>
