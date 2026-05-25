@@ -147,7 +147,6 @@ function DesktopHeader() {
     }}>
       {showCalendarNav && (
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginLeft: 4 }}>
-          <NavButton onClick={() => navigate('prev')} label="Previous period">‹</NavButton>
           {!isViewingToday && (
             <button onClick={goToToday} style={{
               padding: '4px 10px', borderRadius: 'var(--radius-sm)',
@@ -156,16 +155,20 @@ function DesktopHeader() {
               border: '1px solid var(--color-border)', cursor: 'pointer', whiteSpace: 'nowrap',
             }}>Today</button>
           )}
-          <span style={{
-            fontSize: 'var(--font-size-sm)', fontWeight: 'var(--font-weight-semibold)',
-            color: 'var(--color-text-primary)', minWidth: 90, textAlign: 'center',
-            letterSpacing: '-0.2px', display: 'flex', alignItems: 'center', gap: 5, whiteSpace: 'nowrap',
-          }}>
-            {isLoading && <Spinner />}
-            {navLabel}
-          </span>
-          <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
-          <NavButton onClick={() => navigate('next')} label="Next period">›</NavButton>
+          <div style={{ display: 'grid', gridTemplateColumns: '28px 100px 28px', alignItems: 'center', gap: 4 }}>
+            <NavButton onClick={() => navigate('prev')} label="Previous period">‹</NavButton>
+            <span style={{
+              fontSize: 'var(--font-size-sm)', fontWeight: 'var(--font-weight-semibold)',
+              color: 'var(--color-text-primary)', textAlign: 'center',
+              letterSpacing: '-0.2px', display: 'flex', alignItems: 'center', justifyContent: 'center',
+              gap: 5, whiteSpace: 'nowrap',
+            }}>
+              {isLoading && <Spinner />}
+              {navLabel}
+            </span>
+            <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+            <NavButton onClick={() => navigate('next')} label="Next period">›</NavButton>
+          </div>
         </div>
       )}
 
