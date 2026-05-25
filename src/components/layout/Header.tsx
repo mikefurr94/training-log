@@ -107,7 +107,6 @@ function DesktopHeader() {
   const setDistanceUnit = useAppStore((s) => s.setDistanceUnit)
   const activeApp = useAppStore((s) => s.activeApp)
   const appMode = useAppStore((s) => s.appMode)
-  const setAppMode = useAppStore((s) => s.setAppMode)
   const showPlan = useAppStore((s) => s.showPlan)
   const toggleShowPlan = useAppStore((s) => s.toggleShowPlan)
   const { label } = useCalendarRange()
@@ -146,25 +145,6 @@ function DesktopHeader() {
       overflow: 'visible',
       minWidth: 0,
     }}>
-      {/* View tabs — training only */}
-      {isTraining && (
-        <div style={{
-          display: 'flex',
-          background: 'var(--color-bg)',
-          border: '1px solid var(--color-border)',
-          borderRadius: 'var(--radius-md)',
-          padding: 3,
-          gap: 1,
-          flexShrink: 0,
-        }}>
-          {TRAINING_TABS.map(({ mode, label: mLabel }) => (
-            <button key={mode} onClick={() => setAppMode(mode)} style={tabStyle(appMode === mode)}>
-              {mLabel}
-            </button>
-          ))}
-        </div>
-      )}
-
       {showCalendarNav && (
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginLeft: 4 }}>
           <NavButton onClick={() => navigate('prev')} label="Previous period">‹</NavButton>

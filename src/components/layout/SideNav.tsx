@@ -2,60 +2,70 @@ import { useState } from 'react'
 import { useAppStore } from '../../store/useAppStore'
 import { useIsMobile } from '../../hooks/useIsMobile'
 import { useGoogleCalendar } from '../../hooks/useGoogleCalendar'
-import type { ActiveApp, FeatureFlags } from '../../store/types'
+import type { AppMode, FeatureFlags } from '../../store/types'
 
 export const SIDEBAR_WIDTH = 64
 
-interface Props {
-  open: boolean
-  onClose: () => void
-}
-
-export default function SideNav({ open, onClose }: Props) {
+export default function SideNav() {
   const isMobile = useIsMobile()
-  if (isMobile) return <MobileDrawer open={open} onClose={onClose} />
+  if (isMobile) return null
   return <DesktopSidebar />
 }
 
 // ── SVG Icons ─────────────────────────────────────────────────────────────────
 
-function IconTraining({ color }: { color: string }) {
+function IconCalendar({ color }: { color: string }) {
   return (
     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
-      {/* Activity waveform */}
-      <polyline points="2 12 6 12 8 4 11 20 14 9 16 14 18 14 22 14" />
+      <rect x="3" y="4" width="18" height="18" rx="2" />
+      <line x1="16" y1="2" x2="16" y2="6" />
+      <line x1="8" y1="2" x2="8" y2="6" />
+      <line x1="3" y1="10" x2="21" y2="10" />
     </svg>
   )
 }
 
-function IconHabits({ color }: { color: string }) {
+function IconGrid({ color }: { color: string }) {
   return (
     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
-      {/* Check-list */}
-      <path d="M9 11l3 3 8-8" />
-      <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" />
+      <rect x="3" y="3" width="7" height="7" rx="1" />
+      <rect x="14" y="3" width="7" height="7" rx="1" />
+      <rect x="3" y="14" width="7" height="7" rx="1" />
+      <rect x="14" y="14" width="7" height="7" rx="1" />
     </svg>
   )
 }
 
-function IconTable({ color }: { color: string }) {
+function IconDashboard({ color }: { color: string }) {
   return (
     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
-      <rect x="3" y="3" width="18" height="18" rx="2" />
-      <line x1="3" y1="9" x2="21" y2="9" />
-      <line x1="3" y1="15" x2="21" y2="15" />
-      <line x1="9" y1="9" x2="9" y2="21" />
+      <line x1="18" y1="20" x2="18" y2="10" />
+      <line x1="12" y1="20" x2="12" y2="4" />
+      <line x1="6" y1="20" x2="6" y2="14" />
+      <line x1="3" y1="20" x2="21" y2="20" />
     </svg>
   )
 }
 
-function IconCoach({ color }: { color: string }) {
+function IconReview({ color }: { color: string }) {
   return (
     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
-      <path d="M8 10h.01" />
-      <path d="M12 10h.01" />
-      <path d="M16 10h.01" />
+      <polyline points="22 7 13.5 15.5 8.5 10.5 2 17" />
+      <polyline points="16 7 22 7 22 13" />
+    </svg>
+  )
+}
+
+function IconPredictor({ color }: { color: string }) {
+  return (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="12" cy="12" r="10" />
+      <circle cx="12" cy="12" r="6" />
+      <circle cx="12" cy="12" r="2" />
+      <line x1="12" y1="2" x2="12" y2="5" />
+      <line x1="12" y1="19" x2="12" y2="22" />
+      <line x1="2" y1="12" x2="5" y2="12" />
+      <line x1="19" y1="12" x2="22" y2="12" />
     </svg>
   )
 }
@@ -103,7 +113,7 @@ function IconAdmin({ color }: { color: string }) {
 
 // ── Admin Panel ───────────────────────────────────────────────────────────────
 
-function AdminPanel({ onClose, mobile = false }: { onClose: () => void; mobile?: boolean }) {
+function AdminPanel({ onClose }: { onClose: () => void }) {
   const featureFlags = useAppStore((s) => s.featureFlags)
   const setFeatureFlag = useAppStore((s) => s.setFeatureFlag)
 
@@ -113,8 +123,8 @@ function AdminPanel({ onClose, mobile = false }: { onClose: () => void; mobile?:
 
   return (
     <div style={{
-      position: mobile ? 'relative' : 'fixed',
-      ...(mobile ? {} : { left: SIDEBAR_WIDTH + 8, bottom: 12, zIndex: 100 }),
+      position: 'fixed',
+      left: SIDEBAR_WIDTH + 8, bottom: 12, zIndex: 100,
       background: 'var(--color-surface)',
       border: '1px solid var(--color-border)',
       borderRadius: 10,
@@ -122,17 +132,11 @@ function AdminPanel({ onClose, mobile = false }: { onClose: () => void; mobile?:
       width: 220,
       boxShadow: '0 4px 20px rgba(0,0,0,0.12)',
     }}>
-      <div style={{
-        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-        marginBottom: 10,
-      }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
         <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--color-text-tertiary)', letterSpacing: '0.6px', textTransform: 'uppercase' }}>
           Feature Flags
         </span>
-        <button
-          onClick={onClose}
-          style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-text-tertiary)', padding: 2, lineHeight: 1 }}
-        >✕</button>
+        <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-text-tertiary)', padding: 2, lineHeight: 1 }}>✕</button>
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
         {flags.map(({ key, label, description }) => (
@@ -165,29 +169,27 @@ function AdminPanel({ onClose, mobile = false }: { onClose: () => void; mobile?:
   )
 }
 
-const NAV_ITEMS: { app: ActiveApp; label: string; Icon: React.FC<{ color: string }> }[] = [
-  { app: 'training',   label: 'Training', Icon: IconTraining },
-  { app: 'coach',      label: 'Coach',    Icon: IconCoach },
-  { app: 'tables',     label: 'Tables',   Icon: IconTable },
+// ── Nav items ─────────────────────────────────────────────────────────────────
+
+const NAV_ITEMS: { mode: AppMode; label: string; Icon: React.FC<{ color: string }> }[] = [
+  { mode: 'calendar',  label: 'Calendar',  Icon: IconCalendar },
+  { mode: 'grid',      label: 'Grid',      Icon: IconGrid },
+  { mode: 'dashboard', label: 'Dashboard', Icon: IconDashboard },
+  { mode: 'review',    label: 'Review',    Icon: IconReview },
+  { mode: 'predictor', label: 'Predictor', Icon: IconPredictor },
 ]
 
-// ── Desktop: persistent slim sidebar ──────────────────────────────────────────
+// ── Desktop sidebar ───────────────────────────────────────────────────────────
 
 function DesktopSidebar() {
-  const activeApp = useAppStore((s) => s.activeApp)
-  const setActiveApp = useAppStore((s) => s.setActiveApp)
+  const appMode = useAppStore((s) => s.appMode)
+  const setAppMode = useAppStore((s) => s.setAppMode)
   const athlete = useAppStore((s) => s.athlete)
   const logout = useAppStore((s) => s.logout)
   const theme = useAppStore((s) => s.theme)
   const toggleTheme = useAppStore((s) => s.toggleTheme)
-  const featureFlags = useAppStore((s) => s.featureFlags)
   const { connected: gcalConnected, connect: connectGcal, disconnect: disconnectGcal } = useGoogleCalendar()
-  const [hoveredApp, setHoveredApp] = useState<ActiveApp | null>(null)
-
-  const visibleNavItems = NAV_ITEMS.filter((item) => {
-    if (item.app === 'coach' && !featureFlags.chatEnabled) return false
-    return true
-  })
+  const [hoveredMode, setHoveredMode] = useState<AppMode | null>(null)
   const [themeHovered, setThemeHovered] = useState(false)
   const [gcalHovered, setGcalHovered] = useState(false)
   const [avatarHovered, setAvatarHovered] = useState(false)
@@ -208,9 +210,9 @@ function DesktopSidebar() {
       gap: 2,
       zIndex: 11,
     }}>
-      {visibleNavItems.map(({ app, label, Icon }) => {
-        const active = activeApp === app
-        const hovered = hoveredApp === app
+      {NAV_ITEMS.map(({ mode, label, Icon }) => {
+        const active = appMode === mode
+        const hovered = hoveredMode === mode
         const iconColor = active
           ? 'var(--color-accent)'
           : hovered
@@ -219,10 +221,10 @@ function DesktopSidebar() {
 
         return (
           <button
-            key={app}
-            onClick={() => setActiveApp(app)}
-            onMouseEnter={() => setHoveredApp(app)}
-            onMouseLeave={() => setHoveredApp(null)}
+            key={mode}
+            onClick={() => setAppMode(mode)}
+            onMouseEnter={() => setHoveredMode(mode)}
+            onMouseLeave={() => setHoveredMode(null)}
             title={label}
             style={{
               display: 'flex',
@@ -239,7 +241,7 @@ function DesktopSidebar() {
                 : hovered
                   ? 'var(--color-border-light, rgba(0,0,0,0.06))'
                   : 'transparent',
-              transition: 'background 150ms ease, color 150ms ease',
+              transition: 'background 150ms ease',
             }}
           >
             <Icon color={iconColor} />
@@ -257,10 +259,8 @@ function DesktopSidebar() {
 
       <div style={{ flex: 1 }} />
 
-      {/* Admin panel */}
       {adminOpen && <AdminPanel onClose={() => setAdminOpen(false)} />}
 
-      {/* Admin button */}
       <button
         onClick={() => setAdminOpen((v) => !v)}
         onMouseEnter={() => setAdminHovered(true)}
@@ -268,12 +268,8 @@ function DesktopSidebar() {
         title="Feature flags"
         style={{
           width: 36, height: 36, borderRadius: 8,
-          color: adminOpen
-            ? 'var(--color-accent)'
-            : adminHovered ? 'var(--color-text-primary)' : 'var(--color-text-tertiary)',
-          background: adminOpen
-            ? 'var(--color-accent-light)'
-            : adminHovered ? 'var(--color-border-light, rgba(0,0,0,0.06))' : 'transparent',
+          color: adminOpen ? 'var(--color-accent)' : adminHovered ? 'var(--color-text-primary)' : 'var(--color-text-tertiary)',
+          background: adminOpen ? 'var(--color-accent-light)' : adminHovered ? 'var(--color-border-light, rgba(0,0,0,0.06))' : 'transparent',
           border: 'none', cursor: 'pointer',
           display: 'flex', alignItems: 'center', justifyContent: 'center',
           transition: 'background 150ms ease, color 150ms ease',
@@ -282,7 +278,6 @@ function DesktopSidebar() {
         <IconAdmin color={adminOpen ? 'var(--color-accent)' : adminHovered ? 'var(--color-text-primary)' : 'var(--color-text-tertiary)'} />
       </button>
 
-      {/* Theme toggle */}
       <button
         onClick={toggleTheme}
         onMouseEnter={() => setThemeHovered(true)}
@@ -300,7 +295,6 @@ function DesktopSidebar() {
         <IconTheme isDark={theme === 'light'} />
       </button>
 
-      {/* Google Calendar connect/disconnect */}
       <button
         onClick={() => {
           if (gcalConnected) {
@@ -314,11 +308,7 @@ function DesktopSidebar() {
         title={gcalConnected ? 'Google Calendar connected — click to disconnect' : 'Connect Google Calendar'}
         style={{
           width: 36, height: 36, borderRadius: 8,
-          color: gcalConnected
-            ? 'var(--color-accent)'
-            : gcalHovered
-              ? 'var(--color-text-primary)'
-              : 'var(--color-text-tertiary)',
+          color: gcalConnected ? 'var(--color-accent)' : gcalHovered ? 'var(--color-text-primary)' : 'var(--color-text-tertiary)',
           background: gcalHovered ? 'var(--color-border-light, rgba(0,0,0,0.06))' : 'transparent',
           border: 'none', cursor: 'pointer',
           display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -326,11 +316,7 @@ function DesktopSidebar() {
           position: 'relative',
         }}
       >
-        <IconCalendarSync color={gcalConnected
-          ? 'var(--color-accent)'
-          : gcalHovered
-            ? 'var(--color-text-primary)'
-            : 'var(--color-text-tertiary)'} />
+        <IconCalendarSync color={gcalConnected ? 'var(--color-accent)' : gcalHovered ? 'var(--color-text-primary)' : 'var(--color-text-tertiary)'} />
         {gcalConnected && (
           <div style={{
             position: 'absolute', bottom: 4, right: 4,
@@ -341,7 +327,6 @@ function DesktopSidebar() {
         )}
       </button>
 
-      {/* Avatar / logout */}
       {athlete && (
         <button
           title={`${athlete.firstname} ${athlete.lastname} — click to disconnect`}
@@ -365,213 +350,5 @@ function DesktopSidebar() {
         </button>
       )}
     </nav>
-  )
-}
-
-// ── Mobile: slide-out drawer ──────────────────────────────────────────────────
-
-function MobileDrawer({ open, onClose }: { open: boolean; onClose: () => void }) {
-  const activeApp = useAppStore((s) => s.activeApp)
-  const setActiveApp = useAppStore((s) => s.setActiveApp)
-  const athlete = useAppStore((s) => s.athlete)
-  const logout = useAppStore((s) => s.logout)
-  const theme = useAppStore((s) => s.theme)
-  const toggleTheme = useAppStore((s) => s.toggleTheme)
-  const featureFlags = useAppStore((s) => s.featureFlags)
-  const { connected: gcalConnected, connect: connectGcal, disconnect: disconnectGcal } = useGoogleCalendar()
-  const [hoveredApp, setHoveredApp] = useState<ActiveApp | null>(null)
-  const [adminOpen, setAdminOpen] = useState(false)
-
-  const visibleNavItems = NAV_ITEMS.filter((item) => {
-    if (item.app === 'coach' && !featureFlags.chatEnabled) return false
-    return true
-  })
-
-  return (
-    <>
-      {/* Backdrop */}
-      {open && (
-        <div
-          onClick={onClose}
-          style={{
-            position: 'fixed', inset: 0,
-            background: 'rgba(0,0,0,0.35)',
-            zIndex: 50,
-          }}
-        />
-      )}
-
-      {/* Drawer panel */}
-      <div style={{
-        position: 'fixed', top: 0, left: 0, bottom: 0, width: 220,
-        background: 'var(--color-surface)',
-        borderRight: '1px solid var(--color-border)',
-        zIndex: 51,
-        transform: open ? 'translateX(0)' : 'translateX(-100%)',
-        transition: 'transform 250ms cubic-bezier(0.4, 0, 0.2, 1)',
-        display: 'flex', flexDirection: 'column',
-        paddingTop: 'env(safe-area-inset-top, 0px)',
-      }}>
-        {/* Header */}
-        <div style={{
-          padding: '16px 16px 12px',
-          borderBottom: '1px solid var(--color-border)',
-          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-        }}>
-          <span style={{
-            fontSize: 'var(--font-size-sm)', fontWeight: 700,
-            color: 'var(--color-text-primary)', letterSpacing: '-0.3px',
-          }}>Navigation</span>
-          <button onClick={onClose} style={{
-            width: 28, height: 28, borderRadius: 6,
-            border: '1px solid var(--color-border)', background: 'transparent',
-            fontSize: 14, color: 'var(--color-text-secondary)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            cursor: 'pointer',
-          }}>✕</button>
-        </div>
-
-        {/* Nav items */}
-        <div style={{ padding: '8px', display: 'flex', flexDirection: 'column', gap: 2 }}>
-          {visibleNavItems.map(({ app, label, Icon }) => {
-            const active = activeApp === app
-            const hovered = hoveredApp === app
-            const iconColor = active
-              ? 'var(--color-accent)'
-              : hovered
-                ? 'var(--color-text-primary)'
-                : 'var(--color-text-secondary)'
-
-            return (
-              <button
-                key={app}
-                onClick={() => { setActiveApp(app); onClose() }}
-                onMouseEnter={() => setHoveredApp(app)}
-                onMouseLeave={() => setHoveredApp(null)}
-                style={{
-                  display: 'flex', alignItems: 'center', gap: 12,
-                  padding: '10px 12px',
-                  borderRadius: 8, border: 'none', cursor: 'pointer',
-                  background: active
-                    ? 'var(--color-accent-light)'
-                    : hovered
-                      ? 'var(--color-border-light, rgba(0,0,0,0.06))'
-                      : 'transparent',
-                  width: '100%', textAlign: 'left',
-                  transition: 'background 150ms ease',
-                }}
-              >
-                <Icon color={iconColor} />
-                <span style={{
-                  fontSize: 'var(--font-size-sm)',
-                  fontWeight: active ? 700 : 500,
-                  color: iconColor,
-                  transition: 'color 150ms ease',
-                }}>{label}</span>
-                {active && (
-                  <svg style={{ marginLeft: 'auto' }} width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--color-accent)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                    <polyline points="20 6 9 17 4 12" />
-                  </svg>
-                )}
-              </button>
-            )
-          })}
-        </div>
-
-        <div style={{ flex: 1 }} />
-
-        {/* Admin panel (mobile inline) */}
-        {adminOpen && (
-          <div style={{ padding: '0 12px 8px' }}>
-            <AdminPanel onClose={() => setAdminOpen(false)} mobile />
-          </div>
-        )}
-
-        {/* Bottom: theme + avatar */}
-        <div style={{
-          padding: '12px 16px',
-          borderTop: '1px solid var(--color-border)',
-          display: 'flex', alignItems: 'center', gap: 8,
-          paddingBottom: 'calc(12px + env(safe-area-inset-bottom, 0px))',
-        }}>
-          <button
-            onClick={toggleTheme}
-            title={`Switch to ${theme === 'light' ? 'dark' : 'light'} mode`}
-            style={{
-              width: 34, height: 34, borderRadius: 8,
-              color: 'var(--color-text-secondary)', background: 'transparent',
-              border: '1px solid var(--color-border)', cursor: 'pointer',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-            }}
-          >
-            <IconTheme isDark={theme === 'light'} />
-          </button>
-
-          <button
-            onClick={() => {
-              if (gcalConnected) {
-                if (confirm('Disconnect Google Calendar?')) disconnectGcal()
-              } else {
-                connectGcal()
-              }
-            }}
-            title={gcalConnected ? 'Google Calendar connected' : 'Connect Google Calendar'}
-            style={{
-              width: 34, height: 34, borderRadius: 8,
-              color: gcalConnected ? 'var(--color-accent)' : 'var(--color-text-secondary)',
-              background: 'transparent',
-              border: `1px solid ${gcalConnected ? 'var(--color-accent)' : 'var(--color-border)'}`,
-              cursor: 'pointer',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              position: 'relative',
-            }}
-          >
-            <IconCalendarSync color={gcalConnected ? 'var(--color-accent)' : 'var(--color-text-secondary)'} />
-            {gcalConnected && (
-              <div style={{
-                position: 'absolute', bottom: 2, right: 2,
-                width: 6, height: 6, borderRadius: '50%',
-                background: '#22c55e',
-                border: '1.5px solid var(--color-surface)',
-              }} />
-            )}
-          </button>
-
-          <button
-            onClick={() => setAdminOpen((v) => !v)}
-            title="Feature flags"
-            style={{
-              width: 34, height: 34, borderRadius: 8,
-              color: adminOpen ? 'var(--color-accent)' : 'var(--color-text-secondary)',
-              background: 'transparent',
-              border: `1px solid ${adminOpen ? 'var(--color-accent)' : 'var(--color-border)'}`,
-              cursor: 'pointer',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-            }}
-          >
-            <IconAdmin color={adminOpen ? 'var(--color-accent)' : 'var(--color-text-secondary)'} />
-          </button>
-
-          {athlete && (
-            <button
-              title={`${athlete.firstname} ${athlete.lastname}`}
-              onClick={() => { if (confirm('Disconnect from Strava?')) logout() }}
-              style={{
-                width: 32, height: 32, borderRadius: '50%', overflow: 'hidden',
-                border: '2px solid var(--color-border)', cursor: 'pointer', padding: 0,
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                background: 'var(--color-accent-light)',
-              }}
-            >
-              {athlete.profile_medium ? (
-                <img src={athlete.profile_medium} alt={athlete.firstname} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-              ) : (
-                <span style={{ fontSize: 12, color: 'var(--color-accent)' }}>{athlete.firstname?.[0]}</span>
-              )}
-            </button>
-          )}
-        </div>
-      </div>
-    </>
   )
 }

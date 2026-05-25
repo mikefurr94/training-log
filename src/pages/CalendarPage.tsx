@@ -1,5 +1,6 @@
 import { AnimatePresence, motion } from 'framer-motion'
 import Header, { MobileTabBar } from '../components/layout/Header'
+import SideNav from '../components/layout/SideNav'
 import CalendarRoot from '../components/calendar/CalendarRoot'
 import GridView from '../components/calendar/GridView'
 import ActivityPanel from '../components/activity/ActivityPanel'
@@ -65,6 +66,8 @@ export default function CalendarPage() {
       overflow: 'hidden',
       background: 'var(--color-bg)',
     }}>
+      <SideNav />
+
       {/* Main column */}
       <div style={{
         display: 'flex',
