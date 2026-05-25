@@ -33,14 +33,14 @@ export async function savePlan(athleteId: number, data: Record<string, unknown>)
 // ── Habit Definitions ────────────────────────────────────────────────────────
 
 export async function loadHabitDefinitions(athleteId: number): Promise<unknown[] | null> {
-  const res = await fetch(`/api/habit-definitions?athlete_id=${athleteId}`)
+  const res = await fetch(`/api/habits?athlete_id=${athleteId}&resource=definitions`)
   if (!res.ok) throw new Error('Failed to load habit definitions')
   const data = await res.json()
   return Array.isArray(data) && data.length > 0 ? data : null
 }
 
 export async function saveHabitDefinitions(athleteId: number, habits: unknown[]): Promise<void> {
-  const res = await fetch(`/api/habit-definitions?athlete_id=${athleteId}`, {
+  const res = await fetch(`/api/habits?athlete_id=${athleteId}&resource=definitions`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ habits }),
