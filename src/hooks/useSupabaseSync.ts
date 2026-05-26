@@ -22,7 +22,7 @@ export function useSupabaseSync() {
   const setHabitCounts = useAppStore((s) => s.setHabitCounts)
   const loadedRef = useRef(false)
   const prevCompletionsRef = useRef<string>('')
-  const prevPlanRef = useRef<string>('')
+  const prevPlanRef = useRef<string | null>(null) // null = remote load not yet complete
   const prevHabitsRef = useRef<string | null>(null) // null = remote load not yet complete
 
   const athleteId = athlete?.id
@@ -74,6 +74,12 @@ export function useSupabaseSync() {
       .then((data) => {
         if (data && Object.keys(data).length > 0) {
           useAppStore.getState().loadPlanFromDb(data)
+          const s = useAppStore.getState()
+          prevPlanRef.current = JSON.stringify({ weekTemplate: s.weekTemplate, weekOverrides: s.weekOverrides, keyDates: s.keyDates })
+        } else {
+          // No remote plan yet — capture local state so the save effect can push it up
+          const s = useAppStore.getState()
+          prevPlanRef.current = JSON.stringify({ weekTemplate: s.weekTemplate, weekOverrides: s.weekOverrides, keyDates: s.keyDates })
         }
       })
       .catch(console.error)
@@ -109,7 +115,7 @@ export function useSupabaseSync() {
     if (!athleteId) {
       loadedRef.current = false
       prevCompletionsRef.current = ''
-      prevPlanRef.current = ''
+      prevPlanRef.current = null
       prevHabitsRef.current = null
     }
   }, [athleteId])
@@ -167,6 +173,7 @@ export function useSupabaseSync() {
   // Sync training plan to Supabase when it changes
   useEffect(() => {
     if (!athleteId || !loadedRef.current) return
+    if (prevPlanRef.current === null) return // wait for remote load to complete first
 
     const planData = { weekTemplate, weekOverrides, keyDates }
     const serialized = JSON.stringify(planData)
