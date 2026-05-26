@@ -529,7 +529,6 @@ export const useAppStore = create<AppStore>()(
         coachPlan: state.coachPlan,
         distanceUnit: state.distanceUnit,
         enabledTypes: state.enabledTypes,
-        showPlan: state.showPlan,
         weekTemplate: state.weekTemplate,
         weekOverrides: state.weekOverrides,
         keyDates: state.keyDates,
