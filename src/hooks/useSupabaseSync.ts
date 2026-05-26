@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react'
 import { useAppStore } from '../store/useAppStore'
 import { loadHabits, saveHabitDay, loadPlan, savePlan, loadCoachPlan, loadHabitDefinitions, saveHabitDefinitions } from '../api/db'
-import type { CoachPlan, HabitDefinition } from '../store/types'
+import type { CoachPlan, HabitDefinition, WeekTemplate, WeekOverride, KeyDate } from '../store/types'
 
 // Debounce helper
 function debounce<T extends (...args: unknown[]) => void>(fn: T, ms: number): T {
@@ -72,14 +72,26 @@ export function useSupabaseSync() {
 
     loadPlan(athleteId)
       .then((data) => {
-        if (data && Object.keys(data).length > 0) {
-          useAppStore.getState().loadPlanFromDb(data)
+        const local = useAppStore.getState()
+        const remote = (data ?? {}) as { weekTemplate?: WeekTemplate; weekOverrides?: WeekOverride[]; keyDates?: KeyDate[] }
+        const remoteOverrides = Array.isArray(remote.weekOverrides) ? remote.weekOverrides : []
+        const remoteKeyDates = Array.isArray(remote.keyDates) ? remote.keyDates : []
+        const remoteHasData = remoteOverrides.length > 0 || remoteKeyDates.length > 0
+        const localHasData = (local.weekOverrides?.length ?? 0) > 0 || (local.keyDates?.length ?? 0) > 0
+
+        if (remoteHasData) {
+          // Remote wins when it has data
+          useAppStore.getState().loadPlanFromDb(remote as Record<string, unknown>)
           const s = useAppStore.getState()
           prevPlanRef.current = JSON.stringify({ weekTemplate: s.weekTemplate, weekOverrides: s.weekOverrides, keyDates: s.keyDates })
+        } else if (localHasData) {
+          // Remote empty but local has data — push local up to recover (e.g. after a prior wipe)
+          const localPlan = { weekTemplate: local.weekTemplate, weekOverrides: local.weekOverrides, keyDates: local.keyDates }
+          savePlan(athleteId, localPlan as Record<string, unknown>).catch(console.error)
+          prevPlanRef.current = JSON.stringify(localPlan)
         } else {
-          // No remote plan yet — capture local state so the save effect can push it up
-          const s = useAppStore.getState()
-          prevPlanRef.current = JSON.stringify({ weekTemplate: s.weekTemplate, weekOverrides: s.weekOverrides, keyDates: s.keyDates })
+          // Both empty — nothing to do
+          prevPlanRef.current = JSON.stringify({ weekTemplate: local.weekTemplate, weekOverrides: local.weekOverrides, keyDates: local.keyDates })
         }
       })
       .catch(console.error)
