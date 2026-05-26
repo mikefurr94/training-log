@@ -267,7 +267,7 @@ export const useAppStore = create<AppStore>()(
       setDistanceUnit: (unit) => set({ distanceUnit: unit }),
 
       // ── Plan overlay ──────────────────────────────────────────────────
-      showPlan: false,
+      showPlan: true,
       toggleShowPlan: () => set((s) => ({ showPlan: !s.showPlan })),
 
       // ── Weekly planning ───────────────────────────────────────────────
