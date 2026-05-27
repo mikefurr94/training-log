@@ -17,7 +17,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       .single()
 
     if (error && error.code !== 'PGRST116') { // PGRST116 = no rows found
-      return res.status(500).json({ error: error.message })
+      console.error('[api/plan] GET error:', error)
+      return res.status(500).json({ error: error.message, code: error.code, details: error.details, hint: error.hint })
     }
 
     return res.status(200).json(data?.data ?? {})
@@ -33,7 +34,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       .upsert({ athlete_id: athleteId, data: planData, updated_at: new Date().toISOString() },
         { onConflict: 'athlete_id' })
 
-    if (error) return res.status(500).json({ error: error.message })
+    if (error) {
+      console.error('[api/plan] POST error:', error)
+      return res.status(500).json({ error: error.message, code: error.code, details: error.details, hint: error.hint })
+    }
     return res.status(200).json({ ok: true })
   }
 
