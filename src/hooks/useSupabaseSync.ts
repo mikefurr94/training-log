@@ -79,18 +79,30 @@ export function useSupabaseSync() {
         const remoteHasData = remoteOverrides.length > 0 || remoteKeyDates.length > 0
         const localHasData = (local.weekOverrides?.length ?? 0) > 0 || (local.keyDates?.length ?? 0) > 0
 
+        console.log('[plan-sync] load result:', {
+          remoteOverrideCount: remoteOverrides.length,
+          remoteKeyDateCount: remoteKeyDates.length,
+          localOverrideCount: local.weekOverrides?.length ?? 0,
+          localKeyDateCount: local.keyDates?.length ?? 0,
+          remoteHasData,
+          localHasData,
+        })
+
         if (remoteHasData) {
           // Remote wins when it has data
+          console.log('[plan-sync] using remote plan')
           useAppStore.getState().loadPlanFromDb(remote as Record<string, unknown>)
           const s = useAppStore.getState()
           prevPlanRef.current = JSON.stringify({ weekTemplate: s.weekTemplate, weekOverrides: s.weekOverrides, keyDates: s.keyDates })
         } else if (localHasData) {
           // Remote empty but local has data — push local up to recover (e.g. after a prior wipe)
+          console.log('[plan-sync] pushing local plan up to recover')
           const localPlan = { weekTemplate: local.weekTemplate, weekOverrides: local.weekOverrides, keyDates: local.keyDates }
           savePlan(athleteId, localPlan as Record<string, unknown>).catch(console.error)
           prevPlanRef.current = JSON.stringify(localPlan)
         } else {
           // Both empty — nothing to do
+          console.log('[plan-sync] both empty, nothing to sync')
           prevPlanRef.current = JSON.stringify({ weekTemplate: local.weekTemplate, weekOverrides: local.weekOverrides, keyDates: local.keyDates })
         }
       })
