@@ -24,6 +24,8 @@ export function useSupabaseSync() {
   const prevCompletionsRef = useRef<string>('')
   const prevPlanRef = useRef<string | null>(null) // null = remote load not yet complete
   const prevHabitsRef = useRef<string | null>(null) // null = remote load not yet complete
+  const completionFailuresRef = useRef(0)
+  const completionSyncDisabledRef = useRef(false)
 
   const athleteId = athlete?.id
 
@@ -141,6 +143,8 @@ export function useSupabaseSync() {
       prevCompletionsRef.current = ''
       prevPlanRef.current = null
       prevHabitsRef.current = null
+      completionFailuresRef.current = 0
+      completionSyncDisabledRef.current = false
     }
   }, [athleteId])
 
@@ -168,6 +172,7 @@ export function useSupabaseSync() {
   // Sends habit IDs where count >= dailyTarget (preserves existing DB schema)
   useEffect(() => {
     if (!athleteId || !loadedRef.current) return
+    if (completionSyncDisabledRef.current) return
 
     const serialized = JSON.stringify(habitCounts)
     if (serialized === prevCompletionsRef.current) return
@@ -176,6 +181,7 @@ export function useSupabaseSync() {
     const syncChanges = debounce(async () => {
       const currentHabits = useAppStore.getState().habits
       for (const [date, dayCounts] of Object.entries(habitCounts)) {
+        if (completionSyncDisabledRef.current) return
         const completedIds = Object.entries(dayCounts)
           .filter(([habitId, count]) => {
             const habit = currentHabits.find((h) => h.id === habitId)
@@ -185,8 +191,15 @@ export function useSupabaseSync() {
           .map(([id]) => id)
         try {
           await saveHabitDay(athleteId, date, completedIds)
+          completionFailuresRef.current = 0
         } catch (err) {
           console.error('Failed to sync habit:', err)
+          completionFailuresRef.current += 1
+          if (completionFailuresRef.current >= 5) {
+            completionSyncDisabledRef.current = true
+            console.error('Disabling habit completion sync after 5 consecutive failures — reload to retry')
+            return
+          }
         }
       }
     }, 1000)

@@ -32,7 +32,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         .upsert({ athlete_id: athleteId, habits, updated_at: new Date().toISOString() },
           { onConflict: 'athlete_id' })
 
-      if (error) return res.status(500).json({ error: error.message })
+      if (error) {
+        console.error('habit_definitions upsert failed:', { athleteId, error })
+        return res.status(500).json({ error: error.message })
+      }
       return res.status(200).json({ ok: true })
     }
 
@@ -46,7 +49,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       .select('date, habit_ids')
       .eq('athlete_id', athleteId)
 
-    if (error) return res.status(500).json({ error: error.message })
+    if (error) {
+      console.error('habit_completions select failed:', { athleteId, error })
+      return res.status(500).json({ error: error.message })
+    }
 
     const result: Record<string, string[]> = {}
     for (const row of data ?? []) {
@@ -66,7 +72,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       .upsert({ athlete_id: athleteId, date, habit_ids, updated_at: new Date().toISOString() },
         { onConflict: 'athlete_id,date' })
 
-    if (error) return res.status(500).json({ error: error.message })
+    if (error) {
+      console.error('habit_completions upsert failed:', { athleteId, date, error })
+      return res.status(500).json({ error: error.message })
+    }
     return res.status(200).json({ ok: true })
   }
 
