@@ -1,5 +1,5 @@
 import { createPortal } from 'react-dom'
-import { format, isToday } from 'date-fns'
+import { format, isToday, startOfDay } from 'date-fns'
 import ActivityBadge from './ActivityBadge'
 import PlannedBadge from './PlannedBadge'
 import WeatherInfo from './WeatherInfo'
@@ -318,6 +318,7 @@ function MobileDayRow({
 }) {
   const openPlannedPanel = useAppStore((s) => s.openPlannedPanel)
   const openKeyDateModal = useAppStore((s) => s.openKeyDateModal)
+  const addNewPlannedActivity = useAppStore((s) => s.addNewPlannedActivity)
   const showPlan = useAppStore((s) => s.showPlan)
 
   const key = format(date, 'yyyy-MM-dd')
@@ -334,6 +335,8 @@ function MobileDayRow({
   )
   const dayKeyDates = keyDates?.filter((kd) => kd.date === key) ?? []
   const today = isToday(date)
+  const isFutureOrToday = startOfDay(date) >= startOfDay(new Date())
+  const showAddButton = showPlan && isFutureOrToday
 
   const isDragTarget = dragState?.overDate === key && dragState.overDate !== dragState.fromDate
 
@@ -496,6 +499,26 @@ function MobileDayRow({
           </>
         )}
       </div>
+
+      {showAddButton && (
+        <button
+          onClick={(e) => { e.stopPropagation(); addNewPlannedActivity(key) }}
+          aria-label="Add planned workout"
+          style={{
+            alignSelf: 'center',
+            width: 28, height: 28, borderRadius: '50%',
+            background: 'transparent',
+            color: 'var(--color-text-tertiary)',
+            border: '1px dashed var(--color-border)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            fontSize: 16, lineHeight: 1, fontWeight: 400,
+            flexShrink: 0,
+            cursor: 'pointer',
+          }}
+        >
+          +
+        </button>
+      )}
     </div>
   )
 }
