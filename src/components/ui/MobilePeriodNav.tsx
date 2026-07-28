@@ -5,7 +5,7 @@ import { getDateRange } from '../../utils/dateUtils'
 
 /**
  * Self-contained mobile period navigation pill for the training log.
- * Mirrors the bordered-pill style used in HabitWeekView / WeekReviewPage.
+ * Mirrors the bordered-pill style used in WeekReviewPage.
  * Reads all needed state from the store so callers just render <MobilePeriodNav />.
  */
 export default function MobilePeriodNav() {

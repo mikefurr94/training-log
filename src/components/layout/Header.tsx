@@ -239,8 +239,8 @@ function MobileHeader() {
   const showFilters = isTraining && (appMode === 'calendar' || appMode === 'grid' || appMode === 'dashboard' || appMode === 'review')
   const [showMore, setShowMore] = useState(false)
 
-  const appLabel = activeApp === 'training' ? 'Training' : activeApp === 'coach' ? 'Coach' : activeApp === 'tables' ? 'Tables' : activeApp
-  const appEmoji = activeApp === 'training' ? '🏃' : activeApp === 'coach' ? '💬' : '📋'
+  const appLabel = activeApp === 'training' ? 'Training' : 'Coach'
+  const appEmoji = activeApp === 'training' ? '🏃' : '💬'
 
   return (
     <>

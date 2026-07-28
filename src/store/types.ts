@@ -143,31 +143,6 @@ export interface KeyDate {
   goalTime?: string   // e.g. '1:45:00' in HH:MM:SS format
 }
 
-// ── Habit Tracker Types ──────────────────────────────────────────────────────
-
-export type HabitFrequency = 'daily' | 'weekly'
-
-export interface HabitDefinition {
-  id: string
-  name: string
-  emoji: string
-  order: number
-  notes?: string
-  archived?: boolean
-  weeklyGoal?: number        // completions per week to consider goal met (1-7 for daily, 1 for weekly)
-  frequency?: HabitFrequency // defaults to 'daily'
-  color?: string             // hex color for grid display; falls back to palette if unset
-  dailyTarget?: number       // how many times per day to complete (default 1)
-}
-
-/** Maps 'YYYY-MM-DD' → array of completed habit IDs */
-export type HabitCompletions = Record<string, string[]>
-
-/** Maps 'YYYY-MM-DD' → { habitId → count } */
-export type HabitCounts = Record<string, Record<string, number>>
-
-export type HabitView = 'week' | 'grid' | 'dashboard'
-
 // ── Review Types ─────────────────────────────────────────────────────────────
 
 export type ReviewScope = 'week' | 'month' | 'quarter'
@@ -187,7 +162,7 @@ export type ThemeMode = 'light' | 'dark'
 
 export type AppMode = 'calendar' | 'grid' | 'dashboard' | 'review' | 'predictor'
 
-export type ActiveApp = 'training' | 'habits' | 'coach' | 'tables'
+export type ActiveApp = 'training' | 'coach'
 
 export type CoachView = 'chat' | 'plan' | 'intake'
 
@@ -307,11 +282,6 @@ export interface AppState {
   editingKeyDate: KeyDate | null      // key date being edited, or null
   editingKeyDateDefault: string | null // default date for new key date modal
 
-  // Habits
-  habits: HabitDefinition[]
-  habitCounts: HabitCounts
-  habitView: HabitView
-  selectedHabitId: string | null
 
   // Coach plan
   coachPlan: CoachPlan | null
@@ -395,17 +365,7 @@ export interface AppActions {
   // Add new planned activity from calendar
   addNewPlannedActivity: (dateStr: string) => void
 
-  // Habits
-  toggleHabitCompletion: (date: string, habitId: string, target: number) => void
-  setHabitCounts: (counts: HabitCounts) => void
   loadPlanFromDb: (data: Record<string, unknown>) => void
-  addHabit: (habit: HabitDefinition) => void
-  removeHabit: (id: string) => void
-  reorderHabits: (habits: HabitDefinition[]) => void
-  setHabitView: (view: HabitView) => void
-  setSelectedHabitId: (id: string | null) => void
-  updateHabit: (id: string, updates: Partial<HabitDefinition>) => void
-  moveHabit: (id: string, direction: 'up' | 'down') => void
 
   // Theme
   toggleTheme: () => void

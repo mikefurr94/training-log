@@ -17,32 +17,12 @@ app.use('/auth', authRouter)
 
 // Serve Vercel serverless functions locally
 // The handlers use VercelRequest/VercelResponse which are Express-compatible
-app.all('/api/habits', async (req, res) => {
-  try {
-    const { default: handler } = await import('../api/habits.js')
-    await handler(req as any, res as any)
-  } catch (err: any) {
-    console.error('[api/habits] Error:', err.message)
-    res.status(500).json({ error: err.message })
-  }
-})
-
 app.all('/api/plan', async (req, res) => {
   try {
     const { default: handler } = await import('../api/plan.js')
     await handler(req as any, res as any)
   } catch (err: any) {
     console.error('[api/plan] Error:', err.message)
-    res.status(500).json({ error: err.message })
-  }
-})
-
-app.all('/api/table-chat', async (req, res) => {
-  try {
-    const { default: handler } = await import('../api/table-chat.js')
-    await handler(req as any, res as any)
-  } catch (err: any) {
-    console.error('[api/table-chat] Error:', err.message)
     res.status(500).json({ error: err.message })
   }
 })

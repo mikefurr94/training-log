@@ -16,9 +16,6 @@ import type {
   WeekDayIndex,
   PlannedActivity,
   KeyDate,
-  HabitDefinition,
-  HabitCounts,
-  HabitView,
   ActiveApp,
   ThemeMode,
   CoachView,
@@ -28,14 +25,6 @@ import type {
 import type { CalendarView } from '../utils/dateUtils'
 
 const DEFAULT_ENABLED_TYPES: ActivityType[] = ['Run', 'WeightTraining', 'Yoga', 'Tennis']
-
-const DEFAULT_HABITS: HabitDefinition[] = [
-  { id: 'journal',    name: 'Journaling',    emoji: '📓', order: 0 },
-  { id: 'meditate',   name: 'Meditation',    emoji: '🧘', order: 1 },
-  { id: 'stretch',    name: 'Stretching',    emoji: '🤸', order: 2 },
-  { id: 'probiotics', name: 'Probiotics',    emoji: '💊', order: 3 },
-  { id: 'protein',    name: 'Protein shake', emoji: '🥤', order: 4 },
-]
 
 function makeEmptyTemplate(): WeekTemplate {
   return {
@@ -424,74 +413,11 @@ export const useAppStore = create<AppStore>()(
         get().openPlannedPanel(newActivity, dateStr)
       },
 
-      // ── Habits ─────────────────────────────────────────────────────────────
-      habits: DEFAULT_HABITS,
-      habitCounts: {} as HabitCounts,
-      habitView: 'week' as HabitView,
-      selectedHabitId: null as string | null,
-
-      toggleHabitCompletion: (date: string, habitId: string, target: number) =>
-        set((s) => {
-          const dayCounts = s.habitCounts[date] ?? {}
-          const current = dayCounts[habitId] ?? 0
-          const next = current >= target ? 0 : current + 1
-          return {
-            habitCounts: {
-              ...s.habitCounts,
-              [date]: { ...dayCounts, [habitId]: next },
-            },
-          }
-        }),
-
-      setHabitCounts: (counts: HabitCounts) => set({ habitCounts: counts }),
-
       loadPlanFromDb: (data: Record<string, unknown>) =>
         set({
           weekTemplate: (data.weekTemplate as WeekTemplate) ?? {},
           weekOverrides: (data.weekOverrides as WeekOverride[]) ?? [],
           keyDates: (data.keyDates as KeyDate[]) ?? [],
-        }),
-
-      addHabit: (habit: HabitDefinition) =>
-        set((s) => ({ habits: [...s.habits, habit] })),
-
-      removeHabit: (id: string) =>
-        set((s) => ({ habits: s.habits.filter((h) => h.id !== id) })),
-
-      reorderHabits: (habits: HabitDefinition[]) => set({ habits }),
-
-      setHabitView: (view: HabitView) => set({ habitView: view }),
-
-      setSelectedHabitId: (id: string | null) => set({ selectedHabitId: id }),
-
-      updateHabit: (id: string, updates: Partial<HabitDefinition>) =>
-        set((s) => ({
-          habits: s.habits.map((h) => (h.id === id ? { ...h, ...updates } : h)),
-        })),
-
-      moveHabit: (id: string, direction: 'up' | 'down') =>
-        set((s) => {
-          const target = s.habits.find((h) => h.id === id)
-          if (!target) return s
-          // Only swap within the same visible grouping (archived state + frequency),
-          // matching how HabitWeekView renders habits. Otherwise a swap with an
-          // invisible neighbor looks like a dropped/delayed click.
-          const targetFreq = target.frequency ?? 'daily'
-          const peers = s.habits
-            .filter((h) => !!h.archived === !!target.archived && (h.frequency ?? 'daily') === targetFreq)
-            .sort((a, b) => a.order - b.order)
-          const idx = peers.findIndex((h) => h.id === id)
-          const swapIdx = direction === 'up' ? idx - 1 : idx + 1
-          if (swapIdx < 0 || swapIdx >= peers.length) return s
-          const a = peers[idx]
-          const b = peers[swapIdx]
-          return {
-            habits: s.habits.map((h) => {
-              if (h.id === a.id) return { ...h, order: b.order }
-              if (h.id === b.id) return { ...h, order: a.order }
-              return h
-            }),
-          }
         }),
 
       // ── Theme ──────────────────────────────────────────────────────────────
@@ -532,9 +458,6 @@ export const useAppStore = create<AppStore>()(
         weekTemplate: state.weekTemplate,
         weekOverrides: state.weekOverrides,
         keyDates: state.keyDates,
-        habits: state.habits,
-        habitCounts: state.habitCounts,
-        habitView: state.habitView,
         theme: state.theme,
         googleCalendarConnected: state.googleCalendarConnected,
         featureFlags: state.featureFlags,
@@ -550,6 +473,11 @@ export const useAppStore = create<AppStore>()(
         // Migrate: 'reflection' renamed to 'coach'
         if (state && (state as any).activeApp === 'reflection') {
           state.activeApp = 'coach'
+        }
+        // Migrate: the Habits and Tables apps were removed. A persisted
+        // activeApp pointing at either would render nothing, so reset it.
+        if (state && ((state as any).activeApp === 'habits' || (state as any).activeApp === 'tables')) {
+          state.activeApp = 'training'
         }
       },
     }

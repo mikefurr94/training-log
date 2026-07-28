@@ -120,12 +120,6 @@
   --color-status-missed-text: #dc2626;
   --color-status-missed-border: #fca5a5;
 
-  /* Habit colors */
-  --color-habit-done: #16a34a;
-  --color-habit-done-light: #f0fdf4;
-  --color-habit-partial: #d97706;
-  --color-habit-partial-light: #fffbeb;
-  --color-habit-none: #e5e7eb;
 
   /* Race day */
   --color-race-gradient-start: #E8795A;
@@ -204,11 +198,6 @@
   --color-status-missed-text: #f87171;
   --color-status-missed-border: #7f1d1d;
 
-  --color-habit-done: #34d399;
-  --color-habit-done-light: #052e1c;
-  --color-habit-partial: #fbbf24;
-  --color-habit-partial-light: #2a2008;
-  --color-habit-none: #2e3140;
 
   /* Race day */
   --color-race-gradient-start: #C45A3A;

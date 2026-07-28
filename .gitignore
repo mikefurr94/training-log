@@ -6,3 +6,7 @@ dist
 .vercel
 .env*.local
 .env.production
+
+# Local-only side projects and stale agent worktrees — kept on disk, not tracked here
+warehouse/
+.claude/worktrees/
