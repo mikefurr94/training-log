@@ -12,7 +12,11 @@ async function fetchFromStrava(path: string, params: Record<string, string>, aut
   const url = new URL(`${STRAVA_BASE}${path}`)
   Object.entries(params).forEach(([k, v]) => url.searchParams.set(k, v))
   const res = await fetch(url.toString(), { headers: { Authorization: auth } })
-  if (!res.ok) throw new Error(`Strava error ${res.status}`)
+  if (!res.ok) {
+    const body = await res.text().catch(() => '')
+    console.error(`[api/activities] Strava error ${res.status}:`, body)
+    throw new Error(`Strava error ${res.status}: ${body}`)
+  }
   return res.json()
 }
 
