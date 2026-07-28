@@ -37,6 +37,26 @@ app.all('/api/reflection', async (req, res) => {
   }
 })
 
+app.all('/api/coach-plan', async (req, res) => {
+  try {
+    const { default: handler } = await import('../api/coach-plan.js')
+    await handler(req as any, res as any)
+  } catch (err: any) {
+    console.error('[api/coach-plan] Error:', err.message)
+    res.status(500).json({ error: err.message })
+  }
+})
+
+app.all('/api/race-goals', async (req, res) => {
+  try {
+    const { default: handler } = await import('../api/race-goals.js')
+    await handler(req as any, res as any)
+  } catch (err: any) {
+    console.error('[api/race-goals] Error:', err.message)
+    res.status(500).json({ error: err.message })
+  }
+})
+
 app.all('/api/activities', async (req, res) => {
   try {
     const { default: handler } = await import('../api/activities.js')

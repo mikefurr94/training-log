@@ -38,6 +38,26 @@ export default defineConfig({
         target: 'http://localhost:3001',
         changeOrigin: true,
       },
+      '/api/coach-plan': {
+        target: 'http://localhost:3001',
+        changeOrigin: true,
+      },
+      '/api/race-goals': {
+        target: 'http://localhost:3001',
+        changeOrigin: true,
+      },
+      '/api/google-calendar': {
+        target: 'http://localhost:3001',
+        changeOrigin: true,
+      },
+      // Google redirects here after OAuth. In production vercel.json rewrites
+      // it to /api/google-calendar?path=callback; locally the Express server
+      // mirrors that, but only if the request gets proxied instead of being
+      // swallowed by Vite's SPA fallback.
+      '/google-callback': {
+        target: 'http://localhost:3001',
+        changeOrigin: true,
+      },
     },
   },
 })
