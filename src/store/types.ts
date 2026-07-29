@@ -2,17 +2,9 @@ import type { ActivityType } from '../utils/activityColors'
 import type { CalendarView } from '../utils/dateUtils'
 export type { ActivityType, CalendarView }
 
-export interface StravaAthlete {
-  id: number
-  firstname: string
-  lastname: string
-  profile_medium: string
-  profile: string
-  city: string
-  state: string
-  country: string
-  sex: string
-  premium: boolean
+export interface AuthUser {
+  id: string
+  username: string
 }
 
 export interface StravaActivity {
@@ -186,7 +178,6 @@ export interface CoachPlanWeek {
 
 export interface CoachPlan {
   id: string
-  athleteId: number
   name: string
   raceName?: string
   raceDate?: string
@@ -231,10 +222,8 @@ export interface ReflectionMessage {
 
 export interface AppState {
   // Auth
-  accessToken: string | null
-  refreshToken: string | null
-  tokenExpiresAt: number | null
-  athlete: StravaAthlete | null
+  user: AuthUser | null
+  stravaConnected: boolean
 
   // App mode
   activeApp: ActiveApp
@@ -298,9 +287,8 @@ export interface AppState {
 
 export interface AppActions {
   // Auth
-  setToken: (access: string, refresh: string, expiresAt: number) => void
-  setAthlete: (athlete: StravaAthlete) => void
-  updateTokens: (access: string, refresh: string, expiresAt: number) => void
+  setUser: (user: AuthUser | null) => void
+  setStravaConnected: (connected: boolean) => void
   logout: () => void
 
   // Navigation

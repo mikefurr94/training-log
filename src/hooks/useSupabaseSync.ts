@@ -13,21 +13,21 @@ function debounce<T extends (...args: unknown[]) => void>(fn: T, ms: number): T 
 }
 
 export function useSupabaseSync() {
-  const athlete = useAppStore((s) => s.athlete)
+  const user = useAppStore((s) => s.user)
   const weekTemplate = useAppStore((s) => s.weekTemplate)
   const weekOverrides = useAppStore((s) => s.weekOverrides)
   const keyDates = useAppStore((s) => s.keyDates)
   const loadedRef = useRef(false)
   const prevPlanRef = useRef<string | null>(null) // null = remote load not yet complete
 
-  const athleteId = athlete?.id
+  const userId = user?.id
 
   // On login: load plan from Supabase
   useEffect(() => {
-    if (!athleteId || loadedRef.current) return
+    if (!userId || loadedRef.current) return
     loadedRef.current = true
 
-    loadPlan(athleteId)
+    loadPlan()
       .then((data) => {
         const local = useAppStore.getState()
         const remote = (data ?? {}) as { weekTemplate?: WeekTemplate; weekOverrides?: WeekOverride[]; keyDates?: KeyDate[] }
@@ -55,7 +55,7 @@ export function useSupabaseSync() {
           // Remote empty but local has data — push local up to recover (e.g. after a prior wipe)
           console.log('[plan-sync] pushing local plan up to recover')
           const localPlan = { weekTemplate: local.weekTemplate, weekOverrides: local.weekOverrides, keyDates: local.keyDates }
-          savePlan(athleteId, localPlan as Record<string, unknown>).catch(console.error)
+          savePlan(localPlan as Record<string, unknown>).catch(console.error)
           prevPlanRef.current = JSON.stringify(localPlan)
         } else {
           // Both empty — nothing to do
@@ -65,14 +65,13 @@ export function useSupabaseSync() {
       })
       .catch(console.error)
 
-    loadCoachPlan(athleteId)
+    loadCoachPlan()
       .then((data) => {
         if (data && typeof data === 'object' && 'id' in data) {
           // Map snake_case DB response to camelCase CoachPlan
           const raw = data as Record<string, unknown>
           const plan: CoachPlan = {
             id: raw.id as string,
-            athleteId: (raw.athlete_id ?? raw.athleteId) as number,
             name: raw.name as string,
             raceName: (raw.race_name ?? raw.raceName) as string | undefined,
             raceDate: (raw.race_date ?? raw.raceDate) as string | undefined,
@@ -89,19 +88,19 @@ export function useSupabaseSync() {
         }
       })
       .catch(console.error)
-  }, [athleteId])
+  }, [userId])
 
   // Reset on logout
   useEffect(() => {
-    if (!athleteId) {
+    if (!userId) {
       loadedRef.current = false
       prevPlanRef.current = null
     }
-  }, [athleteId])
+  }, [userId])
 
   // Sync training plan to Supabase when it changes
   useEffect(() => {
-    if (!athleteId || !loadedRef.current) return
+    if (!userId || !loadedRef.current) return
     if (prevPlanRef.current === null) return // wait for remote load to complete first
 
     const planData = { weekTemplate, weekOverrides, keyDates }
@@ -111,12 +110,12 @@ export function useSupabaseSync() {
 
     const syncPlan = debounce(async () => {
       try {
-        await savePlan(athleteId, planData as Record<string, unknown>)
+        await savePlan(planData as Record<string, unknown>)
       } catch (err) {
         console.error('Failed to sync plan:', err)
       }
     }, 2000)
 
     syncPlan()
-  }, [athleteId, weekTemplate, weekOverrides, keyDates])
+  }, [userId, weekTemplate, weekOverrides, keyDates])
 }

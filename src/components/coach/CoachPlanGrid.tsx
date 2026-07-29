@@ -56,11 +56,12 @@ function generateId(): string {
 }
 
 let patchTimer: ReturnType<typeof setTimeout> | undefined
-function debouncedPersist(athleteId: number, planId: string, weeks: CoachPlanWeek[]) {
+function debouncedPersist(planId: string, weeks: CoachPlanWeek[]) {
   clearTimeout(patchTimer)
   patchTimer = setTimeout(() => {
-    fetch(`/api/coach-plan?athlete_id=${athleteId}&plan_id=${planId}`, {
+    fetch(`/api/coach-plan?plan_id=${planId}`, {
       method: 'PATCH',
+      credentials: 'include',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ weeks }),
     })
@@ -94,7 +95,6 @@ export default function CoachPlanGrid({ plan }: Props) {
 
   const isMobile = useIsMobile()
   const today = new Date()
-  const athleteId = useAppStore((s) => s.athlete?.id)
   const setCoachPlan = useAppStore((s) => s.setCoachPlan)
   const updateCoachPlanWeek = useAppStore((s) => s.updateCoachPlanWeek)
   const setDayOverride = useAppStore((s) => s.setDayOverride)
@@ -111,8 +111,9 @@ export default function CoachPlanGrid({ plan }: Props) {
     }
     setSavingName(true)
     try {
-      const res = await fetch(`/api/coach-plan?athlete_id=${athleteId}&plan_id=${plan.id}`, {
+      const res = await fetch(`/api/coach-plan?plan_id=${plan.id}`, {
         method: 'PATCH',
+        credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ name: trimmed }),
       })
@@ -146,7 +147,7 @@ export default function CoachPlanGrid({ plan }: Props) {
   // ── Save activity field (called from detail panel) ──
 
   const saveActivity = useCallback((updatedActivity: PlannedActivity) => {
-    if (!selected || !athleteId) return
+    if (!selected) return
     const weekDayIdx = MONDAY_FIRST_ORDER[selected.dayIndex]
     const week = plan.weeks.find(w => w.weekNumber === selected.weekNumber)
     if (!week) return
@@ -154,8 +155,8 @@ export default function CoachPlanGrid({ plan }: Props) {
       a.id === updatedActivity.id ? updatedActivity : a
     )
     updateCoachPlanWeek(week.weekNumber, { [weekDayIdx]: dayActivities })
-    debouncedPersist(athleteId, plan.id, getUpdatedWeeks(plan, week.weekNumber, weekDayIdx, dayActivities))
-  }, [selected, athleteId, plan, updateCoachPlanWeek])
+    debouncedPersist(plan.id, getUpdatedWeeks(plan, week.weekNumber, weekDayIdx, dayActivities))
+  }, [selected, plan, updateCoachPlanWeek])
 
   // ── Add individual activity to training ──
 

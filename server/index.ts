@@ -5,7 +5,6 @@ dotenv.config({ path: '.env.production', override: true })
 
 import express from 'express'
 import cors from 'cors'
-import { authRouter } from './routes/auth.js'
 
 const app = express()
 const PORT = 3001
@@ -13,69 +12,46 @@ const PORT = 3001
 app.use(cors({ origin: 'http://localhost:3000', credentials: true }))
 app.use(express.json())
 
-app.use('/auth', authRouter)
-
 // Serve Vercel serverless functions locally
 // The handlers use VercelRequest/VercelResponse which are Express-compatible
-app.all('/api/plan', async (req, res) => {
+function mount(route: string, modulePath: string) {
+  app.all(route, async (req, res) => {
+    try {
+      const { default: handler } = await import(modulePath)
+      await handler(req as any, res as any)
+    } catch (err: any) {
+      console.error(`[${route}] Error:`, err.message)
+      res.status(500).json({ error: err.message })
+    }
+  })
+}
+
+mount('/api/auth/signup', '../api/auth/signup.js')
+mount('/api/auth/login', '../api/auth/login.js')
+mount('/api/auth/logout', '../api/auth/logout.js')
+mount('/api/auth/me', '../api/auth/me.js')
+mount('/api/auth/strava-connect', '../api/auth/strava-connect.js')
+mount('/api/auth/strava-callback', '../api/auth/strava-callback.js')
+mount('/api/auth/strava-disconnect', '../api/auth/strava-disconnect.js')
+
+// Mirrors the prod vercel.json rewrite: /api/strava/:path* -> /api/strava?path=:path*
+app.all('/api/strava/*', async (req, res) => {
+  req.query.path = (req.params as unknown as Record<string, string>)[0]
   try {
-    const { default: handler } = await import('../api/plan.js')
+    const { default: handler } = await import('../api/strava.js')
     await handler(req as any, res as any)
   } catch (err: any) {
-    console.error('[api/plan] Error:', err.message)
+    console.error('[/api/strava] Error:', err.message)
     res.status(500).json({ error: err.message })
   }
 })
 
-app.all('/api/reflection', async (req, res) => {
-  try {
-    const { default: handler } = await import('../api/reflection.js')
-    await handler(req as any, res as any)
-  } catch (err: any) {
-    console.error('[api/reflection] Error:', err.message)
-    res.status(500).json({ error: err.message })
-  }
-})
-
-app.all('/api/coach-plan', async (req, res) => {
-  try {
-    const { default: handler } = await import('../api/coach-plan.js')
-    await handler(req as any, res as any)
-  } catch (err: any) {
-    console.error('[api/coach-plan] Error:', err.message)
-    res.status(500).json({ error: err.message })
-  }
-})
-
-app.all('/api/race-goals', async (req, res) => {
-  try {
-    const { default: handler } = await import('../api/race-goals.js')
-    await handler(req as any, res as any)
-  } catch (err: any) {
-    console.error('[api/race-goals] Error:', err.message)
-    res.status(500).json({ error: err.message })
-  }
-})
-
-app.all('/api/activities', async (req, res) => {
-  try {
-    const { default: handler } = await import('../api/activities.js')
-    await handler(req as any, res as any)
-  } catch (err: any) {
-    console.error('[api/activities] Error:', err.message)
-    res.status(500).json({ error: err.message })
-  }
-})
-
-app.all('/api/google-calendar', async (req, res) => {
-  try {
-    const { default: handler } = await import('../api/google-calendar.js')
-    await handler(req as any, res as any)
-  } catch (err: any) {
-    console.error('[api/google-calendar] Error:', err.message)
-    res.status(500).json({ error: err.message })
-  }
-})
+mount('/api/plan', '../api/plan.js')
+mount('/api/reflection', '../api/reflection.js')
+mount('/api/coach-plan', '../api/coach-plan.js')
+mount('/api/race-goals', '../api/race-goals.js')
+mount('/api/activities', '../api/activities.js')
+mount('/api/google-calendar', '../api/google-calendar.js')
 
 // Local dev: mirror the /google-callback route Vercel handles via rewrite
 app.all('/google-callback', async (req, res) => {

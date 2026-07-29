@@ -25,7 +25,7 @@ export function useCalendarData() {
 
   // On mount: fetch current-year + 16-weeks-back range
   useEffect(() => {
-    if (!store.accessToken) return
+    if (!store.stravaConnected) return
 
     const today = new Date()
     const yearStart = startOfYear(today)
@@ -52,12 +52,12 @@ export function useCalendarData() {
         store.setLoading(false)
         fetchingRef.current = false
       })
-  }, [store.accessToken])
+  }, [store.stravaConnected])
 
   // On anchor change: fetch the full quarter containing the anchor so grid
   // navigation always loads a complete block of data per step.
   useEffect(() => {
-    if (!store.accessToken) return
+    if (!store.stravaConnected) return
 
     const anchor = parseISO(anchorDate)
     const rangeStart = startOfQuarter(anchor)
@@ -82,5 +82,5 @@ export function useCalendarData() {
         store.setLoading(false)
         fetchingRef.current = false
       })
-  }, [anchorDate, store.accessToken])
+  }, [anchorDate, store.stravaConnected])
 }

@@ -9,7 +9,6 @@ import type {
   StravaActivity,
   StravaActivityDetail,
   HRStream,
-  StravaAthlete,
   AppMode,
   WeekTemplate,
   WeekOverride,
@@ -44,25 +43,16 @@ export const useAppStore = create<AppStore>()(
   persist(
     (set, get) => ({
       // ── Auth ──────────────────────────────────────────────────────────
-      accessToken: null,
-      refreshToken: null,
-      tokenExpiresAt: null,
-      athlete: null,
+      user: null,
+      stravaConnected: false,
 
-      setToken: (access, refresh, expiresAt) =>
-        set({ accessToken: access, refreshToken: refresh, tokenExpiresAt: expiresAt }),
-
-      setAthlete: (athlete: StravaAthlete) => set({ athlete }),
-
-      updateTokens: (access, refresh, expiresAt) =>
-        set({ accessToken: access, refreshToken: refresh, tokenExpiresAt: expiresAt }),
+      setUser: (user) => set({ user }),
+      setStravaConnected: (connected: boolean) => set({ stravaConnected: connected }),
 
       logout: () =>
         set({
-          accessToken: null,
-          refreshToken: null,
-          tokenExpiresAt: null,
-          athlete: null,
+          user: null,
+          stravaConnected: false,
           activitiesByDate: {},
           fetchedRanges: [],
           selectedActivityId: null,
@@ -339,9 +329,9 @@ export const useAppStore = create<AppStore>()(
 
         // Re-sync the moved activity to Google Calendar so the event follows the drag.
         // The sync endpoint upserts by activity id, so the existing event is moved, not duplicated.
-        const { athlete, googleCalendarConnected } = get()
-        if (athlete?.id && googleCalendarConnected && activity.type !== 'Rest') {
-          syncActivityToCalendar(athlete.id, activity, toDate).catch((err) => {
+        const { googleCalendarConnected } = get()
+        if (googleCalendarConnected && activity.type !== 'Rest') {
+          syncActivityToCalendar(activity, toDate).catch((err) => {
             console.error('Failed to sync moved activity to Google Calendar:', err)
           })
         }
@@ -444,10 +434,8 @@ export const useAppStore = create<AppStore>()(
       name: 'training-log-store',
       // Only persist auth state + preferences + planning data; activity data re-fetched on load
       partialize: (state) => ({
-        accessToken: state.accessToken,
-        refreshToken: state.refreshToken,
-        tokenExpiresAt: state.tokenExpiresAt,
-        athlete: state.athlete,
+        user: state.user,
+        stravaConnected: state.stravaConnected,
         currentView: state.currentView,
         activeApp: state.activeApp,
         appMode: state.appMode,

@@ -15,7 +15,7 @@ export function useRacePredictorData() {
   const fetchingRef = useRef(false)
 
   useEffect(() => {
-    if (!store.accessToken) return
+    if (!store.stravaConnected) return
     if (fetchingRef.current) return
 
     const today = new Date()
@@ -39,7 +39,7 @@ export function useRacePredictorData() {
         store.setLoading(false)
         fetchingRef.current = false
       })
-  }, [store.accessToken])
+  }, [store.stravaConnected])
 
   return store.activitiesByDate
 }

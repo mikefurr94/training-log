@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useAppStore } from '../../store/useAppStore'
 import { useIsMobile } from '../../hooks/useIsMobile'
 import { useGoogleCalendar } from '../../hooks/useGoogleCalendar'
@@ -182,10 +183,10 @@ const NAV_ITEMS: { mode: AppMode; label: string; Icon: React.FC<{ color: string 
 // ── Desktop sidebar ───────────────────────────────────────────────────────────
 
 function DesktopSidebar() {
+  const navigate = useNavigate()
   const appMode = useAppStore((s) => s.appMode)
   const setAppMode = useAppStore((s) => s.setAppMode)
-  const athlete = useAppStore((s) => s.athlete)
-  const logout = useAppStore((s) => s.logout)
+  const user = useAppStore((s) => s.user)
   const theme = useAppStore((s) => s.theme)
   const toggleTheme = useAppStore((s) => s.toggleTheme)
   const { connected: gcalConnected, connect: connectGcal, disconnect: disconnectGcal } = useGoogleCalendar()
@@ -327,10 +328,10 @@ function DesktopSidebar() {
         )}
       </button>
 
-      {athlete && (
+      {user && (
         <button
-          title={`${athlete.firstname} ${athlete.lastname} — click to disconnect`}
-          onClick={() => { if (confirm('Disconnect from Strava and clear all data?')) logout() }}
+          title={`${user.username} — Settings`}
+          onClick={() => navigate('/settings')}
           onMouseEnter={() => setAvatarHovered(true)}
           onMouseLeave={() => setAvatarHovered(false)}
           style={{
@@ -342,11 +343,7 @@ function DesktopSidebar() {
             transition: 'border-color 150ms ease',
           }}
         >
-          {athlete.profile_medium ? (
-            <img src={athlete.profile_medium} alt={athlete.firstname} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-          ) : (
-            <span style={{ fontSize: 14, color: 'var(--color-accent)' }}>{athlete.firstname?.[0]}</span>
-          )}
+          <span style={{ fontSize: 14, color: 'var(--color-accent)' }}>{user.username[0]?.toUpperCase()}</span>
         </button>
       )}
     </nav>

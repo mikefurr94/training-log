@@ -1,7 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node'
-import { createClient } from '@supabase/supabase-js'
-
-const supabase = createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_SERVICE_KEY!)
+import { supabase } from './_lib/supabase.js'
+import { getSessionUserId, requireSession } from './_lib/session.js'
 
 const CLIENT_ID = process.env.GOOGLE_CLIENT_ID!
 const CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET!
@@ -10,11 +9,11 @@ const SCOPE = 'https://www.googleapis.com/auth/calendar.events'
 
 // ── Token helpers ─────────────────────────────────────────────────────────────
 
-async function getAccessToken(athleteId: number): Promise<string | null> {
+async function getAccessToken(userId: string): Promise<string | null> {
   const { data, error } = await supabase
     .from('google_tokens')
     .select('*')
-    .eq('athlete_id', athleteId)
+    .eq('user_id', userId)
     .single()
 
   if (error || !data) return null
@@ -40,7 +39,7 @@ async function getAccessToken(athleteId: number): Promise<string | null> {
         expiry_date: Date.now() + refreshed.expires_in * 1000,
         updated_at: new Date().toISOString(),
       })
-      .eq('athlete_id', athleteId)
+      .eq('user_id', userId)
     return refreshed.access_token
   }
 
@@ -93,8 +92,8 @@ async function calendarFetch(method: string, path: string, token: string, body?:
 // ── Route handlers ────────────────────────────────────────────────────────────
 
 async function handleAuth(req: VercelRequest, res: VercelResponse) {
-  const { athlete_id } = req.query
-  if (!athlete_id) return res.status(400).json({ error: 'Missing athlete_id' })
+  const userId = await requireSession(req, res)
+  if (!userId) return
 
   const params = new URLSearchParams({
     client_id: CLIENT_ID,
@@ -103,14 +102,16 @@ async function handleAuth(req: VercelRequest, res: VercelResponse) {
     scope: SCOPE,
     access_type: 'offline',
     prompt: 'consent',
-    state: String(athlete_id),
   })
   return res.status(200).json({ url: `https://accounts.google.com/o/oauth2/v2/auth?${params}` })
 }
 
 async function handleCallback(req: VercelRequest, res: VercelResponse) {
-  const { code, state: athleteId } = req.query
-  if (!code || !athleteId) return res.status(400).json({ error: 'Missing code or state' })
+  const userId = await getSessionUserId(req)
+  if (!userId) return res.redirect('/login')
+
+  const { code } = req.query
+  if (!code) return res.status(400).json({ error: 'Missing code' })
 
   const tokenRes = await fetch('https://oauth2.googleapis.com/token', {
     method: 'POST',
@@ -129,44 +130,43 @@ async function handleCallback(req: VercelRequest, res: VercelResponse) {
   }
   const tokens = await tokenRes.json()
   const { error } = await supabase.from('google_tokens').upsert({
-    athlete_id: Number(athleteId),
+    user_id: userId,
     access_token: tokens.access_token,
     refresh_token: tokens.refresh_token,
     expiry_date: Date.now() + tokens.expires_in * 1000,
     updated_at: new Date().toISOString(),
-  }, { onConflict: 'athlete_id' })
+  }, { onConflict: 'user_id' })
 
   if (error) { console.error('Supabase error:', error); return res.status(500).json({ error: 'Failed to store tokens' }) }
   return res.redirect('/?gcal=connected')
 }
 
 async function handleSync(req: VercelRequest, res: VercelResponse) {
-  const { athlete_id } = req.query
-  if (!athlete_id) return res.status(400).json({ error: 'Missing athlete_id' })
-  const athleteId = Number(athlete_id)
+  const userId = await requireSession(req, res)
+  if (!userId) return
 
   // GET — check connection status
   if (req.method === 'GET') {
-    const { data } = await supabase.from('google_tokens').select('athlete_id').eq('athlete_id', athleteId).single()
+    const { data } = await supabase.from('google_tokens').select('user_id').eq('user_id', userId).single()
     return res.status(200).json({ connected: !!data })
   }
 
   // POST — upsert or delete event
   if (req.method === 'POST') {
     const { activity, date, action } = req.body
-    const accessToken = await getAccessToken(athleteId)
-    if (!accessToken) return res.status(401).json({ error: 'Google Calendar not connected' })
+    const accessToken = await getAccessToken(userId)
+    if (!accessToken) return res.status(409).json({ error: 'Google Calendar not connected' })
 
     const activityId = activity?.id
 
     if (action === 'delete' && activityId) {
       const { data: mapping } = await supabase
         .from('google_calendar_events').select('google_event_id')
-        .eq('athlete_id', athleteId).eq('activity_id', activityId).single()
+        .eq('user_id', userId).eq('activity_id', activityId).single()
       if (mapping?.google_event_id) {
         const r = await calendarFetch('DELETE', `/calendars/primary/events/${mapping.google_event_id}`, accessToken)
         if (!r.ok && r.status !== 404 && r.status !== 410) console.error('Delete error:', r.status)
-        await supabase.from('google_calendar_events').delete().eq('athlete_id', athleteId).eq('activity_id', activityId)
+        await supabase.from('google_calendar_events').delete().eq('user_id', userId).eq('activity_id', activityId)
       }
       return res.status(200).json({ ok: true })
     }
@@ -187,7 +187,7 @@ async function handleSync(req: VercelRequest, res: VercelResponse) {
 
     const { data: existing } = await supabase
       .from('google_calendar_events').select('google_event_id')
-      .eq('athlete_id', athleteId).eq('activity_id', activityId).single()
+      .eq('user_id', userId).eq('activity_id', activityId).single()
 
     if (existing?.google_event_id) {
       const r = await calendarFetch('PUT', `/calendars/primary/events/${existing.google_event_id}`, accessToken, eventBody)
@@ -198,17 +198,17 @@ async function handleSync(req: VercelRequest, res: VercelResponse) {
       if (!r.ok) { console.error('Create error:', r.status, await r.text()); return res.status(500).json({ error: 'Failed to create event' }) }
       const event = await r.json()
       await supabase.from('google_calendar_events').upsert({
-        athlete_id: athleteId, activity_id: activityId, google_event_id: event.id, date,
+        user_id: userId, activity_id: activityId, google_event_id: event.id, date,
         updated_at: new Date().toISOString(),
-      }, { onConflict: 'athlete_id,activity_id' })
+      }, { onConflict: 'user_id,activity_id' })
       return res.status(200).json({ ok: true, created: true, eventId: event.id })
     }
   }
 
   // DELETE — disconnect
   if (req.method === 'DELETE') {
-    await supabase.from('google_tokens').delete().eq('athlete_id', athleteId)
-    await supabase.from('google_calendar_events').delete().eq('athlete_id', athleteId)
+    await supabase.from('google_tokens').delete().eq('user_id', userId)
+    await supabase.from('google_calendar_events').delete().eq('user_id', userId)
     return res.status(200).json({ ok: true })
   }
 

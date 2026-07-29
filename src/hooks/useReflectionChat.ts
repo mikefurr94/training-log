@@ -13,7 +13,6 @@ import {
 function toCoachPlan(raw: any): CoachPlan {
   return {
     id: raw.id,
-    athleteId: raw.athleteId ?? raw.athlete_id,
     name: raw.name,
     raceName: raw.raceName ?? raw.race_name ?? undefined,
     raceDate: raw.raceDate ?? raw.race_date ?? undefined,
@@ -28,7 +27,7 @@ function toCoachPlan(raw: any): CoachPlan {
   }
 }
 
-export function useReflectionChat(athleteId: number | null) {
+export function useReflectionChat() {
   const [conversations, setConversations] = useState<ReflectionConversation[]>([])
   const [activeConversationId, setActiveConversationId] = useState<string | null>(null)
   const [messages, setMessages] = useState<ReflectionMessage[]>([])
@@ -40,23 +39,21 @@ export function useReflectionChat(athleteId: number | null) {
 
   // Load conversations on mount
   useEffect(() => {
-    if (!athleteId) return
-    fetchConversations(athleteId).then(setConversations).catch(console.error)
-  }, [athleteId])
+    fetchConversations().then(setConversations).catch(console.error)
+  }, [])
 
   const selectConversation = useCallback(async (id: string) => {
-    if (!athleteId) return
     setActiveConversationId(id)
     setMessages([])
     setStreamingContent('')
     setStreamingCharts([])
     try {
-      const msgs = await fetchMessages(athleteId, id)
+      const msgs = await fetchMessages(id)
       setMessages(msgs)
     } catch (err) {
       console.error('Failed to load messages:', err)
     }
-  }, [athleteId])
+  }, [])
 
   const startNewConversation = useCallback(() => {
     setActiveConversationId(null)
@@ -79,7 +76,7 @@ export function useReflectionChat(athleteId: number | null) {
   }, [activeConversationId, startNewConversation])
 
   const sendMessage = useCallback(async (text: string) => {
-    if (!athleteId || isStreaming) return
+    if (isStreaming) return
 
     // Optimistically add user message
     const userMsg: ReflectionMessage = {
@@ -105,7 +102,6 @@ export function useReflectionChat(athleteId: number | null) {
       abortRef.current = abort
 
       const response = await sendReflectionMessage(
-        athleteId,
         activeConversationId,
         text,
         history,
@@ -202,7 +198,7 @@ export function useReflectionChat(athleteId: number | null) {
       setToolStatus(null)
       abortRef.current = null
     }
-  }, [athleteId, activeConversationId, messages, isStreaming])
+  }, [activeConversationId, messages, isStreaming])
 
   return {
     conversations,

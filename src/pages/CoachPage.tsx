@@ -498,7 +498,6 @@ function ChatPanel({
 
 export default function CoachPage() {
   const isMobile = useIsMobile()
-  const athleteId = useAppStore((s) => s.athlete?.id)
   const coachView = useAppStore((s) => s.coachView)
   const setCoachView = useAppStore((s) => s.setCoachView)
   const coachPlan = useAppStore((s) => s.coachPlan)
@@ -515,7 +514,7 @@ export default function CoachPage() {
     selectConversation,
     startNewConversation,
     deleteConversation,
-  } = useReflectionChat(athleteId ?? null)
+  } = useReflectionChat()
 
   const [showSidebar, setShowSidebar] = useState(false)
   const featureFlags = useAppStore((s) => s.featureFlags)

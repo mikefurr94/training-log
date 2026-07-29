@@ -1,19 +1,19 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node'
-import { createClient } from '@supabase/supabase-js'
-
-const supabase = createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_SERVICE_KEY!)
+import { supabase } from './_lib/supabase.js'
+import { requireSession } from './_lib/session.js'
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
-  const { athlete_id, plan_id } = req.query
-  if (!athlete_id) return res.status(400).json({ error: 'Missing athlete_id' })
-  const athleteId = Number(athlete_id)
+  const userId = await requireSession(req, res)
+  if (!userId) return
 
-  // GET — load active coach plan for this athlete
+  const { plan_id } = req.query
+
+  // GET — load active coach plan for this user
   if (req.method === 'GET') {
     const { data, error } = await supabase
       .from('coach_plans')
       .select('*')
-      .eq('athlete_id', athleteId)
+      .eq('user_id', userId)
       .eq('status', 'active')
       .order('created_at', { ascending: false })
       .limit(1)
@@ -28,18 +28,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const body = req.body
     if (!body) return res.status(400).json({ error: 'Missing plan data' })
 
-    // Archive any existing active plan for this athlete
+    // Archive any existing active plan for this user
     await supabase
       .from('coach_plans')
       .update({ status: 'archived' })
-      .eq('athlete_id', athleteId)
+      .eq('user_id', userId)
       .eq('status', 'active')
 
     // Insert new plan
     const { data, error } = await supabase
       .from('coach_plans')
       .insert({
-        athlete_id: athleteId,
+        user_id: userId,
         name: body.name,
         race_name: body.raceName ?? null,
         race_date: body.raceDate ?? null,
@@ -75,7 +75,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       .from('coach_plans')
       .update(updates)
       .eq('id', plan_id)
-      .eq('athlete_id', athleteId)
+      .eq('user_id', userId)
       .select()
       .single()
 
@@ -91,7 +91,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       .from('coach_plans')
       .update({ status: 'archived', updated_at: new Date().toISOString() })
       .eq('id', plan_id)
-      .eq('athlete_id', athleteId)
+      .eq('user_id', userId)
 
     if (error) return res.status(500).json({ error: error.message })
     return res.status(200).json({ ok: true })

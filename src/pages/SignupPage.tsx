@@ -1,9 +1,9 @@
 import { useState } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
-import { login } from '../api/auth'
+import { signup } from '../api/auth'
 import { useAppStore } from '../store/useAppStore'
 
-export default function LoginPage() {
+export default function SignupPage() {
   const navigate = useNavigate()
   const setUser = useAppStore((s) => s.setUser)
   const [username, setUsername] = useState('')
@@ -16,11 +16,11 @@ export default function LoginPage() {
     setError(null)
     setSubmitting(true)
     try {
-      const user = await login(username, password)
+      const user = await signup(username, password)
       setUser(user)
       navigate('/', { replace: true })
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Login failed')
+      setError(err instanceof Error ? err.message : 'Signup failed')
     } finally {
       setSubmitting(false)
     }
@@ -68,14 +68,14 @@ export default function LoginPage() {
             letterSpacing: '-0.5px',
             marginBottom: 8,
           }}>
-            Training Log
+            Create account
           </h1>
           <p style={{
             fontSize: 'var(--font-size-base)',
             color: 'var(--color-text-secondary)',
             lineHeight: 'var(--line-height-normal)',
           }}>
-            Sign in to your account.
+            Strava is optional — connect it later from Settings.
           </p>
         </div>
 
@@ -91,10 +91,10 @@ export default function LoginPage() {
           />
           <input
             type="password"
-            placeholder="Password"
+            placeholder="Password (min. 8 characters)"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            autoComplete="current-password"
+            autoComplete="new-password"
             style={inputStyle}
           />
           {error && (
@@ -114,13 +114,13 @@ export default function LoginPage() {
               cursor: submitting ? 'default' : 'pointer',
             }}
           >
-            {submitting ? 'Signing in…' : 'Sign in'}
+            {submitting ? 'Creating account…' : 'Sign up'}
           </button>
         </form>
 
         <p style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-tertiary)' }}>
-          Need an account?{' '}
-          <Link to="/signup" style={{ color: 'var(--color-accent)', fontWeight: 500 }}>Sign up</Link>
+          Already have an account?{' '}
+          <Link to="/login" style={{ color: 'var(--color-accent)', fontWeight: 500 }}>Sign in</Link>
         </p>
       </div>
     </div>

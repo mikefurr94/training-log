@@ -1,17 +1,15 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node'
-import { createClient } from '@supabase/supabase-js'
-
-const supabase = createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_SERVICE_KEY!)
-
-const STRAVA_BASE = 'https://www.strava.com/api/v3'
+import { supabase } from './_lib/supabase.js'
+import { requireSession } from './_lib/session.js'
+import { getValidStravaConnection } from './_lib/stravaConnection.js'
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Activity = Record<string, any>
 
-async function fetchFromStrava(path: string, params: Record<string, string>, auth: string): Promise<Activity[]> {
-  const url = new URL(`${STRAVA_BASE}${path}`)
+async function fetchFromStrava(path: string, params: Record<string, string>, accessToken: string): Promise<Activity[]> {
+  const url = new URL(`https://www.strava.com/api/v3${path}`)
   Object.entries(params).forEach(([k, v]) => url.searchParams.set(k, v))
-  const res = await fetch(url.toString(), { headers: { Authorization: auth } })
+  const res = await fetch(url.toString(), { headers: { Authorization: `Bearer ${accessToken}` } })
   if (!res.ok) {
     const body = await res.text().catch(() => '')
     console.error(`[api/activities] Strava error ${res.status}:`, body)
@@ -21,24 +19,26 @@ async function fetchFromStrava(path: string, params: Record<string, string>, aut
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
-  const auth = req.headers['authorization']
-  if (!auth) return res.status(401).json({ error: 'Missing authorization header' })
+  const userId = await requireSession(req, res)
+  if (!userId) return
 
-  const { athlete_id, after, before } = req.query
-  if (!athlete_id || !after || !before) {
-    return res.status(400).json({ error: 'Missing athlete_id, after, or before params' })
+  const { after, before } = req.query
+  if (!after || !before) {
+    return res.status(400).json({ error: 'Missing after or before params' })
   }
 
-  const athleteId = Number(athlete_id)
   const afterTs = Number(after)
   const beforeTs = Number(before)
+
+  const connection = await getValidStravaConnection(userId)
+  if (!connection) return res.status(200).json([])
 
   try {
     // 1. Check Supabase cache for activities in this range
     const { data: cached } = await supabase
       .from('activities')
       .select('id, data')
-      .eq('athlete_id', athleteId)
+      .eq('user_id', userId)
       .gte('data->>start_date_local', new Date(afterTs * 1000).toISOString().slice(0, 10))
       .lte('data->>start_date_local', new Date(beforeTs * 1000).toISOString().slice(0, 10))
 
@@ -54,7 +54,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         before: String(beforeTs),
         per_page: '200',
         page: String(page),
-      }, auth)
+      }, connection.accessToken)
       fresh.push(...batch)
       if (batch.length < 200) break
       page++
@@ -66,7 +66,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       await supabase.from('activities').upsert(
         toUpsert.map((a) => ({
           id: a.id,
-          athlete_id: athleteId,
+          athlete_id: connection.athleteId,
+          user_id: userId,
           data: a,
           fetched_at: new Date().toISOString(),
         }))

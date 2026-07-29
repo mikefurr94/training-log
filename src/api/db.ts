@@ -1,13 +1,14 @@
 // Frontend API calls to our Supabase-backed serverless functions
+import { apiFetch } from './client'
 
-export async function loadPlan(athleteId: number): Promise<Record<string, unknown>> {
-  const res = await fetch(`/api/plan?athlete_id=${athleteId}`)
+export async function loadPlan(): Promise<Record<string, unknown>> {
+  const res = await apiFetch('/api/plan')
   if (!res.ok) throw new Error('Failed to load plan')
   return res.json()
 }
 
-export async function savePlan(athleteId: number, data: Record<string, unknown>): Promise<void> {
-  const res = await fetch(`/api/plan?athlete_id=${athleteId}`, {
+export async function savePlan(data: Record<string, unknown>): Promise<void> {
+  const res = await apiFetch('/api/plan', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data),
@@ -17,14 +18,14 @@ export async function savePlan(athleteId: number, data: Record<string, unknown>)
 
 // ── Race Goals ──────────────────────────────────────────────────────────────
 
-export async function loadRaceGoals(athleteId: number): Promise<Record<string, string>> {
-  const res = await fetch(`/api/race-goals?athlete_id=${athleteId}`)
+export async function loadRaceGoals(): Promise<Record<string, string>> {
+  const res = await apiFetch('/api/race-goals')
   if (!res.ok) throw new Error('Failed to load race goals')
   return res.json()
 }
 
-export async function saveRaceGoals(athleteId: number, goals: Record<string, string>): Promise<void> {
-  const res = await fetch(`/api/race-goals?athlete_id=${athleteId}`, {
+export async function saveRaceGoals(goals: Record<string, string>): Promise<void> {
+  const res = await apiFetch('/api/race-goals', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ goals }),
@@ -34,14 +35,13 @@ export async function saveRaceGoals(athleteId: number, goals: Record<string, str
 
 // ── Coach Plan ──────────────────────────────────────────────────────────────
 
-export async function loadCoachPlan(athleteId: number): Promise<Record<string, unknown> | null> {
-  const res = await fetch(`/api/coach-plan?athlete_id=${athleteId}`)
+export async function loadCoachPlan(): Promise<Record<string, unknown> | null> {
+  const res = await apiFetch('/api/coach-plan')
   if (!res.ok) throw new Error('Failed to load coach plan')
   return res.json()
 }
 
 export async function saveCoachPlan(
-  athleteId: number,
   plan: {
     name: string
     raceName?: string
@@ -53,7 +53,7 @@ export async function saveCoachPlan(
     conversationId?: string
   },
 ): Promise<Record<string, unknown>> {
-  const res = await fetch(`/api/coach-plan?athlete_id=${athleteId}`, {
+  const res = await apiFetch('/api/coach-plan', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(plan),
@@ -63,11 +63,10 @@ export async function saveCoachPlan(
 }
 
 export async function updateCoachPlan(
-  athleteId: number,
   planId: string,
   updates: Record<string, unknown>,
 ): Promise<Record<string, unknown>> {
-  const res = await fetch(`/api/coach-plan?athlete_id=${athleteId}&plan_id=${planId}`, {
+  const res = await apiFetch(`/api/coach-plan?plan_id=${planId}`, {
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(updates),

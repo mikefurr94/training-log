@@ -1,60 +1,53 @@
-import { useAppStore } from '../store/useAppStore'
-import type { StravaAthlete } from '../store/types'
+import { apiFetch } from './client'
+import type { AuthUser } from '../store/types'
 
-interface TokenResponse {
-  access_token: string
-  refresh_token: string
-  expires_at: number
-  athlete: StravaAthlete
+interface MeResponse extends AuthUser {
+  stravaConnected: boolean
 }
 
-interface RefreshResponse {
-  access_token: string
-  refresh_token: string
-  expires_at: number
+// Plain fetch (not apiFetch) — a 401 here means "wrong credentials", not
+// "session expired", so it shouldn't trigger the logout/redirect behavior.
+export async function signup(username: string, password: string): Promise<AuthUser> {
+  const res = await fetch('/api/auth/signup', {
+    method: 'POST',
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ username, password }),
+  })
+  const data = await res.json().catch(() => ({}))
+  if (!res.ok) throw new Error(data.error ?? 'Signup failed')
+  return data
 }
 
-// Exchange the OAuth code for tokens (called from CallbackPage)
-export async function exchangeCode(code: string): Promise<TokenResponse> {
-  const res = await fetch(`/api/auth/callback?code=${encodeURIComponent(code)}`)
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({}))
-    throw new Error(err.error ?? 'Token exchange failed')
-  }
+export async function login(username: string, password: string): Promise<AuthUser> {
+  const res = await fetch('/api/auth/login', {
+    method: 'POST',
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ username, password }),
+  })
+  const data = await res.json().catch(() => ({}))
+  if (!res.ok) throw new Error(data.error ?? 'Login failed')
+  return data
+}
+
+export async function logout(): Promise<void> {
+  await apiFetch('/api/auth/logout', { method: 'POST' })
+}
+
+/**
+ * Returns the current session's user + Strava connection status, or null if
+ * not logged in. Plain fetch (not apiFetch) — an unauthenticated 401 here is
+ * the normal state for a logged-out visitor, handled declaratively by
+ * RequireAuth, not by apiFetch's redirect-on-401 side effect.
+ */
+export async function fetchMe(): Promise<MeResponse | null> {
+  const res = await fetch('/api/auth/me', { credentials: 'include' })
+  if (!res.ok) return null
   return res.json()
 }
 
-// Get a valid access token, refreshing if necessary
-export async function getValidToken(): Promise<string> {
-  const store = useAppStore.getState()
-  const { accessToken, refreshToken, tokenExpiresAt } = store
-
-  if (!accessToken || !refreshToken) {
-    throw new Error('Not authenticated')
-  }
-
-  // Refresh if token expires within 5 minutes
-  const now = Math.floor(Date.now() / 1000)
-  if (tokenExpiresAt && tokenExpiresAt - now < 300) {
-    const res = await fetch('/api/auth/refresh', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ refresh_token: refreshToken }),
-    })
-
-    if (!res.ok) {
-      store.logout()
-      throw new Error('Token refresh failed — please reconnect Strava')
-    }
-
-    const data: RefreshResponse = await res.json()
-    store.updateTokens(data.access_token, data.refresh_token, data.expires_at)
-    return data.access_token
-  }
-
-  return accessToken
-}
-
-export function logout(): void {
-  useAppStore.getState().logout()
+export async function disconnectStrava(): Promise<void> {
+  const res = await apiFetch('/api/auth/strava-disconnect', { method: 'POST' })
+  if (!res.ok) throw new Error('Failed to disconnect Strava')
 }

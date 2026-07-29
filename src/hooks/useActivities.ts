@@ -9,7 +9,7 @@ export function useActivities() {
   const fetchingRef = useRef(false)
 
   useEffect(() => {
-    if (!store.accessToken) return
+    if (!store.stravaConnected) return
     if (store.isRangeFetched(start, end)) return
     if (fetchingRef.current) return
 
@@ -42,7 +42,7 @@ export function useActivities() {
         store.setLoading(false)
         fetchingRef.current = false
       })
-  }, [start.getTime(), end.getTime(), store.accessToken])
+  }, [start.getTime(), end.getTime(), store.stravaConnected])
 
   return store.activitiesByDate
 }

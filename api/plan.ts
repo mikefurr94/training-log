@@ -1,19 +1,17 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node'
-import { createClient } from '@supabase/supabase-js'
-
-const supabase = createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_SERVICE_KEY!)
+import { supabase } from './_lib/supabase.js'
+import { requireSession } from './_lib/session.js'
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
-  const { athlete_id } = req.query
-  if (!athlete_id) return res.status(400).json({ error: 'Missing athlete_id' })
-  const athleteId = Number(athlete_id)
+  const userId = await requireSession(req, res)
+  if (!userId) return
 
-  // GET — load training plan for this athlete
+  // GET — load training plan for this user
   if (req.method === 'GET') {
     const { data, error } = await supabase
       .from('training_plan')
       .select('data')
-      .eq('athlete_id', athleteId)
+      .eq('user_id', userId)
       .single()
 
     if (error && error.code !== 'PGRST116') { // PGRST116 = no rows found
@@ -24,15 +22,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(200).json(data?.data ?? {})
   }
 
-  // POST — save training plan for this athlete
+  // POST — save training plan for this user
   if (req.method === 'POST') {
     const planData = req.body
     if (!planData) return res.status(400).json({ error: 'Missing plan data' })
 
     const { error } = await supabase
       .from('training_plan')
-      .upsert({ athlete_id: athleteId, data: planData, updated_at: new Date().toISOString() },
-        { onConflict: 'athlete_id' })
+      .upsert({ user_id: userId, data: planData, updated_at: new Date().toISOString() },
+        { onConflict: 'user_id' })
 
     if (error) {
       console.error('[api/plan] POST error:', error)

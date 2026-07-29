@@ -15,16 +15,10 @@ export default defineConfig({
       '/api/auth': {
         target: 'http://localhost:3001',
         changeOrigin: true,
-        rewrite: (path) => path.replace(/^\/api/, ''),
-      },
-      '/auth': {
-        target: 'http://localhost:3001',
-        changeOrigin: true,
       },
       '/api/strava': {
-        target: 'https://www.strava.com/api/v3',
+        target: 'http://localhost:3001',
         changeOrigin: true,
-        rewrite: (p) => p.replace(/^\/api\/strava/, ''),
       },
       '/api/reflection': {
         target: 'http://localhost:3001',

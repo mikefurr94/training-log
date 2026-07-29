@@ -26,7 +26,6 @@ const GOAL_COLOR = '#f59e0b'
 
 export default function RacePredictorPage() {
   const activitiesByDate = useRacePredictorData()
-  const athlete = useAppStore((s) => s.athlete)
   const isMobile = useIsMobile()
 
   const [selectedTab, setSelectedTab] = useState(0)
@@ -41,8 +40,7 @@ export default function RacePredictorPage() {
 
   // Load goals + VO2Max from Supabase
   useEffect(() => {
-    if (!athlete?.id) return
-    loadRaceGoals(athlete.id)
+    loadRaceGoals()
       .then((g: any) => {
         // VO2Max is stored alongside goals in the same JSONB
         const { _vo2max, _vo2maxDate, ...rest } = g
@@ -55,7 +53,7 @@ export default function RacePredictorPage() {
         setGoalsLoaded(true)
       })
       .catch(() => setGoalsLoaded(true))
-  }, [athlete?.id])
+  }, [])
 
   // Sync goalInput when tab changes or goals load
   useEffect(() => {
@@ -65,25 +63,24 @@ export default function RacePredictorPage() {
 
   const handleSaveVo2max = useCallback(() => {
     const val = parseFloat(vo2maxInput)
-    if (isNaN(val) || val < 15 || val > 90 || !athlete?.id) return
+    if (isNaN(val) || val < 15 || val > 90) return
     const today = new Date().toISOString().slice(0, 10)
     setVo2max(val)
     setVo2maxDate(today)
     setVo2maxInput(String(val))
     const updated = { ...goals, _vo2max: String(val), _vo2maxDate: today }
-    saveRaceGoals(athlete.id, updated).catch(() => {})
-  }, [vo2maxInput, athlete?.id, goals])
+    saveRaceGoals(updated).catch(() => {})
+  }, [vo2maxInput, goals])
 
   const handleClearVo2max = useCallback(() => {
-    if (!athlete?.id) return
     setVo2max(null)
     setVo2maxDate('')
     setVo2maxInput('')
     const updated = { ...goals }
     delete (updated as any)._vo2max
     delete (updated as any)._vo2maxDate
-    saveRaceGoals(athlete.id, updated).catch(() => {})
-  }, [athlete?.id, goals])
+    saveRaceGoals(updated).catch(() => {})
+  }, [goals])
 
   const result = useMemo<PredictionResult | null>(
     () => generatePredictions(activitiesByDate, undefined, vo2max),
@@ -102,22 +99,21 @@ export default function RacePredictorPage() {
 
   const handleSaveGoal = useCallback(() => {
     const parsed = parseGoalTime(goalInput)
-    if (!parsed || !athlete?.id) return
+    if (!parsed) return
     const formatted = formatGoalTime(parsed)
     const updated = { ...goals, [currentDistance.name]: formatted }
     setGoals(updated)
     setGoalInput(formatted)
-    saveRaceGoals(athlete.id, updated).catch(() => {})
-  }, [goalInput, athlete?.id, goals, currentDistance.name])
+    saveRaceGoals(updated).catch(() => {})
+  }, [goalInput, goals, currentDistance.name])
 
   const handleClearGoal = useCallback(() => {
-    if (!athlete?.id) return
     const updated = { ...goals }
     delete updated[currentDistance.name]
     setGoals(updated)
     setGoalInput('')
-    saveRaceGoals(athlete.id, updated).catch(() => {})
-  }, [athlete?.id, goals, currentDistance.name])
+    saveRaceGoals(updated).catch(() => {})
+  }, [goals, currentDistance.name])
 
   // Filter out null points for the chart
   const chartData = trendData.filter((d) => d.predictedTime !== null)

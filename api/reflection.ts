@@ -1,8 +1,8 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node'
-import { createClient } from '@supabase/supabase-js'
 import Anthropic from '@anthropic-ai/sdk'
+import { supabase } from './_lib/supabase.js'
+import { requireSession } from './_lib/session.js'
 
-const supabase = createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_SERVICE_KEY!)
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
 
 // ── Tool Definitions ────────────────────────────────────────────────────────
@@ -216,12 +216,12 @@ function getWeekLabel(dateStr: string): string {
   return `${month} ${monday.getDate()}`
 }
 
-async function executeGetWeeklyStats(athleteId: number, input: ToolInput): Promise<string> {
+async function executeGetWeeklyStats(userId: string, input: ToolInput): Promise<string> {
   const { start_date, end_date } = input
   const { data, error } = await supabase
     .from('activities')
     .select('data')
-    .eq('athlete_id', athleteId)
+    .eq('user_id', userId)
     .gte('data->>start_date_local', `${start_date}T00:00:00`)
     .lte('data->>start_date_local', `${end_date}T23:59:59`)
 
@@ -269,12 +269,12 @@ async function executeGetWeeklyStats(athleteId: number, input: ToolInput): Promi
   return JSON.stringify({ weeks: weekStats, totalActivities: activities.length })
 }
 
-async function executeGetActivities(athleteId: number, input: ToolInput): Promise<string> {
+async function executeGetActivities(userId: string, input: ToolInput): Promise<string> {
   const { start_date, end_date, activity_type } = input
   const { data, error } = await supabase
     .from('activities')
     .select('data')
-    .eq('athlete_id', athleteId)
+    .eq('user_id', userId)
     .gte('data->>start_date_local', `${start_date}T00:00:00`)
     .lte('data->>start_date_local', `${end_date}T23:59:59`)
 
@@ -314,12 +314,12 @@ async function executeGetActivities(athleteId: number, input: ToolInput): Promis
   })
 }
 
-async function executeGetHabitData(athleteId: number, input: ToolInput): Promise<string> {
+async function executeGetHabitData(userId: string, input: ToolInput): Promise<string> {
   const { start_date, end_date } = input
   const { data, error } = await supabase
     .from('habit_completions')
     .select('date, habit_ids')
-    .eq('athlete_id', athleteId)
+    .eq('user_id', userId)
     .gte('date', start_date)
     .lte('date', end_date)
 
@@ -352,11 +352,11 @@ async function executeGetHabitData(athleteId: number, input: ToolInput): Promise
 
 // ── Training Plan Tool Execution ────────────────────────────────────────────
 
-async function executeGetTrainingPlan(athleteId: number): Promise<string> {
+async function executeGetTrainingPlan(userId: string): Promise<string> {
   const { data, error } = await supabase
     .from('coach_plans')
     .select('*')
-    .eq('athlete_id', athleteId)
+    .eq('user_id', userId)
     .eq('status', 'active')
     .order('created_at', { ascending: false })
     .limit(1)
@@ -384,7 +384,7 @@ async function executeGetTrainingPlan(athleteId: number): Promise<string> {
 }
 
 async function executeSaveTrainingPlan(
-  athleteId: number,
+  userId: string,
   input: ToolInput,
   conversationId: string | null,
 ): Promise<{ result: string; plan: ToolInput | null }> {
@@ -392,14 +392,14 @@ async function executeSaveTrainingPlan(
   await supabase
     .from('coach_plans')
     .update({ status: 'archived' })
-    .eq('athlete_id', athleteId)
+    .eq('user_id', userId)
     .eq('status', 'active')
 
   // Insert new plan
   const { data, error } = await supabase
     .from('coach_plans')
     .insert({
-      athlete_id: athleteId,
+      user_id: userId,
       name: input.name,
       race_name: input.raceName ?? null,
       race_date: input.raceDate ?? null,
@@ -417,7 +417,6 @@ async function executeSaveTrainingPlan(
 
   const plan = {
     id: data.id,
-    athleteId: data.athlete_id,
     name: data.name,
     raceName: data.race_name,
     raceDate: data.race_date,
@@ -438,14 +437,14 @@ async function executeSaveTrainingPlan(
 }
 
 async function executeUpdateTrainingPlan(
-  athleteId: number,
+  userId: string,
   input: ToolInput,
 ): Promise<{ result: string; plan: ToolInput | null }> {
   // Load current plan
   const { data: current, error: loadErr } = await supabase
     .from('coach_plans')
     .select('*')
-    .eq('athlete_id', athleteId)
+    .eq('user_id', userId)
     .eq('status', 'active')
     .order('created_at', { ascending: false })
     .limit(1)
@@ -475,7 +474,6 @@ async function executeUpdateTrainingPlan(
 
   const plan = {
     id: data.id,
-    athleteId: data.athlete_id,
     name: data.name,
     raceName: data.race_name,
     raceDate: data.race_date,
@@ -601,12 +599,23 @@ async function generateTitle(userMessage: string, assistantMessage: string): Pro
 // ── Main Handler ────────────────────────────────────────────────────────────
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
+  const userId = await requireSession(req, res)
+  if (!userId) return
+
   // GET — list conversations or load messages
   if (req.method === 'GET') {
-    const { athlete_id, conversation_id } = req.query
+    const { conversation_id } = req.query
 
     if (conversation_id) {
-      // Load messages for a conversation
+      // Verify the conversation belongs to this user before returning messages
+      const { data: conv } = await supabase
+        .from('reflection_conversations')
+        .select('id')
+        .eq('id', conversation_id)
+        .eq('user_id', userId)
+        .single()
+      if (!conv) return res.status(404).json({ error: 'Conversation not found' })
+
       const { data, error } = await supabase
         .from('reflection_messages')
         .select('*')
@@ -625,27 +634,23 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(200).json({ messages })
     }
 
-    if (athlete_id) {
-      // List conversations
-      const { data, error } = await supabase
-        .from('reflection_conversations')
-        .select('*')
-        .eq('athlete_id', Number(athlete_id))
-        .order('updated_at', { ascending: false })
-        .limit(50)
+    // List conversations
+    const { data, error } = await supabase
+      .from('reflection_conversations')
+      .select('*')
+      .eq('user_id', userId)
+      .order('updated_at', { ascending: false })
+      .limit(50)
 
-      if (error) return res.status(500).json({ error: error.message })
+    if (error) return res.status(500).json({ error: error.message })
 
-      const conversations = (data ?? []).map((r) => ({
-        id: r.id,
-        title: r.title,
-        createdAt: r.created_at,
-        updatedAt: r.updated_at,
-      }))
-      return res.status(200).json({ conversations })
-    }
-
-    return res.status(400).json({ error: 'Missing athlete_id or conversation_id' })
+    const conversations = (data ?? []).map((r) => ({
+      id: r.id,
+      title: r.title,
+      createdAt: r.created_at,
+      updatedAt: r.updated_at,
+    }))
+    return res.status(200).json({ conversations })
   }
 
   // DELETE — delete a conversation
@@ -657,6 +662,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       .from('reflection_conversations')
       .delete()
       .eq('id', conversation_id)
+      .eq('user_id', userId)
 
     if (error) return res.status(500).json({ error: error.message })
     return res.status(200).json({ ok: true })
@@ -664,12 +670,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   // POST — send message with SSE streaming
   if (req.method === 'POST') {
-    const { athlete_id, conversation_id, message, history } = req.body
-    if (!athlete_id || !message) {
-      return res.status(400).json({ error: 'Missing athlete_id or message' })
+    const { conversation_id, message, history } = req.body
+    if (!message) {
+      return res.status(400).json({ error: 'Missing message' })
     }
-
-    const athleteId = Number(athlete_id)
 
     // Set up SSE
     res.setHeader('Content-Type', 'text/event-stream')
@@ -685,7 +689,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       if (!convId) {
         const { data: conv, error } = await supabase
           .from('reflection_conversations')
-          .insert({ athlete_id: athleteId, title: 'New conversation' })
+          .insert({ user_id: userId, title: 'New conversation' })
           .select()
           .single()
 
@@ -775,19 +779,19 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 sseWrite(res, { type: 'chart', spec: parsedInput })
                 toolResult = JSON.stringify({ success: true, message: 'Chart rendered successfully.' })
               } else if (currentToolUse.name === 'get_weekly_stats') {
-                toolResult = await executeGetWeeklyStats(athleteId, parsedInput)
+                toolResult = await executeGetWeeklyStats(userId, parsedInput)
               } else if (currentToolUse.name === 'get_activities') {
-                toolResult = await executeGetActivities(athleteId, parsedInput)
+                toolResult = await executeGetActivities(userId, parsedInput)
               } else if (currentToolUse.name === 'get_habit_data') {
-                toolResult = await executeGetHabitData(athleteId, parsedInput)
+                toolResult = await executeGetHabitData(userId, parsedInput)
               } else if (currentToolUse.name === 'get_training_plan') {
-                toolResult = await executeGetTrainingPlan(athleteId)
+                toolResult = await executeGetTrainingPlan(userId)
               } else if (currentToolUse.name === 'save_training_plan') {
-                const { result, plan } = await executeSaveTrainingPlan(athleteId, parsedInput, convId)
+                const { result, plan } = await executeSaveTrainingPlan(userId, parsedInput, convId)
                 toolResult = result
                 if (plan) sseWrite(res, { type: 'plan_saved', plan })
               } else if (currentToolUse.name === 'update_training_plan') {
-                const { result, plan } = await executeUpdateTrainingPlan(athleteId, parsedInput)
+                const { result, plan } = await executeUpdateTrainingPlan(userId, parsedInput)
                 toolResult = result
                 if (plan) sseWrite(res, { type: 'plan_updated', plan })
               } else {

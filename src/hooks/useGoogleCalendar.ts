@@ -14,13 +14,13 @@ import type { PlannedActivity } from '../store/types'
  * Checks connection status on mount and provides sync helpers.
  */
 export function useGoogleCalendar() {
-  const athlete = useAppStore((s) => s.athlete)
+  const user = useAppStore((s) => s.user)
   const connected = useAppStore((s) => s.googleCalendarConnected)
   const setConnected = useAppStore((s) => s.setGoogleCalendarConnected)
 
   // Check connection status on mount + when URL has ?gcal=connected
   useEffect(() => {
-    if (!athlete?.id) return
+    if (!user) return
 
     // Check if we just came back from OAuth
     const params = new URLSearchParams(window.location.search)
@@ -32,38 +32,36 @@ export function useGoogleCalendar() {
     }
 
     // Otherwise check with server
-    checkGoogleCalendarConnection(athlete.id).then(setConnected).catch(() => setConnected(false))
-  }, [athlete?.id])
+    checkGoogleCalendarConnection().then(setConnected).catch(() => setConnected(false))
+  }, [user])
 
   const connect = useCallback(async () => {
-    if (!athlete?.id) return
-    const url = await getGoogleAuthUrl(athlete.id)
+    const url = await getGoogleAuthUrl()
     window.location.href = url
-  }, [athlete?.id])
+  }, [])
 
   const disconnect = useCallback(async () => {
-    if (!athlete?.id) return
-    await disconnectGoogleCalendar(athlete.id)
+    await disconnectGoogleCalendar()
     setConnected(false)
-  }, [athlete?.id])
+  }, [])
 
   const syncActivity = useCallback(async (activity: PlannedActivity, date: string) => {
-    if (!athlete?.id || !connected) return
+    if (!connected) return
     try {
-      await syncActivityToCalendar(athlete.id, activity, date)
+      await syncActivityToCalendar(activity, date)
     } catch (err) {
       console.error('Failed to sync to Google Calendar:', err)
     }
-  }, [athlete?.id, connected])
+  }, [connected])
 
   const deleteActivity = useCallback(async (activityId: string) => {
-    if (!athlete?.id || !connected) return
+    if (!connected) return
     try {
-      await deleteCalendarEvent(athlete.id, activityId)
+      await deleteCalendarEvent(activityId)
     } catch (err) {
       console.error('Failed to delete Google Calendar event:', err)
     }
-  }, [athlete?.id, connected])
+  }, [connected])
 
   return {
     connected,
