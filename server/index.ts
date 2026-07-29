@@ -26,13 +26,7 @@ function mount(route: string, modulePath: string) {
   })
 }
 
-mount('/api/auth/signup', '../api/auth/signup.js')
-mount('/api/auth/login', '../api/auth/login.js')
-mount('/api/auth/logout', '../api/auth/logout.js')
-mount('/api/auth/me', '../api/auth/me.js')
-mount('/api/auth/strava-connect', '../api/auth/strava-connect.js')
-mount('/api/auth/strava-callback', '../api/auth/strava-callback.js')
-mount('/api/auth/strava-disconnect', '../api/auth/strava-disconnect.js')
+mount('/api/auth', '../api/auth.js')
 
 // Mirrors the prod vercel.json rewrite: /api/strava/:path* -> /api/strava?path=:path*
 app.all('/api/strava/*', async (req, res) => {

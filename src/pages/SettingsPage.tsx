@@ -107,7 +107,7 @@ export default function SettingsPage() {
             {disconnecting ? 'Disconnecting…' : 'Disconnect'}
           </button>
         ) : (
-          <a href="/api/auth/strava-connect" style={primaryButtonStyle}>Connect Strava</a>
+          <a href="/api/auth?action=strava-connect" style={primaryButtonStyle}>Connect Strava</a>
         )}
       </section>
 

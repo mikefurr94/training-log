@@ -8,7 +8,7 @@ interface MeResponse extends AuthUser {
 // Plain fetch (not apiFetch) — a 401 here means "wrong credentials", not
 // "session expired", so it shouldn't trigger the logout/redirect behavior.
 export async function signup(username: string, password: string): Promise<AuthUser> {
-  const res = await fetch('/api/auth/signup', {
+  const res = await fetch('/api/auth?action=signup', {
     method: 'POST',
     credentials: 'include',
     headers: { 'Content-Type': 'application/json' },
@@ -20,7 +20,7 @@ export async function signup(username: string, password: string): Promise<AuthUs
 }
 
 export async function login(username: string, password: string): Promise<AuthUser> {
-  const res = await fetch('/api/auth/login', {
+  const res = await fetch('/api/auth?action=login', {
     method: 'POST',
     credentials: 'include',
     headers: { 'Content-Type': 'application/json' },
@@ -32,7 +32,7 @@ export async function login(username: string, password: string): Promise<AuthUse
 }
 
 export async function logout(): Promise<void> {
-  await apiFetch('/api/auth/logout', { method: 'POST' })
+  await apiFetch('/api/auth?action=logout', { method: 'POST' })
 }
 
 /**
@@ -42,12 +42,12 @@ export async function logout(): Promise<void> {
  * RequireAuth, not by apiFetch's redirect-on-401 side effect.
  */
 export async function fetchMe(): Promise<MeResponse | null> {
-  const res = await fetch('/api/auth/me', { credentials: 'include' })
+  const res = await fetch('/api/auth?action=me', { credentials: 'include' })
   if (!res.ok) return null
   return res.json()
 }
 
 export async function disconnectStrava(): Promise<void> {
-  const res = await apiFetch('/api/auth/strava-disconnect', { method: 'POST' })
+  const res = await apiFetch('/api/auth?action=strava-disconnect', { method: 'POST' })
   if (!res.ok) throw new Error('Failed to disconnect Strava')
 }
