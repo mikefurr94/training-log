@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>mike-style preview</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@300;400&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #f8f9fa; --card: #fff; --border: #e5e7eb; --text: #111827; --muted: #6b7280;
+    --accent: #2A9D8F; --accent-hover: #1F7A6F;
+    --ok-bg: #dcfce7; --ok: #15803d; --warn-bg: #fef9c3; --warn: #a16207; --err-bg: #fee2e2; --err: #b91c1c;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0f1615; --card: #1a2322; --border: #2a3634; --text: #e5eeec; --muted: #8fa09c;
+      --ok-bg: #14301f; --ok: #86efac; --warn-bg: #33300f; --warn: #fde047; --err-bg: #3a1515; --err: #fca5a5;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text); font: 400 14px/1.5 Inter, sans-serif; -webkit-font-smoothing: antialiased; }
+  main { max-width: 768px; margin: 0 auto; padding: 48px 16px; display: grid; gap: 32px; }
+  h1 { font-size: 24px; line-height: 1.25; margin: 0 0 4px; font-weight: 700; }
+  h2 { font-size: 11px; font-weight: 500; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); margin: 0 0 12px; }
+  p { margin: 0; color: var(--muted); }
+  .card { background: var(--card); border: 1px solid var(--border); border-radius: 14px; padding: 20px; box-shadow: 0 1px 3px rgba(0,0,0,.05); }
+  .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; }
+  .label { font-size: 11px; font-weight: 500; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+  .value { font: 700 28px/1.25 'DM Mono', monospace; font-variant-numeric: tabular-nums; margin-top: 4px; }
+  .sub { font-size: 13px; color: var(--muted); }
+  .pill { display: inline-block; font-size: 12px; font-weight: 500; padding: 2px 8px; border-radius: 999px; }
+  .ok { background: var(--ok-bg); color: var(--ok); } .warn { background: var(--warn-bg); color: var(--warn); } .err { background: var(--err-bg); color: var(--err); }
+  .row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+  button, input { font: inherit; height: 36px; border-radius: 8px; }
+  button { padding: 0 16px; border: 0; background: var(--accent); color: #fff; font-weight: 500; cursor: pointer; transition: background-color 150ms; }
+  button:hover { background: var(--accent-hover); }
+  button.ghost { background: transparent; color: var(--text); border: 1px solid var(--border); }
+  button.ghost:hover { background: rgba(42,157,143,.08); }
+  input { padding: 0 12px; border: 1px solid var(--border); background: var(--card); color: var(--text); outline: none; transition: box-shadow 150ms; }
+  input:focus { box-shadow: 0 0 0 3px rgba(42,157,143,.35); border-color: var(--accent); }
+  .bar { height: 6px; border-radius: 999px; background: var(--border); overflow: hidden; margin-top: 12px; }
+  .bar > i { display: block; height: 100%; width: 68%; background: var(--accent); border-radius: 999px; }
+  table { width: 100%; border-collapse: collapse; }
+  td, th { padding: 8px 0; text-align: left; font-variant-numeric: tabular-nums; }
+  td:last-child, th:last-child { text-align: right; }
+  th { font-size: 11px; font-weight: 500; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+  .empty { border: 1px dashed var(--border); border-radius: 14px; padding: 32px; text-align: center; display: grid; gap: 12px; justify-items: center; }
+  .empty b { font-weight: 600; }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <h1>mike-style</h1>
+    <p>Off-white page, white cards, teal accent, muted colors, Inter + DM Mono.</p>
+  </header>
+
+  <section>
+    <h2>Stat cards</h2>
+    <div class="stats">
+      <div class="card"><div class="label">Weekly distance</div><div class="value">32.4</div><div class="sub">miles · <span class="pill ok">▲ 8%</span></div></div>
+      <div class="card"><div class="label">Avg pace</div><div class="value">8:42</div><div class="sub">per mile · <span class="pill err">▼ 3%</span></div></div>
+      <div class="card"><div class="label">Long run</div><div class="value">14.0</div><div class="sub">miles · <span class="pill warn">Taper soon</span></div></div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Progress and table</h2>
+    <div class="card">
+      <div class="row" style="justify-content:space-between"><b style="font-weight:600">Marathon block</b><span class="sub">68%</span></div>
+      <div class="bar"><i></i></div>
+      <table style="margin-top:16px">
+        <tr><th>Run</th><th>Miles</th></tr>
+        <tr><td>Tempo</td><td>6.2</td></tr>
+        <tr><td>Easy</td><td>4.8</td></tr>
+        <tr><td>Long</td><td>14.0</td></tr>
+      </table>
+    </div>
+  </section>
+
+  <section>
+    <h2>Inputs and buttons</h2>
+    <div class="card row">
+      <input placeholder="Workout name">
+      <button>Save run</button>
+      <button class="ghost">Cancel</button>
+    </div>
+  </section>
+
+  <section>
+    <h2>Empty state</h2>
+    <div class="empty">
+      <b>No runs yet</b>
+      <p>Add one to get started.</p>
+      <button>Log a run</button>
+    </div>
+  </section>
+</main>
+</body>
+</html>
